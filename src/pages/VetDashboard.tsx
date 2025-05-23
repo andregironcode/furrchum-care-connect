@@ -1,6 +1,7 @@
+
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
@@ -113,7 +114,7 @@ const VetDashboard = () => {
                       </Table>
                     </CardContent>
                     <CardFooter>
-                      <Button>View All Appointments</Button>
+                      <Button as={Link} to="/vet-appointments">View All Appointments</Button>
                     </CardFooter>
                   </Card>
                 </div>
@@ -127,10 +128,10 @@ const VetDashboard = () => {
                     <Button className="w-full justify-start">
                       <Users className="mr-2 h-4 w-4" /> Manage Patients
                     </Button>
-                    <Button className="w-full justify-start">
+                    <Button as={Link} to="/vet-appointments" className="w-full justify-start">
                       <Calendar className="mr-2 h-4 w-4" /> Schedule Appointment
                     </Button>
-                    <Button className="w-full justify-start">
+                    <Button as={Link} to="/vet-prescriptions" className="w-full justify-start">
                       <FileText className="mr-2 h-4 w-4" /> Update Records
                     </Button>
                   </CardContent>

@@ -39,9 +39,9 @@ const VetSidebar = () => {
     },
     {
       title: "Prescription",
-      path: "/prescriptions",
+      path: "/vet-prescriptions",
       icon: FileText,
-      isActive: isActive("/prescriptions"),
+      isActive: isActive("/vet-prescriptions"),
     },
     {
       title: "Profile",
