@@ -49,18 +49,31 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signUp({
+      // First, sign up the user with Supabase Auth
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
-        options: {
-          data: {
-            full_name: fullName,
-            user_type: userType,
-          },
-        },
       });
 
       if (error) throw error;
+
+      // If signup successful, manually create the profile
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert({
+            id: data.user.id,
+            full_name: fullName,
+            user_type: userType
+          });
+
+        if (profileError) {
+          console.error('Error creating profile:', profileError);
+          toast.error('Account created but profile setup failed');
+          return;
+        }
+      }
+
       toast.success('Account created! Check your email for confirmation.');
     } catch (error: any) {
       toast.error(error.message || 'Error creating account');
