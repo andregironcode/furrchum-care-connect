@@ -49,38 +49,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      // First, create the user with auth - without metadata
+      // Simple approach - using metadata directly to avoid the two-step process
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
+        options: {
+          data: {
+            full_name: fullName,
+            user_type: userType
+          },
+        }
       });
 
       if (error) throw error;
       
-      // If user created successfully, create the profile separately
-      if (data.user) {
-        try {
-          const { error: profileError } = await supabase
-            .from('profiles')
-            .insert([
-              { 
-                id: data.user.id,
-                full_name: fullName,
-                user_type: userType
-              }
-            ]);
-            
-          if (profileError) {
-            console.error('Profile creation error:', profileError);
-            toast.error('Account created but profile setup failed. Please contact support.');
-          } else {
-            toast.success('Account created! Check your email for confirmation.');
-          }
-        } catch (profileError: any) {
-          console.error('Profile creation exception:', profileError);
-          toast.error('Account created but profile setup failed. Please contact support.');
-        }
-      }
+      toast.success('Account created! Check your email for confirmation.');
     } catch (error: any) {
       console.error('Signup error:', error);
       toast.error(error.message || 'Error creating account');

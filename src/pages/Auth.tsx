@@ -9,11 +9,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Navigate, useNavigate } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 const Auth = () => {
-  const { user, isLoading, signIn, signUp } = useAuth();
-  const navigate = useNavigate();
+  const { user, isLoading } = useAuth();
   
   // Redirect if already authenticated
   if (user && !isLoading) {
@@ -34,6 +34,7 @@ const Auth = () => {
 const AuthTabs = () => {
   const [activeTab, setActiveTab] = useState<'signin' | 'signup'>('signin');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
 
@@ -54,12 +55,14 @@ const AuthTabs = () => {
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     
     try {
       await signIn(signInData.email, signInData.password);
       navigate('/');
-    } catch (error) {
+    } catch (error: any) {
       console.error(error);
+      setError(error.message || 'Failed to sign in');
     } finally {
       setIsSubmitting(false);
     }
@@ -68,6 +71,7 @@ const AuthTabs = () => {
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+    setError(null);
     
     try {
       await signUp(
@@ -76,9 +80,17 @@ const AuthTabs = () => {
         signUpData.fullName, 
         signUpData.userType
       );
+      
+      // Switch to sign in tab after successful signup
       setActiveTab('signin');
-    } catch (error) {
+      setSignInData({
+        email: signUpData.email,
+        password: signUpData.password
+      });
+      
+    } catch (error: any) {
       console.error(error);
+      setError(error.message || 'Failed to create account');
     } finally {
       setIsSubmitting(false);
     }
@@ -93,6 +105,13 @@ const AuthTabs = () => {
         </CardDescription>
       </CardHeader>
       <CardContent className="pt-4">
+        {error && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
         <Tabs value={activeTab} onValueChange={(value) => setActiveTab(value as 'signin' | 'signup')} className="w-full">
           <TabsList className="grid w-full grid-cols-2 mb-8">
             <TabsTrigger value="signin">Sign In</TabsTrigger>
