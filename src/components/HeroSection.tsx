@@ -1,11 +1,8 @@
-
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { PhoneCall, Calendar, Shield } from 'lucide-react';
-
 const HeroSection = () => {
-  return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-primary to-primary-400 py-24 sm:py-32">
+  return <div className="relative overflow-hidden bg-gradient-to-br from-primary to-primary-400 py-24 sm:py-32">
       <div className="absolute inset-0 bg-pattern opacity-10"></div>
       <div className="absolute top-0 left-0 right-0 h-32 bg-gradient-to-b from-white/20 to-transparent"></div>
       <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-white/20 to-transparent"></div>
@@ -25,18 +22,11 @@ const HeroSection = () => {
           </p>
 
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-            <Button 
-              size="lg" 
-              className="bg-accent hover:bg-accent/90 text-white font-semibold px-8 py-6 text-lg h-auto"
-            >
+            <Button size="lg" className="bg-accent hover:bg-accent/90 text-white font-semibold px-8 py-6 text-lg h-auto">
               <PhoneCall className="w-5 h-5 mr-2" /> Book Vet Consultation
             </Button>
             
-            <Button 
-              size="lg" 
-              variant="outline" 
-              className="border-2 border-white text-white hover:bg-white/20 hover:border-white px-8 py-6 text-lg h-auto font-semibold"
-            >
+            <Button size="lg" variant="outline" className="border-2 border-white text-white hover:border-white px-8 py-6 text-lg h-auto font-semibold bg-white/[0.28]">
               <Shield className="w-5 h-5 mr-2" /> Emergency Care
             </Button>
           </div>
@@ -55,10 +45,9 @@ const HeroSection = () => {
               </CardContent>
             </Card>
 
-            <Card 
-              className="bg-white/80 backdrop-blur-sm border-none shadow-lg hover:shadow-xl transition-all duration-300 animate-fade-in group overflow-hidden" 
-              style={{ animationDelay: '0.1s' }}
-            >
+            <Card className="bg-white/80 backdrop-blur-sm border-none shadow-lg hover:shadow-xl transition-all duration-300 animate-fade-in group overflow-hidden" style={{
+            animationDelay: '0.1s'
+          }}>
               <CardContent className="p-8 text-center relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-transparent to-primary/5 pointer-events-none"></div>
                 <div className="relative z-10">
@@ -71,10 +60,9 @@ const HeroSection = () => {
               </CardContent>
             </Card>
 
-            <Card 
-              className="bg-white/80 backdrop-blur-sm border-none shadow-lg hover:shadow-xl transition-all duration-300 animate-fade-in group overflow-hidden" 
-              style={{ animationDelay: '0.2s' }}
-            >
+            <Card className="bg-white/80 backdrop-blur-sm border-none shadow-lg hover:shadow-xl transition-all duration-300 animate-fade-in group overflow-hidden" style={{
+            animationDelay: '0.2s'
+          }}>
               <CardContent className="p-8 text-center relative">
                 <div className="absolute inset-0 bg-gradient-to-br from-transparent to-primary/5 pointer-events-none"></div>
                 <div className="relative z-10">
@@ -89,8 +77,6 @@ const HeroSection = () => {
           </div>
         </div>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default HeroSection;
