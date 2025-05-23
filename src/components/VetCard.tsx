@@ -46,8 +46,8 @@ const VetCard = ({
               </span>
             </div>
             <div>
-              <h3 className="font-semibold text-gray-900">{name}</h3>
-              <p className="text-sm text-gray-600">{specialization}</p>
+              <h3 className="font-semibold text-accent-600">{name}</h3>
+              <p className="text-sm text-accent-400">{specialization}</p>
             </div>
           </div>
           <div className={`w-3 h-3 rounded-full ${availabilityColor[availability]}`}></div>
@@ -56,17 +56,17 @@ const VetCard = ({
       
       <CardContent className="space-y-4">
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Experience</span>
-          <span className="font-medium">{experience} years</span>
+          <span className="text-accent-400">Experience</span>
+          <span className="font-medium text-accent-600">{experience} years</span>
         </div>
         
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Rating</span>
+          <span className="text-accent-400">Rating</span>
           <div className="flex items-center space-x-1">
-            <span className="font-medium">{rating}</span>
+            <span className="font-medium text-accent-600">{rating}</span>
             <div className="flex">
               {[...Array(5)].map((_, i) => (
-                <span key={i} className={`text-sm ${i < Math.floor(rating) ? 'text-yellow-400' : 'text-gray-300'}`}>
+                <span key={i} className={`text-sm ${i < Math.floor(rating) ? 'text-primary' : 'text-gray-300'}`}>
                   ⭐
                 </span>
               ))}
@@ -75,7 +75,7 @@ const VetCard = ({
         </div>
         
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-600">Consultation Fee</span>
+          <span className="text-accent-400">Consultation Fee</span>
           <span className="font-semibold text-primary">${fee}</span>
         </div>
         

@@ -23,33 +23,33 @@ export default {
 				sans: ['Inter', 'system-ui', 'sans-serif'],
 			},
 			colors: {
-				// Furrchum Brand Colors
+				// Updated Furrchum Brand Colors based on user request
 				primary: {
-					DEFAULT: '#F39BAE', // Warm pink
-					50: '#FDF2F8',
-					100: '#FCE7F3',
-					200: '#FBCFE8',
-					300: '#F9A8D4',
-					400: '#F472B6',
-					500: '#F39BAE',
-					600: '#EC4899',
-					700: '#DB2777',
-					800: '#BE185D',
-					900: '#9D174D',
+					DEFAULT: '#FF8F30', // primaryBlue
+					50: '#FFF5ED',
+					100: '#FFEBD5',
+					200: '#FED6AC',
+					300: '#FDC283',
+					400: '#FDB67F', // primaryBlueLight
+					500: '#FF8F30',
+					600: '#ff7500', // secondaryBlue
+					700: '#E06400',
+					800: '#BD5300',
+					900: '#A04700',
 					foreground: '#FFFFFF'
 				},
 				accent: {
-					DEFAULT: '#4B90A6', // Sky blue
-					50: '#F0F9FF',
-					100: '#E0F2FE',
-					200: '#BAE6FD',
-					300: '#7DD3FC',
-					400: '#38BDF8',
-					500: '#4B90A6',
-					600: '#0EA5E9',
-					700: '#0284C7',
-					800: '#0369A1',
-					900: '#0C4A6E',
+					DEFAULT: '#d67b4b', // boldPurple
+					50: '#FDF5F0',
+					100: '#F9E6DC',
+					200: '#F0CDBA',
+					300: '#E7B498',
+					400: '#dba284', // lightPurple
+					500: '#d67b4b',
+					600: '#C56235',
+					700: '#A6522D',
+					800: '#884425',
+					900: '#6A361D',
 					foreground: '#FFFFFF'
 				},
 				cream: {

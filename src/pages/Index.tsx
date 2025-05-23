@@ -16,9 +16,9 @@ const Index = () => {
       <section className="py-20 bg-gradient-to-b from-cream-50 to-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-[#4e2a14] mb-4">How Furrchum Works</h2>
+            <h2 className="text-4xl font-bold text-accent-600 mb-4">How Furrchum Works</h2>
             <div className="w-24 h-1 bg-primary mx-auto mb-6 rounded-full"></div>
-            <p className="text-[#4e2a14]/80 max-w-2xl mx-auto text-lg">
+            <p className="text-accent-600/80 max-w-2xl mx-auto text-lg">
               Getting quality vet care for your pet has never been easier. Follow these simple steps:
             </p>
           </div>
@@ -62,7 +62,7 @@ const Index = () => {
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-[#4e2a14]/80">{item.description}</p>
+                  <p className="text-accent-600/80">{item.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -74,9 +74,9 @@ const Index = () => {
       <section className="py-20 bg-gradient-to-b from-white to-primary/5">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-[#4e2a14] mb-4">Why Pet Owners Choose Furrchum</h2>
+            <h2 className="text-4xl font-bold text-accent-600 mb-4">Why Pet Owners Choose Furrchum</h2>
             <div className="w-24 h-1 bg-accent mx-auto mb-6 rounded-full"></div>
-            <p className="text-[#4e2a14]/80 max-w-2xl mx-auto text-lg">
+            <p className="text-accent-600/80 max-w-2xl mx-auto text-lg">
               Join thousands of satisfied pet parents who trust us with their furry family members
             </p>
           </div>
@@ -110,8 +110,8 @@ const Index = () => {
                     <span className="text-2xl">{feature.icon}</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-[#4e2a14] text-xl mb-2 group-hover:text-accent transition-colors">{feature.title}</h3>
-                    <p className="text-[#4e2a14]/80">{feature.description}</p>
+                    <h3 className="font-semibold text-accent-600 text-xl mb-2 group-hover:text-primary transition-colors">{feature.title}</h3>
+                    <p className="text-accent-600/80">{feature.description}</p>
                   </div>
                 </div>
               ))}
@@ -124,8 +124,8 @@ const Index = () => {
                   <div className="w-24 h-24 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-8 shadow-lg">
                     <span className="text-4xl">🐕</span>
                   </div>
-                  <h3 className="text-3xl font-bold text-[#4e2a14] mb-6 text-center">Ready to Get Started?</h3>
-                  <p className="text-[#4e2a14]/80 mb-8 text-center text-lg">
+                  <h3 className="text-3xl font-bold text-accent-600 mb-6 text-center">Ready to Get Started?</h3>
+                  <p className="text-accent-600/80 mb-8 text-center text-lg">
                     Give your pet the care they deserve with professional veterinary consultations
                   </p>
                   <Button 
@@ -149,9 +149,9 @@ const Index = () => {
       <section className="py-20 bg-gradient-to-b from-primary/5 to-cream-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-[#4e2a14] mb-4">What Pet Parents Say</h2>
+            <h2 className="text-4xl font-bold text-accent-600 mb-4">What Pet Parents Say</h2>
             <div className="w-24 h-1 bg-primary mx-auto mb-6 rounded-full"></div>
-            <p className="text-[#4e2a14]/80 max-w-2xl mx-auto text-lg">
+            <p className="text-accent-600/80 max-w-2xl mx-auto text-lg">
               Real stories from real pet owners who've experienced the Furrchum difference
             </p>
           </div>
@@ -183,8 +183,8 @@ const Index = () => {
                   <div className="w-16 h-16 bg-accent/20 rounded-full flex items-center justify-center mx-auto mb-6">
                     <span className="text-3xl">{item.image}</span>
                   </div>
-                  <p className="text-[#4e2a14]/80 italic mb-6">"{item.quote}"</p>
-                  <p className="font-semibold text-[#4e2a14]">{item.name}</p>
+                  <p className="text-accent-600/80 italic mb-6">"{item.quote}"</p>
+                  <p className="font-semibold text-accent-600">{item.name}</p>
                   <p className="text-primary text-sm">{item.pet}</p>
                 </CardContent>
               </Card>
@@ -196,8 +196,8 @@ const Index = () => {
       {/* Footer CTA */}
       <section className="py-16 bg-gradient-to-b from-cream-50 to-cream-100">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl font-bold text-[#4e2a14] mb-6">Ready to Experience Better Pet Healthcare?</h2>
-          <p className="text-[#4e2a14]/80 mb-8 text-lg">
+          <h2 className="text-3xl font-bold text-accent-600 mb-6">Ready to Experience Better Pet Healthcare?</h2>
+          <p className="text-accent-600/80 mb-8 text-lg">
             Join thousands of pet parents who've discovered the convenience of veterinary telemedicine
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -210,7 +210,7 @@ const Index = () => {
             <Button 
               size="lg" 
               variant="outline" 
-              className="border-[#4e2a14] text-[#4e2a14] hover:bg-[#4e2a14] hover:text-white px-8 py-6 text-lg h-auto"
+              className="border-accent text-accent hover:bg-accent hover:text-white px-8 py-6 text-lg h-auto"
             >
               Learn More
             </Button>

@@ -11,7 +11,7 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   
   return (
-    <nav className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-[#4e2a14]/10 shadow-sm">
+    <nav className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-primary/10 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-20">
           <div className="flex items-center space-x-3">
@@ -20,13 +20,13 @@ const Navbar = () => {
               alt="Furrchum Logo" 
               className="h-12 w-auto" 
             />
-            <span className="font-bold text-[#4e2a14] text-xl hidden sm:inline-block">Furrchum</span>
+            <span className="font-bold text-accent-600 text-xl hidden sm:inline-block">Furrchum</span>
           </div>
           
           <div className="hidden md:flex items-center space-x-8">
-            <a href="/" className="text-[#4e2a14] hover:text-primary font-medium transition-colors">Home</a>
-            <a href="/vets" className="text-[#4e2a14] hover:text-primary font-medium transition-colors">Find Vets</a>
-            <a href="/records" className="text-[#4e2a14] hover:text-primary font-medium transition-colors">Health Records</a>
+            <a href="/" className="text-accent-600 hover:text-primary font-medium transition-colors">Home</a>
+            <a href="/vets" className="text-accent-600 hover:text-primary font-medium transition-colors">Find Vets</a>
+            <a href="/records" className="text-accent-600 hover:text-primary font-medium transition-colors">Health Records</a>
           </div>
 
           <div className="flex items-center space-x-4">
@@ -38,7 +38,7 @@ const Navbar = () => {
               </DialogTrigger>
               <DialogContent className="sm:max-w-md bg-white">
                 <DialogHeader>
-                  <DialogTitle className="text-center text-2xl text-[#4e2a14]">Welcome to Furrchum</DialogTitle>
+                  <DialogTitle className="text-center text-2xl text-accent-600">Welcome to Furrchum</DialogTitle>
                 </DialogHeader>
                 <Tabs defaultValue="signin" className="w-full">
                   <TabsList className="grid w-full grid-cols-2 mb-6">
@@ -90,7 +90,7 @@ const Navbar = () => {
           <div className="md:hidden">
             <button 
               onClick={() => setIsOpen(!isOpen)} 
-              className="text-[#4e2a14] hover:text-primary transition-colors"
+              className="text-accent-600 hover:text-primary transition-colors"
               aria-label="Toggle menu"
             >
               {isOpen ? 
@@ -102,11 +102,11 @@ const Navbar = () => {
         </div>
 
         {isOpen && (
-          <div className="md:hidden py-4 border-t border-[#4e2a14]/10 animate-fade-in">
+          <div className="md:hidden py-4 border-t border-primary/10 animate-fade-in">
             <div className="flex flex-col space-y-4">
-              <a href="/" className="text-[#4e2a14] hover:text-primary py-2 font-medium">Home</a>
-              <a href="/vets" className="text-[#4e2a14] hover:text-primary py-2 font-medium">Find Vets</a>
-              <a href="/records" className="text-[#4e2a14] hover:text-primary py-2 font-medium">Health Records</a>
+              <a href="/" className="text-accent-600 hover:text-primary py-2 font-medium">Home</a>
+              <a href="/vets" className="text-accent-600 hover:text-primary py-2 font-medium">Find Vets</a>
+              <a href="/records" className="text-accent-600 hover:text-primary py-2 font-medium">Health Records</a>
             </div>
           </div>
         )}
