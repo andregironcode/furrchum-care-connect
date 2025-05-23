@@ -40,8 +40,11 @@ const App = () => (
               </RouteGuard>
             } />
             <Route path="/my-pets" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/my-vets" element={<RouteGuard><NotFound /></RouteGuard>} />
             <Route path="/appointments" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/settings" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/prescriptions" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/payments" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/profile" element={<RouteGuard><NotFound /></RouteGuard>} />
             
             {/* Vet Routes */}
             <Route path="/vet-dashboard" element={

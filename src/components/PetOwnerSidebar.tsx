@@ -14,7 +14,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { PawPrint, Calendar, FileText, Settings, Home, LogOut } from "lucide-react";
+import { Home, PawPrint, User, Calendar, FileText, CreditCard, LogOut } from "lucide-react";
 
 const PetOwnerSidebar = () => {
   const { signOut } = useAuth();
@@ -26,44 +26,56 @@ const PetOwnerSidebar = () => {
   
   const menuItems = [
     {
-      title: "Home",
+      title: "Dashboard",
       path: "/dashboard",
       icon: Home,
       isActive: isActive("/dashboard"),
     },
     {
-      title: "My Pets",
+      title: "My Pet",
       path: "/my-pets",
       icon: PawPrint,
       isActive: isActive("/my-pets"),
     },
     {
-      title: "Appointments",
+      title: "My Vet",
+      path: "/my-vets",
+      icon: User,
+      isActive: isActive("/my-vets"),
+    },
+    {
+      title: "Appointment",
       path: "/appointments",
       icon: Calendar,
       isActive: isActive("/appointments"),
     },
     {
-      title: "Health Records",
-      path: "/records",
+      title: "Prescription",
+      path: "/prescriptions",
       icon: FileText,
-      isActive: isActive("/records"),
+      isActive: isActive("/prescriptions"),
     },
     {
-      title: "Settings",
-      path: "/settings",
-      icon: Settings,
-      isActive: isActive("/settings"),
+      title: "Payment",
+      path: "/payments",
+      icon: CreditCard,
+      isActive: isActive("/payments"),
+    },
+    {
+      title: "Profile",
+      path: "/profile",
+      icon: User,
+      isActive: isActive("/profile"),
     },
   ];
 
   return (
-    <Sidebar>
+    <Sidebar className="bg-orange-500">
       <SidebarHeader>
         <div className="p-4">
           <Link to="/" className="flex justify-center">
             <img 
-              src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" 
+              src="/lovable-uploads/f1cfd8b6-2fe1-42e8-bfa4-ea65c031203f.png" 
               alt="Furrchum Logo" 
               className="h-28 w-28" 
             />
@@ -73,7 +85,6 @@ const PetOwnerSidebar = () => {
       
       <SidebarContent>
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -82,8 +93,9 @@ const PetOwnerSidebar = () => {
                     asChild
                     isActive={item.isActive}
                     tooltip={item.title}
+                    className="text-white hover:bg-orange-400"
                   >
-                    <Link to={item.path} className="text-accent hover:text-primary">
+                    <Link to={item.path}>
                       <item.icon className="h-5 w-5" />
                       <span>{item.title}</span>
                     </Link>
@@ -99,7 +111,7 @@ const PetOwnerSidebar = () => {
         <div className="p-2">
           <Button 
             variant="outline" 
-            className="w-full justify-start text-white bg-accent hover:bg-accent/80"
+            className="w-full justify-start text-white border-white hover:bg-orange-400"
             onClick={signOut}
           >
             <LogOut className="mr-2 h-5 w-5" />

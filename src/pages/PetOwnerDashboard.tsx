@@ -6,10 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, Plus, Calendar, FileText } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Calendar, FileText, User, PawPrint, CreditCard } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
-import Footer from '@/components/Footer';
 
 const PetOwnerDashboard = () => {
   const { user, isLoading } = useAuth();
@@ -85,61 +84,120 @@ const PetOwnerDashboard = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {/* My Pets Card */}
-                <Card>
-                  <CardHeader>
+                <Card className="border-orange-300 shadow-md">
+                  <CardHeader className="bg-orange-50">
                     <CardTitle className="flex items-center gap-2">
+                      <PawPrint className="h-6 w-6 text-orange-500" />
                       <span className="text-xl">My Pets</span>
                     </CardTitle>
                     <CardDescription>Manage your pets' information</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-6">
                     <p className="text-muted-foreground">Add your pets to manage their health records and appointments.</p>
                   </CardContent>
                   <CardFooter>
-                    <Button className="w-full">
+                    <Button className="w-full bg-orange-500 hover:bg-orange-600">
                       <Plus className="mr-2 h-4 w-4" /> Add Pet
                     </Button>
                   </CardFooter>
                 </Card>
 
-                {/* Appointments Card */}
-                <Card>
-                  <CardHeader>
+                {/* My Vet Card */}
+                <Card className="border-orange-300 shadow-md">
+                  <CardHeader className="bg-orange-50">
                     <CardTitle className="flex items-center gap-2">
+                      <User className="h-6 w-6 text-orange-500" />
+                      <span className="text-xl">My Vet</span>
+                    </CardTitle>
+                    <CardDescription>Your veterinarians</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <p className="text-muted-foreground">Find and connect with veterinarians for your pets.</p>
+                  </CardContent>
+                  <CardFooter>
+                    <Button className="w-full bg-orange-500 hover:bg-orange-600">
+                      <User className="mr-2 h-4 w-4" /> Find Vet
+                    </Button>
+                  </CardFooter>
+                </Card>
+
+                {/* Appointments Card */}
+                <Card className="border-orange-300 shadow-md">
+                  <CardHeader className="bg-orange-50">
+                    <CardTitle className="flex items-center gap-2">
+                      <Calendar className="h-6 w-6 text-orange-500" />
                       <span className="text-xl">Appointments</span>
                     </CardTitle>
                     <CardDescription>Schedule vet appointments</CardDescription>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="pt-6">
                     <p className="text-muted-foreground">Schedule and manage veterinary appointments for your pets.</p>
                   </CardContent>
                   <CardFooter>
-                    <Button className="w-full">
+                    <Button className="w-full bg-orange-500 hover:bg-orange-600">
                       <Calendar className="mr-2 h-4 w-4" /> Schedule Appointment
                     </Button>
                   </CardFooter>
                 </Card>
 
-                {/* Health Records Card */}
-                <Card>
-                  <CardHeader>
+                {/* Prescription Card */}
+                <Card className="border-orange-300 shadow-md">
+                  <CardHeader className="bg-orange-50">
                     <CardTitle className="flex items-center gap-2">
-                      <span className="text-xl">Health Records</span>
+                      <FileText className="h-6 w-6 text-orange-500" />
+                      <span className="text-xl">Prescriptions</span>
                     </CardTitle>
-                    <CardDescription>View your pets' health history</CardDescription>
+                    <CardDescription>View your pets' prescriptions</CardDescription>
                   </CardHeader>
-                  <CardContent>
-                    <p className="text-muted-foreground">Access vaccination records, medical history, and treatment plans.</p>
+                  <CardContent className="pt-6">
+                    <p className="text-muted-foreground">Access and manage prescriptions for your pets' treatments.</p>
                   </CardContent>
                   <CardFooter>
-                    <Button className="w-full">
-                      <FileText className="mr-2 h-4 w-4" /> View Records
+                    <Button className="w-full bg-orange-500 hover:bg-orange-600">
+                      <FileText className="mr-2 h-4 w-4" /> View Prescriptions
+                    </Button>
+                  </CardFooter>
+                </Card>
+
+                {/* Payment Card */}
+                <Card className="border-orange-300 shadow-md">
+                  <CardHeader className="bg-orange-50">
+                    <CardTitle className="flex items-center gap-2">
+                      <CreditCard className="h-6 w-6 text-orange-500" />
+                      <span className="text-xl">Payments</span>
+                    </CardTitle>
+                    <CardDescription>Manage your payment information</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <p className="text-muted-foreground">View billing history and manage payment methods.</p>
+                  </CardContent>
+                  <CardFooter>
+                    <Button className="w-full bg-orange-500 hover:bg-orange-600">
+                      <CreditCard className="mr-2 h-4 w-4" /> View Payments
+                    </Button>
+                  </CardFooter>
+                </Card>
+
+                {/* Profile Card */}
+                <Card className="border-orange-300 shadow-md">
+                  <CardHeader className="bg-orange-50">
+                    <CardTitle className="flex items-center gap-2">
+                      <User className="h-6 w-6 text-orange-500" />
+                      <span className="text-xl">Profile</span>
+                    </CardTitle>
+                    <CardDescription>Manage your profile</CardDescription>
+                  </CardHeader>
+                  <CardContent className="pt-6">
+                    <p className="text-muted-foreground">Update your personal information and account settings.</p>
+                  </CardContent>
+                  <CardFooter>
+                    <Button className="w-full bg-orange-500 hover:bg-orange-600">
+                      <User className="mr-2 h-4 w-4" /> Edit Profile
                     </Button>
                   </CardFooter>
                 </Card>
               </div>
             </main>
-            <Footer />
           </div>
         </SidebarInset>
       </div>
