@@ -10,6 +10,9 @@ import HealthRecords from "./pages/HealthRecords";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
 import { AuthProvider } from "./context/AuthContext";
+import PetOwnerDashboard from "./pages/PetOwnerDashboard";
+import VetDashboard from "./pages/VetDashboard";
+import RouteGuard from "./components/RouteGuard";
 
 const queryClient = new QueryClient();
 
@@ -25,6 +28,19 @@ const App = () => (
             <Route path="/vets" element={<VetDirectory />} />
             <Route path="/records" element={<HealthRecords />} />
             <Route path="/auth" element={<Auth />} />
+            
+            {/* Protected Routes */}
+            <Route path="/dashboard" element={
+              <RouteGuard>
+                <PetOwnerDashboard />
+              </RouteGuard>
+            } />
+            <Route path="/vet-dashboard" element={
+              <RouteGuard>
+                <VetDashboard />
+              </RouteGuard>
+            } />
+            
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
