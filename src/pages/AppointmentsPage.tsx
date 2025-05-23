@@ -1,83 +1,115 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
+import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
+import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, Plus, Calendar, Clock, VideoIcon } from 'lucide-react';
-import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
-import PetOwnerSidebar from '@/components/PetOwnerSidebar';
-import { format } from 'date-fns';
+import { format, parseISO, isToday, isFuture, isPast } from 'date-fns';
+import { Loader2, AlertCircle, Calendar, Clock, MapPin, Check, X, PlusCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Badge } from '@/components/ui/badge';
+import { toast } from 'sonner';
 
-// Mock data for appointments until the database table is created
-const mockAppointments = [
-  {
-    id: '1',
-    vet_name: 'Dr. Sarah Johnson',
-    pet_name: 'Max',
-    date: new Date(2025, 5, 28, 14, 30),
-    status: 'upcoming',
-    type: 'check-up',
-    notes: 'Regular check-up and vaccinations'
-  },
-  {
-    id: '2',
-    vet_name: 'Dr. Michael Chen',
-    pet_name: 'Luna',
-    date: new Date(2025, 5, 30, 10, 0),
-    status: 'upcoming',
-    type: 'consultation',
-    notes: 'Discuss dietary requirements and weight management'
-  },
-  {
-    id: '3',
-    vet_name: 'Dr. Amanda Lopez',
-    pet_name: 'Max',
-    date: new Date(2025, 4, 15, 11, 30),
-    status: 'completed',
-    type: 'check-up',
-    notes: 'Annual check-up completed. All vaccinations up to date.'
-  }
-];
+interface AppointmentType {
+  id: string;
+  vet_id: string;
+  pet_id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  consultation_type: string;
+  status: string;
+  notes: string | null;
+  created_at: string;
+  vet_profiles: {
+    first_name: string;
+    last_name: string;
+    specialization: string;
+    image_url: string | null;
+  };
+  pets: {
+    name: string;
+    type: string;
+    breed: string | null;
+  };
+}
 
 const AppointmentsPage = () => {
   const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+  const [appointments, setAppointments] = useState<AppointmentType[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [appointments, setAppointments] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState('upcoming');
 
   useEffect(() => {
-    const fetchAppointments = async () => {
-      try {
-        if (user) {
-          // In a real implementation, we would fetch from Supabase
-          // Since the 'appointments' table doesn't exist yet, we'll use mock data
-          setAppointments(mockAppointments);
-          
-          // This comment explains what the real implementation would look like:
-          // const { data, error } = await supabase
-          //   .from('appointments')
-          //   .select('*, vets(*), pets(*)')
-          //   .eq('user_id', user.id)
-          //   .order('date', { ascending: true });
-          //     
-          // if (error) throw error;
-          // setAppointments(data || []);
-        }
-      } catch (error: any) {
-        console.error('Error fetching appointments:', error);
-        setError(error.message || 'Failed to fetch appointments');
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (!isLoading) {
+    if (user) {
       fetchAppointments();
     }
-  }, [user, isLoading]);
+  }, [user]);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoading(true);
+      const { data, error } = await supabase
+        .from('bookings')
+        .select(`
+          *,
+          vet_profiles(first_name, last_name, specialization, image_url),
+          pets(name, type, breed)
+        `)
+        .eq('pet_owner_id', user?.id);
+
+      if (error) throw error;
+      
+      setAppointments(data || []);
+    } catch (error) {
+      console.error("Error fetching appointments:", error);
+      setError("Failed to load appointments");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const cancelAppointment = async (appointmentId: string) => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'canceled' })
+        .eq('id', appointmentId)
+        .eq('pet_owner_id', user?.id); // Security check
+
+      if (error) throw error;
+      
+      // Update the local state
+      setAppointments(appointments.map(app => 
+        app.id === appointmentId ? { ...app, status: 'canceled' } : app
+      ));
+      
+      toast.success("Appointment canceled successfully");
+    } catch (error) {
+      console.error("Error canceling appointment:", error);
+      toast.error("Failed to cancel appointment");
+    }
+  };
+
+  const filteredAppointments = appointments.filter(appointment => {
+    const appointmentDate = parseISO(`${appointment.booking_date}T${appointment.start_time}`);
+    
+    if (activeTab === 'upcoming') {
+      return (isFuture(appointmentDate) || isToday(appointmentDate)) && appointment.status !== 'canceled';
+    } else if (activeTab === 'past') {
+      return isPast(appointmentDate) && !isToday(appointmentDate) && appointment.status !== 'canceled';
+    } else if (activeTab === 'canceled') {
+      return appointment.status === 'canceled';
+    }
+    
+    return true;
+  });
 
   if (isLoading || loading) {
     return (
@@ -91,9 +123,6 @@ const AppointmentsPage = () => {
     return <Navigate to="/auth" />;
   }
 
-  const upcomingAppointments = appointments.filter(app => app.status === 'upcoming');
-  const pastAppointments = appointments.filter(app => app.status === 'completed' || app.status === 'cancelled');
-
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -106,8 +135,11 @@ const AppointmentsPage = () => {
                   <SidebarTrigger />
                   <h1 className="text-2xl font-bold">My Appointments</h1>
                 </div>
-                <Button className="bg-primary hover:bg-primary-600">
-                  <Plus className="mr-2 h-4 w-4" /> Schedule Appointment
+                <Button 
+                  className="bg-primary hover:bg-primary/90" 
+                  onClick={() => navigate("/vets")}
+                >
+                  <PlusCircle className="mr-2 h-4 w-4" /> Book New Appointment
                 </Button>
               </div>
             </header>
@@ -119,34 +151,33 @@ const AppointmentsPage = () => {
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
               )}
-
-              <Tabs defaultValue="upcoming" className="w-full">
-                <TabsList className="w-full bg-primary-100 mb-4 h-12">
-                  <TabsTrigger value="upcoming" className="text-lg flex-1">Upcoming</TabsTrigger>
-                  <TabsTrigger value="past" className="text-lg flex-1">Past</TabsTrigger>
+              
+              <Tabs 
+                defaultValue="upcoming" 
+                value={activeTab} 
+                onValueChange={setActiveTab} 
+                className="w-full"
+              >
+                <TabsList className="grid w-full grid-cols-3 mb-8">
+                  <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                  <TabsTrigger value="past">Past</TabsTrigger>
+                  <TabsTrigger value="canceled">Canceled</TabsTrigger>
                 </TabsList>
                 
-                <TabsContent value="upcoming">
-                  {upcomingAppointments.length > 0 ? (
+                <TabsContent value={activeTab}>
+                  {filteredAppointments.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {upcomingAppointments.map((appointment) => (
-                        <AppointmentCard key={appointment.id} appointment={appointment} />
+                      {filteredAppointments.map((appointment) => (
+                        <AppointmentCard 
+                          key={appointment.id} 
+                          appointment={appointment} 
+                          onCancel={() => cancelAppointment(appointment.id)}
+                          showCancelButton={activeTab === 'upcoming'}
+                        />
                       ))}
                     </div>
                   ) : (
-                    <EmptyAppointmentState type="upcoming" />
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="past">
-                  {pastAppointments.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                      {pastAppointments.map((appointment) => (
-                        <AppointmentCard key={appointment.id} appointment={appointment} />
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyAppointmentState type="past" />
+                    <EmptyState activeTab={activeTab} />
                   )}
                 </TabsContent>
               </Tabs>
@@ -158,87 +189,150 @@ const AppointmentsPage = () => {
   );
 };
 
-// Appointment Card Component
-const AppointmentCard = ({ appointment }: { appointment: any }) => {
-  const isPast = appointment.status === 'completed' || appointment.status === 'cancelled';
+const AppointmentCard = ({ 
+  appointment, 
+  onCancel,
+  showCancelButton
+}: { 
+  appointment: AppointmentType; 
+  onCancel: () => void;
+  showCancelButton: boolean;
+}) => {
+  const appointmentDate = new Date(`${appointment.booking_date}T${appointment.start_time}`);
+  const formattedDate = format(appointmentDate, 'EEEE, MMMM d, yyyy');
+  const formattedTime = `${format(parseISO(`2000-01-01T${appointment.start_time}`), 'h:mm a')} - ${format(parseISO(`2000-01-01T${appointment.end_time}`), 'h:mm a')}`;
   
+  const getStatusColor = (status: string) => {
+    switch(status) {
+      case 'confirmed': return 'bg-green-500';
+      case 'pending': return 'bg-yellow-500';
+      case 'canceled': return 'bg-red-500';
+      case 'completed': return 'bg-blue-500';
+      default: return 'bg-gray-500';
+    }
+  };
+
+  const isToday = new Date().toDateString() === appointmentDate.toDateString();
+  const isUpcoming = appointmentDate > new Date();
+
   return (
-    <Card className={`hover:shadow-lg transition-shadow border-${isPast ? 'gray' : 'primary'}-300`}>
-      <CardHeader className={`bg-${isPast ? 'gray' : 'primary'}-50 flex flex-col space-y-2`}>
+    <Card className="overflow-hidden hover:shadow-md transition-shadow">
+      <div className={`h-2 ${getStatusColor(appointment.status)}`}></div>
+      <CardHeader className="pb-2">
         <div className="flex justify-between items-start">
-          <CardTitle className="text-xl">{appointment.type}</CardTitle>
-          <div className={`px-2 py-1 rounded-md text-xs font-medium 
-            ${appointment.status === 'upcoming' ? 'bg-primary-100 text-primary-800' : 
-              appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
-              'bg-gray-100 text-gray-800'}`}>
-            {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+          <div>
+            <CardTitle className="text-lg">Dr. {appointment.vet_profiles.first_name} {appointment.vet_profiles.last_name}</CardTitle>
+            <div className="text-sm text-muted-foreground">{appointment.vet_profiles.specialization}</div>
           </div>
-        </div>
-        <div className="text-sm text-gray-600">
-          <p>With: {appointment.vet_name}</p>
-          <p>For: {appointment.pet_name}</p>
+          <Badge variant={
+            appointment.status === 'confirmed' ? 'success' :
+            appointment.status === 'pending' ? 'warning' :
+            appointment.status === 'canceled' ? 'destructive' :
+            'default'
+          }>
+            {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
+          </Badge>
         </div>
       </CardHeader>
-      <CardContent className="pt-6">
-        <div className="flex items-center gap-3 mb-4">
-          <Calendar className={`h-5 w-5 ${isPast ? 'text-gray-500' : 'text-primary-500'}`} />
-          <div>
-            <p className="text-sm text-gray-500">Date</p>
-            <p className="font-medium">{format(new Date(appointment.date), 'EEEE, MMMM d, yyyy')}</p>
+      <CardContent className="space-y-4 pb-4">
+        <div className="flex flex-col gap-2">
+          <div className="flex items-center">
+            <Calendar className="h-4 w-4 mr-2 text-primary" />
+            <span>{formattedDate} {isToday && <Badge variant="outline">Today</Badge>}</span>
+          </div>
+          <div className="flex items-center">
+            <Clock className="h-4 w-4 mr-2 text-primary" />
+            <span>{formattedTime}</span>
+          </div>
+          <div className="flex items-center">
+            <MapPin className="h-4 w-4 mr-2 text-primary" />
+            <span>In-Person Consultation</span>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Clock className={`h-5 w-5 ${isPast ? 'text-gray-500' : 'text-primary-500'}`} />
-          <div>
-            <p className="text-sm text-gray-500">Time</p>
-            <p className="font-medium">{format(new Date(appointment.date), 'h:mm a')}</p>
+        
+        <div className="pt-2 border-t">
+          <div className="font-medium mb-1">Pet:</div>
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{appointment.pets.name}</span>
+            <span className="text-sm text-muted-foreground">
+              {appointment.pets.breed ? `${appointment.pets.breed} ${appointment.pets.type}` : appointment.pets.type}
+            </span>
           </div>
         </div>
         
         {appointment.notes && (
-          <div className="mt-4 pt-4 border-t border-gray-200">
-            <p className="text-sm text-gray-500 mb-1">Notes</p>
+          <div className="pt-2 border-t">
+            <div className="font-medium mb-1">Notes:</div>
             <p className="text-sm">{appointment.notes}</p>
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-end gap-2">
-        {!isPast && (
-          <>
-            <Button variant="outline" className="border-primary-300 text-primary-600">Reschedule</Button>
-            <Button className="bg-primary hover:bg-primary-600">
-              <VideoIcon className="mr-2 h-4 w-4" /> Join Call
-            </Button>
-          </>
-        )}
-        {isPast && (
-          <Button variant="outline" className="border-gray-300 text-gray-600">View Details</Button>
-        )}
-      </CardFooter>
+      
+      {showCancelButton && appointment.status !== 'canceled' && (
+        <CardFooter className="pt-0">
+          <Button 
+            variant="outline" 
+            className="w-full text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600"
+            onClick={onCancel}
+          >
+            <X className="h-4 w-4 mr-2" /> Cancel Appointment
+          </Button>
+        </CardFooter>
+      )}
     </Card>
   );
 };
 
-// Empty State Component
-const EmptyAppointmentState = ({ type = "upcoming" }: { type: string }) => {
+const EmptyState = ({ activeTab }: { activeTab: string }) => {
+  const navigate = useNavigate();
+  
+  const getEmptyStateMessage = () => {
+    switch(activeTab) {
+      case 'upcoming':
+        return {
+          title: "No Upcoming Appointments",
+          description: "You don't have any upcoming appointments scheduled. Book a consultation with one of our veterinarians.",
+          buttonText: "Book Appointment",
+          icon: <Calendar className="h-12 w-12" />
+        };
+      case 'past':
+        return {
+          title: "No Past Appointments",
+          description: "You haven't had any appointments yet. Book your first consultation with one of our veterinarians.",
+          buttonText: "Book Your First Appointment",
+          icon: <Clock className="h-12 w-12" />
+        };
+      case 'canceled':
+        return {
+          title: "No Canceled Appointments",
+          description: "You don't have any canceled appointments.",
+          buttonText: "Book New Appointment",
+          icon: <X className="h-12 w-12" />
+        };
+      default:
+        return {
+          title: "No Appointments Found",
+          description: "You don't have any appointments yet.",
+          buttonText: "Book Appointment",
+          icon: <AlertCircle className="h-12 w-12" />
+        };
+    }
+  };
+  
+  const { title, description, buttonText, icon } = getEmptyStateMessage();
+  
   return (
-    <div className="flex flex-col items-center justify-center bg-primary-50 rounded-lg p-12">
-      <div className="bg-primary-100 rounded-full p-6 mb-4">
-        <Calendar className="h-12 w-12 text-primary-500" />
+    <div className="flex flex-col items-center justify-center bg-primary-50 rounded-lg p-12 text-center">
+      <div className="bg-primary-100 rounded-full p-6 mb-4 text-primary-600">
+        {icon}
       </div>
-      <h3 className="text-xl font-medium text-gray-700 mb-2">
-        {type === "upcoming" ? "No Upcoming Appointments" : "No Past Appointments"}
-      </h3>
-      <p className="text-gray-500 mb-4 text-center max-w-md">
-        {type === "upcoming" 
-          ? "You don't have any scheduled appointments coming up. Schedule a consultation with a veterinarian."
-          : "You don't have any past appointments yet. Once you complete appointments, they will appear here."}
+      <h3 className="text-xl font-medium text-gray-700 mb-2">{title}</h3>
+      <p className="text-gray-500 mb-6 max-w-md">
+        {description}
       </p>
-      {type === "upcoming" && (
-        <Button className="bg-primary hover:bg-primary-600">
-          <Plus className="mr-2 h-4 w-4" /> Schedule Appointment
-        </Button>
-      )}
+      <Button className="bg-primary hover:bg-primary/90" onClick={() => navigate('/vets')}>
+        <PlusCircle className="mr-2 h-4 w-4" /> {buttonText}
+      </Button>
     </div>
   );
 };

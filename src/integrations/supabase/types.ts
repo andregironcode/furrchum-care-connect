@@ -9,6 +9,66 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bookings: {
+        Row: {
+          booking_date: string
+          consultation_type: string
+          created_at: string
+          end_time: string
+          id: string
+          notes: string | null
+          pet_id: string | null
+          pet_owner_id: string
+          start_time: string
+          status: string
+          updated_at: string
+          vet_id: string
+        }
+        Insert: {
+          booking_date: string
+          consultation_type: string
+          created_at?: string
+          end_time: string
+          id?: string
+          notes?: string | null
+          pet_id?: string | null
+          pet_owner_id: string
+          start_time: string
+          status?: string
+          updated_at?: string
+          vet_id: string
+        }
+        Update: {
+          booking_date?: string
+          consultation_type?: string
+          created_at?: string
+          end_time?: string
+          id?: string
+          notes?: string | null
+          pet_id?: string | null
+          pet_owner_id?: string
+          start_time?: string
+          status?: string
+          updated_at?: string
+          vet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bookings_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bookings_vet_id_fkey"
+            columns: ["vet_id"]
+            isOneToOne: false
+            referencedRelation: "vet_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       medical_records: {
         Row: {
           created_at: string
@@ -151,6 +211,47 @@ export type Database = {
           user_type?: string
         }
         Relationships: []
+      }
+      vet_availability: {
+        Row: {
+          created_at: string
+          day_of_week: number
+          end_time: string
+          id: string
+          is_available: boolean
+          start_time: string
+          updated_at: string
+          vet_id: string
+        }
+        Insert: {
+          created_at?: string
+          day_of_week: number
+          end_time: string
+          id?: string
+          is_available?: boolean
+          start_time: string
+          updated_at?: string
+          vet_id: string
+        }
+        Update: {
+          created_at?: string
+          day_of_week?: number
+          end_time?: string
+          id?: string
+          is_available?: boolean
+          start_time?: string
+          updated_at?: string
+          vet_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vet_availability_vet_id_fkey"
+            columns: ["vet_id"]
+            isOneToOne: false
+            referencedRelation: "vet_profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       vet_profiles: {
         Row: {
