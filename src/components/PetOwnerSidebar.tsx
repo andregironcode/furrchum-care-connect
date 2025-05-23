@@ -32,31 +32,31 @@ const PetOwnerSidebar = () => {
       isActive: isActive("/dashboard"),
     },
     {
-      title: "My Pet",
+      title: "My Pets",
       path: "/my-pets",
       icon: PawPrint,
       isActive: isActive("/my-pets"),
     },
     {
-      title: "My Vet",
+      title: "My Vets",
       path: "/my-vets",
       icon: User,
       isActive: isActive("/my-vets"),
     },
     {
-      title: "Appointment",
+      title: "Appointments",
       path: "/appointments",
       icon: Calendar,
       isActive: isActive("/appointments"),
     },
     {
-      title: "Prescription",
+      title: "Prescriptions",
       path: "/prescriptions",
       icon: FileText,
       isActive: isActive("/prescriptions"),
     },
     {
-      title: "Payment",
+      title: "Payments",
       path: "/payments",
       icon: CreditCard,
       isActive: isActive("/payments"),
@@ -70,7 +70,7 @@ const PetOwnerSidebar = () => {
   ];
 
   return (
-    <Sidebar className="bg-orange-500">
+    <Sidebar className="bg-white border-r shadow-sm">
       <SidebarHeader>
         <div className="p-4">
           <Link to="/" className="flex justify-center">
@@ -94,16 +94,16 @@ const PetOwnerSidebar = () => {
                     isActive={item.isActive}
                     tooltip={item.title}
                     className={`
-                      flex items-center w-full font-medium text-lg
+                      flex items-center w-full font-medium
                       ${item.isActive 
-                        ? "bg-white text-orange-600 font-bold" 
-                        : "bg-orange-600 text-white hover:bg-orange-400"} 
+                        ? "bg-primary/10 text-primary font-bold" 
+                        : "text-gray-700 hover:bg-gray-100"} 
                       transition-colors p-4 rounded-md
                     `}
                   >
                     <Link to={item.path} className="flex items-center gap-3">
-                      <item.icon className="h-6 w-6" />
-                      <span className="text-base lg:text-lg">{item.title}</span>
+                      <item.icon className={`h-5 w-5 ${item.isActive ? "text-primary" : "text-gray-500"}`} />
+                      <span className="text-base">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -117,10 +117,10 @@ const PetOwnerSidebar = () => {
         <div className="p-4">
           <Button 
             variant="outline" 
-            className="w-full justify-start bg-orange-600 text-white text-lg border-white hover:bg-orange-400 p-3"
+            className="w-full justify-start border-gray-200 text-gray-700 hover:bg-gray-100 hover:text-gray-900 p-3"
             onClick={signOut}
           >
-            <LogOut className="mr-3 h-6 w-6" />
+            <LogOut className="mr-3 h-5 w-5" />
             Log Out
           </Button>
         </div>
