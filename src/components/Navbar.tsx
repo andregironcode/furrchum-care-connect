@@ -4,20 +4,13 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-
-  return (
-    <nav className="bg-white/80 backdrop-blur-md border-b border-[#4e2a14] sticky top-0 z-50">
+  return <nav className="bg-white/80 backdrop-blur-md border-b border-[#4e2a14] sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-3">
-            <img 
-              src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" 
-              alt="Furrchum Logo" 
-              className="h-12 w-auto"
-            />
+            <img src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" alt="Furrchum Logo" className="h-12 w-auto" />
           </div>
           
           <div className="hidden md:flex items-center space-x-6">
@@ -79,18 +72,11 @@ const Navbar = () => {
               </DialogContent>
             </Dialog>
             
-            <Button 
-              className="bg-[#4b90a6] hover:bg-[#4b90a6]/90 text-white font-medium"
-            >
-              Emergency Consult
-            </Button>
+            <Button className="bg-[#4b90a6] hover:bg-[#4b90a6]/90 text-white font-medium">Vet Login</Button>
           </div>
 
           <div className="md:hidden">
-            <button
-              onClick={() => setIsOpen(!isOpen)}
-              className="text-[#4e2a14] hover:text-[#f39bae]"
-            >
+            <button onClick={() => setIsOpen(!isOpen)} className="text-[#4e2a14] hover:text-[#f39bae]">
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
@@ -98,18 +84,14 @@ const Navbar = () => {
           </div>
         </div>
 
-        {isOpen && (
-          <div className="md:hidden pb-4">
+        {isOpen && <div className="md:hidden pb-4">
             <div className="flex flex-col space-y-2">
               <a href="/" className="text-[#4e2a14] hover:text-[#f39bae] py-2">Home</a>
               <a href="/vets" className="text-[#4e2a14] hover:text-[#f39bae] py-2">Find Vets</a>
               <a href="/records" className="text-[#4e2a14] hover:text-[#f39bae] py-2">Health Records</a>
             </div>
-          </div>
-        )}
+          </div>}
       </div>
-    </nav>
-  );
+    </nav>;
 };
-
 export default Navbar;
