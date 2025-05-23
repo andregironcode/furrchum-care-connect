@@ -49,33 +49,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      // First, sign up the user with Supabase Auth
+      // First, create the user with auth - without metadata
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
       });
 
       if (error) throw error;
-
-      // If signup successful, manually create the profile
+      
+      // If user created successfully, create the profile separately
       if (data.user) {
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: data.user.id,
-            full_name: fullName,
-            user_type: userType
-          });
-
-        if (profileError) {
-          console.error('Error creating profile:', profileError);
-          toast.error('Account created but profile setup failed');
-          return;
+        try {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .insert([
+              { 
+                id: data.user.id,
+                full_name: fullName,
+                user_type: userType
+              }
+            ]);
+            
+          if (profileError) {
+            console.error('Profile creation error:', profileError);
+            toast.error('Account created but profile setup failed. Please contact support.');
+          } else {
+            toast.success('Account created! Check your email for confirmation.');
+          }
+        } catch (profileError: any) {
+          console.error('Profile creation exception:', profileError);
+          toast.error('Account created but profile setup failed. Please contact support.');
         }
       }
-
-      toast.success('Account created! Check your email for confirmation.');
     } catch (error: any) {
+      console.error('Signup error:', error);
       toast.error(error.message || 'Error creating account');
       throw error;
     } finally {
