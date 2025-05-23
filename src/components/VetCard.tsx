@@ -2,6 +2,9 @@
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
 
 interface VetCardProps {
   id: string;
@@ -10,12 +13,15 @@ interface VetCardProps {
   experience: number;
   rating: number;
   fee: number;
-  availability: 'Available Now' | 'Available Soon' | 'Scheduled Only';
+  availability: string;
   languages: string[];
   image?: string;
+  distance?: number;
+  zipCode?: string;
 }
 
 const VetCard = ({ 
+  id,
   name, 
   specialization, 
   experience, 
@@ -23,12 +29,34 @@ const VetCard = ({
   fee, 
   availability, 
   languages,
-  image 
+  image,
+  distance,
+  zipCode
 }: VetCardProps) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
   const availabilityColor = {
     'Available Now': 'bg-green-500',
     'Available Soon': 'bg-yellow-500',
     'Scheduled Only': 'bg-gray-500'
+  };
+  
+  const handleBookNow = () => {
+    if (!user) {
+      toast.error("Please login to book a consultation", {
+        action: {
+          label: "Login",
+          onClick: () => navigate("/auth")
+        }
+      });
+      return;
+    }
+    navigate(`/booking/${id}`);
+  };
+
+  const handleViewProfile = () => {
+    navigate(`/vet-details/${id}`);
   };
 
   return (
@@ -36,21 +64,25 @@ const VetCard = ({
       <CardHeader className="pb-3">
         <div className="flex items-start justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center">
-              <span className="text-white font-semibold text-lg">
-                {image ? (
-                  <img src={image} alt={name} className="w-full h-full rounded-full object-cover" />
-                ) : (
-                  name.split(' ').map(n => n[0]).join('')
-                )}
-              </span>
+            <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center overflow-hidden">
+              {image ? (
+                <img src={image} alt={name} className="w-full h-full object-cover" />
+              ) : (
+                <span className="text-white font-semibold text-lg">
+                  {name.split(' ').map(n => n[0]).join('')}
+                </span>
+              )}
             </div>
             <div>
               <h3 className="font-semibold text-accent-600">{name}</h3>
               <p className="text-sm text-accent-400">{specialization}</p>
             </div>
           </div>
-          <div className={`w-3 h-3 rounded-full ${availabilityColor[availability]}`}></div>
+          <div className={`w-3 h-3 rounded-full ${
+            availability === 'Available Now' ? 'bg-green-500' : 
+            availability === 'Available Soon' ? 'bg-yellow-500' : 
+            'bg-gray-500'
+          }`}></div>
         </div>
       </CardHeader>
       
@@ -79,6 +111,15 @@ const VetCard = ({
           <span className="font-semibold text-primary">${fee}</span>
         </div>
         
+        {distance !== undefined && zipCode && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-accent-400">Distance</span>
+            <span className="font-medium text-accent-600">
+              {distance.toFixed(1)} miles ({zipCode})
+            </span>
+          </div>
+        )}
+        
         <div className="space-y-2">
           <Badge variant="secondary" className="text-xs">
             {availability}
@@ -96,6 +137,7 @@ const VetCard = ({
           <Button 
             className="flex-1 bg-primary hover:bg-primary/90 text-white"
             size="sm"
+            onClick={handleBookNow}
           >
             Book Now
           </Button>
@@ -103,6 +145,7 @@ const VetCard = ({
             variant="outline" 
             size="sm"
             className="border-accent text-accent hover:bg-accent hover:text-white"
+            onClick={handleViewProfile}
           >
             View Profile
           </Button>

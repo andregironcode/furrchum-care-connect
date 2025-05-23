@@ -5,31 +5,153 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useState } from 'react';
+import { Textarea } from "@/components/ui/textarea";
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+import { toast } from 'sonner';
+import { Loader2 } from 'lucide-react';
+import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
+import { useForm } from 'react-hook-form';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
+
+// Define form schema using zod
+const profileSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  consultationFee: z.string().refine(val => !isNaN(Number(val)), { 
+    message: "Must be a valid number"
+  }),
+  gender: z.string().optional(),
+  specialization: z.string().optional(),
+  yearsExperience: z.string().refine(val => val === '' || !isNaN(Number(val)), {
+    message: "Must be a valid number if provided" 
+  }).optional(),
+  email: z.string().email("Invalid email address"),
+  phone: z.string().optional(),
+  languages: z.string().optional(),
+  zipCode: z.string().optional(),
+  about: z.string().optional(),
+});
+
+type ProfileFormValues = z.infer<typeof profileSchema>;
 
 const VetProfilePage = () => {
   const [activeTab, setActiveTab] = useState("account");
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const { user } = useAuth();
   
-  // Sample form data
-  const [formData, setFormData] = useState({
-    firstName: "Dr sarah",
-    lastName: "khan",
-    price: "650",
-    gender: "Female",
-    specialist: "Veterinary Physician",
-    email: "drsarah@gmail.com",
-    phone: "7890654321"
+  // Initialize form
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileSchema),
+    defaultValues: {
+      firstName: "",
+      lastName: "",
+      consultationFee: "",
+      gender: "Select Gender",
+      specialization: "",
+      yearsExperience: "",
+      email: "",
+      phone: "",
+      languages: "",
+      zipCode: "",
+      about: "",
+    }
   });
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-  };
+  // Fetch existing profile data
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchProfile = async () => {
+      setLoading(true);
+      
+      try {
+        // First get email from auth user
+        const { data: userData, error: userError } = await supabase.auth.getUser();
+        
+        if (userError) throw userError;
+        
+        if (userData?.user?.email) {
+          form.setValue('email', userData.user.email);
+        }
+        
+        // Then fetch vet profile data
+        const { data, error } = await supabase
+          .from('vet_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        if (error && error.code !== 'PGRST116') {
+          // PGRST116 means no rows returned, which is expected for new users
+          throw error;
+        }
+        
+        if (data) {
+          // Populate the form with existing data
+          form.setValue('firstName', data.first_name);
+          form.setValue('lastName', data.last_name);
+          form.setValue('consultationFee', data.consultation_fee?.toString() || '');
+          form.setValue('gender', data.gender || 'Select Gender');
+          form.setValue('specialization', data.specialization || '');
+          form.setValue('yearsExperience', data.years_experience?.toString() || '');
+          form.setValue('phone', data.phone || '');
+          form.setValue('languages', data.languages ? data.languages.join(', ') : '');
+          form.setValue('zipCode', data.zip_code || '');
+          form.setValue('about', data.about || '');
+        }
+      } catch (error: any) {
+        console.error('Error fetching profile:', error);
+        toast.error('Error loading profile data');
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchProfile();
+  }, [user, form]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    // Process form submission here
-    console.log("Form submitted:", formData);
+  const onSubmit = async (data: ProfileFormValues) => {
+    if (!user) {
+      toast.error('You must be logged in to update your profile');
+      return;
+    }
+    
+    setSaving(true);
+    
+    try {
+      const profileData = {
+        id: user.id,
+        first_name: data.firstName,
+        last_name: data.lastName,
+        consultation_fee: data.consultationFee ? parseFloat(data.consultationFee) : null,
+        gender: data.gender === 'Select Gender' ? null : data.gender,
+        specialization: data.specialization || null,
+        years_experience: data.yearsExperience ? parseInt(data.yearsExperience) : null,
+        languages: data.languages ? data.languages.split(',').map(lang => lang.trim()) : null,
+        zip_code: data.zipCode || null,
+        about: data.about || null,
+        // We'll use a default value for availability
+        availability: 'Available Soon',
+      };
+      
+      const { error } = await supabase
+        .from('vet_profiles')
+        .upsert(profileData)
+        .select();
+      
+      if (error) throw error;
+      
+      toast.success('Profile updated successfully');
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile: ' + error.message);
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -48,163 +170,269 @@ const VetProfilePage = () => {
             </header>
             
             <main className="flex-1 container mx-auto px-4 py-6">
-              <div className="bg-white rounded-lg shadow-md overflow-hidden p-6">
-                <Tabs defaultValue="account" value={activeTab} onValueChange={setActiveTab}>
-                  <TabsList className="grid w-full grid-cols-5 mb-8">
-                    <TabsTrigger value="account" className="data-[state=active]:bg-primary data-[state=active]:text-white">
-                      Account Information
-                    </TabsTrigger>
-                    <TabsTrigger value="professional" className="data-[state=active]:bg-primary data-[state=active]:text-white">
-                      Professional Details
-                    </TabsTrigger>
-                    <TabsTrigger value="clinic" className="data-[state=active]:bg-primary data-[state=active]:text-white">
-                      Clinic Information
-                    </TabsTrigger>
-                    <TabsTrigger value="banking" className="data-[state=active]:bg-primary data-[state=active]:text-white">
-                      Banking Details
-                    </TabsTrigger>
-                    <TabsTrigger value="documents" className="data-[state=active]:bg-primary data-[state=active]:text-white">
-                      Documents
-                    </TabsTrigger>
-                  </TabsList>
-                  
-                  <TabsContent value="account">
-                    <form onSubmit={handleSubmit} className="space-y-6">
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div className="space-y-2">
-                          <Label htmlFor="firstName" className="text-sm font-medium">
-                            First Name <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="firstName"
-                            name="firstName"
-                            value={formData.firstName}
-                            onChange={handleChange}
-                            className="w-full"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="lastName" className="text-sm font-medium">
-                            Last Name <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="lastName"
-                            name="lastName"
-                            value={formData.lastName}
-                            onChange={handleChange}
-                            className="w-full"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="price" className="text-sm font-medium">
-                            Price <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="price"
-                            name="price"
-                            value={formData.price}
-                            onChange={handleChange}
-                            className="w-full"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="gender" className="text-sm font-medium">
-                            Gender <span className="text-red-500">*</span>
-                          </Label>
-                          <select 
-                            id="gender" 
-                            name="gender"
-                            value={formData.gender}
-                            onChange={(e) => setFormData({...formData, gender: e.target.value})}
-                            className="w-full h-10 px-3 py-2 bg-background border border-input rounded-md"
-                          >
-                            <option value="Female">Female</option>
-                            <option value="Male">Male</option>
-                            <option value="Other">Other</option>
-                          </select>
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="specialist" className="text-sm font-medium">
-                            Specialist <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="specialist"
-                            name="specialist"
-                            value={formData.specialist}
-                            onChange={handleChange}
-                            className="w-full"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="email" className="text-sm font-medium">
-                            Email Address <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="email"
-                            name="email"
-                            type="email"
-                            value={formData.email}
-                            onChange={handleChange}
-                            className="w-full"
-                          />
-                        </div>
-                        
-                        <div className="space-y-2">
-                          <Label htmlFor="phone" className="text-sm font-medium">
-                            Phone Number <span className="text-red-500">*</span>
-                          </Label>
-                          <Input
-                            id="phone"
-                            name="phone"
-                            value={formData.phone}
-                            onChange={handleChange}
-                            className="w-full"
-                          />
-                        </div>
-                      </div>
-                    </form>
+              {loading ? (
+                <div className="flex justify-center items-center py-10">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : (
+                <div className="bg-white rounded-lg shadow-md overflow-hidden p-6">
+                  <Tabs defaultValue="account" value={activeTab} onValueChange={setActiveTab}>
+                    <TabsList className="grid w-full grid-cols-1 md:grid-cols-5 mb-8">
+                      <TabsTrigger value="account" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+                        Account Information
+                      </TabsTrigger>
+                      <TabsTrigger value="professional" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+                        Professional Details
+                      </TabsTrigger>
+                      <TabsTrigger value="clinic" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+                        Clinic Information
+                      </TabsTrigger>
+                      <TabsTrigger value="banking" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+                        Banking Details
+                      </TabsTrigger>
+                      <TabsTrigger value="documents" className="data-[state=active]:bg-primary data-[state=active]:text-white">
+                        Documents
+                      </TabsTrigger>
+                    </TabsList>
                     
-                    <div className="flex gap-4 mt-8">
-                      <Button className="bg-primary hover:bg-primary/90 text-white">Account Info</Button>
-                      <Button className="bg-primary hover:bg-primary/90 text-white">Professional Info</Button>
-                      <Button className="bg-primary hover:bg-primary/90 text-white">Clinic Info</Button>
-                      <Button className="bg-primary hover:bg-primary/90 text-white">Banking Info</Button>
-                      <Button className="bg-primary hover:bg-primary/90 text-white">Documents</Button>
-                      <Button className="bg-primary hover:bg-primary/90 text-white">Reset Password</Button>
-                      <Button variant="outline" className="text-primary border-primary hover:bg-primary hover:text-white">Cancel</Button>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="professional">
-                    <div className="p-4 text-center">
-                      <p className="text-muted-foreground">Professional details will be shown here.</p>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="clinic">
-                    <div className="p-4 text-center">
-                      <p className="text-muted-foreground">Clinic information will be shown here.</p>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="banking">
-                    <div className="p-4 text-center">
-                      <p className="text-muted-foreground">Banking details will be shown here.</p>
-                    </div>
-                  </TabsContent>
-                  
-                  <TabsContent value="documents">
-                    <div className="p-4 text-center">
-                      <p className="text-muted-foreground">Documents will be shown here.</p>
-                    </div>
-                  </TabsContent>
-                </Tabs>
-              </div>
+                    <Form {...form}>
+                      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                        <TabsContent value="account">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <FormField
+                              control={form.control}
+                              name="firstName"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    First Name <span className="text-red-500">*</span>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input {...field} className="w-full" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="lastName"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    Last Name <span className="text-red-500">*</span>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input {...field} className="w-full" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="consultationFee"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    Consultation Fee <span className="text-red-500">*</span>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input {...field} className="w-full" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="gender"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    Gender <span className="text-red-500">*</span>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <select 
+                                      {...field}
+                                      className="w-full h-10 px-3 py-2 bg-background border border-input rounded-md"
+                                    >
+                                      <option value="Select Gender" disabled>Select Gender</option>
+                                      <option value="Female">Female</option>
+                                      <option value="Male">Male</option>
+                                      <option value="Other">Other</option>
+                                    </select>
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="specialization"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    Specialization <span className="text-red-500">*</span>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input {...field} className="w-full" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="email"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    Email Address <span className="text-red-500">*</span>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input {...field} type="email" className="w-full" readOnly />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="phone"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    Phone Number <span className="text-red-500">*</span>
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input {...field} className="w-full" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="yearsExperience"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    Years Experience
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input {...field} type="number" className="w-full" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="languages"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    Languages (comma separated)
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="English, Spanish, etc." className="w-full" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <FormField
+                              control={form.control}
+                              name="zipCode"
+                              render={({ field }) => (
+                                <FormItem className="space-y-2">
+                                  <FormLabel className="text-sm font-medium">
+                                    Zip Code
+                                  </FormLabel>
+                                  <FormControl>
+                                    <Input {...field} className="w-full" />
+                                  </FormControl>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+                            
+                            <div className="col-span-1 md:col-span-2">
+                              <FormField
+                                control={form.control}
+                                name="about"
+                                render={({ field }) => (
+                                  <FormItem className="space-y-2">
+                                    <FormLabel className="text-sm font-medium">
+                                      About Yourself
+                                    </FormLabel>
+                                    <FormControl>
+                                      <Textarea 
+                                        {...field} 
+                                        className="w-full min-h-[100px]" 
+                                        placeholder="Share your professional background, specialties, and approach to veterinary care"
+                                      />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+                            </div>
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="professional">
+                          <div className="p-4 text-center">
+                            <p className="text-muted-foreground">Professional details will be shown here in future updates.</p>
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="clinic">
+                          <div className="p-4 text-center">
+                            <p className="text-muted-foreground">Clinic information will be shown here in future updates.</p>
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="banking">
+                          <div className="p-4 text-center">
+                            <p className="text-muted-foreground">Banking details will be shown here in future updates.</p>
+                          </div>
+                        </TabsContent>
+                        
+                        <TabsContent value="documents">
+                          <div className="p-4 text-center">
+                            <p className="text-muted-foreground">Documents will be shown here in future updates.</p>
+                          </div>
+                        </TabsContent>
+                        
+                        <div className="flex flex-wrap gap-4 mt-8">
+                          <Button 
+                            type="submit" 
+                            className="bg-primary hover:bg-primary/90 text-white"
+                            disabled={saving}
+                          >
+                            {saving ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                            Save Profile
+                          </Button>
+                          <Button variant="outline" type="button" className="text-primary border-primary hover:bg-primary hover:text-white">
+                            Cancel
+                          </Button>
+                        </div>
+                      </form>
+                    </Form>
+                  </Tabs>
+                </div>
+              )}
             </main>
           </div>
         </SidebarInset>

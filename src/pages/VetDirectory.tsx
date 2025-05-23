@@ -1,3 +1,4 @@
+
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -6,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { MapPin, Search } from 'lucide-react';
+import { MapPin, Search, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 
 // Mapping of zip codes to coordinates (latitude, longitude)
 // This is a simplified version - in a production app, you'd use a geocoding API
@@ -36,11 +38,11 @@ interface Vet {
   experience: number;
   rating: number;
   fee: number;
-  availability: 'Available Now' | 'Available Soon' | 'Scheduled Only';
+  availability: string;
   languages: string[];
   image: string;
-  location: Coordinate;
-  zipCode: string;
+  location?: Coordinate;
+  zipCode?: string;
   distance?: number; // Make distance optional since it's added conditionally
 }
 
@@ -67,6 +69,8 @@ const VetDirectory = () => {
   const [availability, setAvailability] = useState('all');
   const [zipCode, setZipCode] = useState('');
   const [searchParams] = useSearchParams();
+  const [vets, setVets] = useState<Vet[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -76,84 +80,61 @@ const VetDirectory = () => {
     if (zipFromUrl) {
       setZipCode(zipFromUrl);
     }
-  }, [searchParams]); // Fixed the useState to useEffect with proper dependency
+  }, [searchParams]);
 
-  // Mock data for vets with location coordinates
-  const vets: Vet[] = [{
-    id: '1',
-    name: 'Dr. Sarah Johnson',
-    specialization: 'General Practice',
-    experience: 8,
-    rating: 4.9,
-    fee: 45,
-    availability: 'Available Now',
-    languages: ['English', 'Spanish'],
-    image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=800&auto=format&fit=crop',
-    location: { lat: 40.748817, lng: -73.985428 }, // NYC
-    zipCode: '10001'
-  }, {
-    id: '2',
-    name: 'Dr. Michael Chen',
-    specialization: 'Emergency Care',
-    experience: 12,
-    rating: 4.8,
-    fee: 65,
-    availability: 'Available Soon',
-    languages: ['English', 'Mandarin'],
-    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&auto=format&fit=crop',
-    location: { lat: 34.052235, lng: -118.243683 }, // LA
-    zipCode: '90012'
-  }, {
-    id: '3',
-    name: 'Dr. Emily Rodriguez',
-    specialization: 'Surgery',
-    experience: 15,
-    rating: 4.9,
-    fee: 80,
-    availability: 'Scheduled Only',
-    languages: ['English', 'Spanish'],
-    image: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=800&auto=format&fit=crop',
-    location: { lat: 41.878113, lng: -87.629799 }, // Chicago
-    zipCode: '60601'
-  }, {
-    id: '4',
-    name: 'Dr. David Kim',
-    specialization: 'Dermatology',
-    experience: 10,
-    rating: 4.7,
-    fee: 55,
-    availability: 'Available Now',
-    languages: ['English', 'Korean'],
-    image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=800&auto=format&fit=crop',
-    location: { lat: 37.773972, lng: -122.431297 }, // San Francisco
-    zipCode: '94102'
-  }, {
-    id: '5',
-    name: 'Dr. Lisa Thompson',
-    specialization: 'Cardiology',
-    experience: 18,
-    rating: 4.9,
-    fee: 90,
-    availability: 'Available Soon',
-    languages: ['English'],
-    image: 'https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=800&auto=format&fit=crop',
-    location: { lat: 47.606209, lng: -122.332069 }, // Seattle
-    zipCode: '98101'
-  }, {
-    id: '6',
-    name: 'Dr. James Wilson',
-    specialization: 'General Practice',
-    experience: 6,
-    rating: 4.6,
-    fee: 40,
-    availability: 'Available Now',
-    languages: ['English', 'French'],
-    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&auto=format&fit=crop',
-    location: { lat: 25.761681, lng: -80.191788 }, // Miami
-    zipCode: '33139'
-  }];
+  // Fetch vets from database
+  useEffect(() => {
+    const fetchVets = async () => {
+      setIsLoading(true);
+      
+      try {
+        const { data, error } = await supabase
+          .from('vet_profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+          
+        if (error) throw error;
+        
+        if (data) {
+          // Transform the database data to match our Vet interface
+          const transformedVets: Vet[] = data.map(vet => {
+            // Get location from zip code if available
+            let location: Coordinate | undefined;
+            if (vet.zip_code && zipCodeCoordinates[vet.zip_code]) {
+              location = zipCodeCoordinates[vet.zip_code];
+            }
+            
+            return {
+              id: vet.id,
+              name: `Dr. ${vet.first_name} ${vet.last_name}`,
+              specialization: vet.specialization || 'General Practice',
+              experience: vet.years_experience || 0,
+              rating: vet.rating || 4.5,
+              fee: vet.consultation_fee || 50,
+              availability: vet.availability || 'Available Soon',
+              languages: vet.languages || ['English'],
+              image: vet.image_url || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&auto=format&fit=crop',
+              zipCode: vet.zip_code,
+              location
+            };
+          });
+          
+          setVets(transformedVets);
+        }
+      } catch (error) {
+        console.error('Error fetching vet profiles:', error);
+        // If we fail to fetch from DB, we'll fall back to the mock data
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    
+    fetchVets();
+  }, []);
   
   const filteredAndSortedVets = useMemo(() => {
+    if (vets.length === 0) return [];
+    
     let filtered = vets.filter(vet => {
       const matchesSearch = vet.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
                            vet.specialization.toLowerCase().includes(searchTerm.toLowerCase());
@@ -167,13 +148,26 @@ const VetDirectory = () => {
       const userLocation = zipCodeCoordinates[zipCode];
       
       // Add distance to each vet
-      filtered = filtered.map(vet => ({
-        ...vet,
-        distance: calculateDistance(userLocation, vet.location)
-      }));
+      filtered = filtered.map(vet => {
+        // If vet has location coordinates, calculate distance
+        if (vet.location) {
+          return {
+            ...vet,
+            distance: calculateDistance(userLocation, vet.location)
+          };
+        }
+        return vet;
+      });
       
-      // Sort by distance
-      filtered.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
+      // Sort by distance (only for vets with location data)
+      filtered.sort((a, b) => {
+        if (a.distance !== undefined && b.distance !== undefined) {
+          return a.distance - b.distance;
+        }
+        if (a.distance !== undefined) return -1;
+        if (b.distance !== undefined) return 1;
+        return 0;
+      });
     }
     
     return filtered;
@@ -192,6 +186,17 @@ const VetDirectory = () => {
     navigate(`/booking/${vetId}`);
   };
   
+  // Get unique specializations from actual vets data
+  const specializations = useMemo(() => {
+    const specialSet = new Set<string>();
+    vets.forEach(vet => {
+      if (vet.specialization) {
+        specialSet.add(vet.specialization);
+      }
+    });
+    return Array.from(specialSet);
+  }, [vets]);
+  
   return <div className="min-h-screen bg-neutral-50">
       <Navbar />
       
@@ -205,7 +210,12 @@ const VetDirectory = () => {
         <div className="bg-white rounded-lg shadow-md p-6 mb-8">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="md:col-span-2">
-              <Input placeholder="Search by name or specialization..." value={searchTerm} onChange={e => setSearchTerm(e.target.value)} className="w-full" />
+              <Input 
+                placeholder="Search by name or specialization..." 
+                value={searchTerm} 
+                onChange={e => setSearchTerm(e.target.value)} 
+                className="w-full" 
+              />
             </div>
             
             <Select value={specialization} onValueChange={setSpecialization}>
@@ -214,11 +224,9 @@ const VetDirectory = () => {
               </SelectTrigger>
               <SelectContent className="bg-white">
                 <SelectItem value="all">All Specializations</SelectItem>
-                <SelectItem value="General Practice">General Practice</SelectItem>
-                <SelectItem value="Emergency Care">Emergency Care</SelectItem>
-                <SelectItem value="Surgery">Surgery</SelectItem>
-                <SelectItem value="Dermatology">Dermatology</SelectItem>
-                <SelectItem value="Cardiology">Cardiology</SelectItem>
+                {specializations.map(spec => (
+                  <SelectItem key={spec} value={spec}>{spec}</SelectItem>
+                ))}
               </SelectContent>
             </Select>
             
@@ -261,72 +269,98 @@ const VetDirectory = () => {
           
           <div className="mt-4 flex justify-between items-center">
             <span className="text-sm text-slate-600">
-              {filteredAndSortedVets.length} veterinarians found
+              {isLoading ? "Loading veterinarians..." : `${filteredAndSortedVets.length} veterinarians found`}
             </span>
           </div>
         </div>
 
-        {/* Vet Cards Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredAndSortedVets.map(vet => <div key={vet.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-              <div className="h-48 overflow-hidden">
-                <img src={vet.image} alt={`Dr. ${vet.name}`} className="w-full h-full object-cover" />
-              </div>
-              <div className="p-5">
-                <div className="flex justify-between items-start mb-3">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-800">{vet.name}</h3>
-                    <p className="text-emerald-600 text-sm">{vet.specialization}</p>
-                  </div>
-                  <div className="flex items-center bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-xs font-medium">
-                    ★ {vet.rating}
-                  </div>
-                </div>
-                
-                <div className="flex items-center mb-3 text-sm text-slate-700">
-                  <span className="mr-3">{vet.experience} years exp.</span>
-                  <span>${vet.fee}/consultation</span>
-                </div>
-                
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {vet.languages.map(lang => <span key={lang} className="bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded">
-                      {lang}
-                    </span>)}
-                </div>
-                
-                {vet.distance !== undefined && (
-                  <div className="mb-3 text-sm text-slate-700">
-                    <span className="font-medium text-orange-500">
-                      {vet.distance.toFixed(1)} miles away
-                    </span>
-                    <span className="text-xs text-slate-500 ml-2">({vet.zipCode})</span>
-                  </div>
-                )}
-                
-                <div className="flex items-center justify-between">
-                  <div className={`text-sm font-medium ${vet.availability === 'Available Now' ? 'text-emerald-600' : vet.availability === 'Available Soon' ? 'text-amber-600' : 'text-slate-600'}`}>
-                    {vet.availability}
-                  </div>
-                  <Button onClick={() => handleBookNow(vet.id)} className="text-white bg-orange-500 hover:bg-orange-400">
-                    Book Now
-                  </Button>
-                </div>
-              </div>
-            </div>)}
-        </div>
+        {/* Loading State */}
+        {isLoading && (
+          <div className="flex justify-center items-center py-12">
+            <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          </div>
+        )}
 
-        {filteredAndSortedVets.length === 0 && <div className="text-center py-12">
+        {/* Vet Cards Grid */}
+        {!isLoading && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredAndSortedVets.map(vet => (
+              <div key={vet.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="h-48 overflow-hidden">
+                  <img src={vet.image} alt={vet.name} className="w-full h-full object-cover" />
+                </div>
+                <div className="p-5">
+                  <div className="flex justify-between items-start mb-3">
+                    <div>
+                      <h3 className="text-lg font-semibold text-slate-800">{vet.name}</h3>
+                      <p className="text-emerald-600 text-sm">{vet.specialization}</p>
+                    </div>
+                    <div className="flex items-center bg-emerald-50 text-emerald-700 px-2 py-1 rounded text-xs font-medium">
+                      ★ {vet.rating}
+                    </div>
+                  </div>
+                  
+                  <div className="flex items-center mb-3 text-sm text-slate-700">
+                    <span className="mr-3">{vet.experience} years exp.</span>
+                    <span>${vet.fee}/consultation</span>
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 mb-4">
+                    {vet.languages.map(lang => (
+                      <span key={lang} className="bg-slate-100 text-slate-700 text-xs px-2 py-1 rounded">
+                        {lang}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  {vet.distance !== undefined && (
+                    <div className="mb-3 text-sm text-slate-700">
+                      <span className="font-medium text-orange-500">
+                        {vet.distance.toFixed(1)} miles away
+                      </span>
+                      <span className="text-xs text-slate-500 ml-2">({vet.zipCode})</span>
+                    </div>
+                  )}
+                  
+                  <div className="flex items-center justify-between">
+                    <div className={`text-sm font-medium ${
+                      vet.availability === 'Available Now' ? 'text-emerald-600' : 
+                      vet.availability === 'Available Soon' ? 'text-amber-600' : 
+                      'text-slate-600'
+                    }`}>
+                      {vet.availability}
+                    </div>
+                    <Button 
+                      onClick={() => handleBookNow(vet.id)} 
+                      className="text-white bg-orange-500 hover:bg-orange-400"
+                    >
+                      Book Now
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {!isLoading && filteredAndSortedVets.length === 0 && (
+          <div className="text-center py-12">
             <p className="text-slate-600 text-lg">No veterinarians found matching your criteria.</p>
-            <Button className="mt-4 bg-orange-500 hover:bg-orange-400 text-white" onClick={() => {
-          setSearchTerm('');
-          setSpecialization('all');
-          setAvailability('all');
-          setZipCode('');
-        }}>
+            <Button 
+              className="mt-4 bg-orange-500 hover:bg-orange-400 text-white" 
+              onClick={() => {
+                setSearchTerm('');
+                setSpecialization('all');
+                setAvailability('all');
+                setZipCode('');
+              }}
+            >
               Clear Filters
             </Button>
-          </div>}
+          </div>
+        )}
       </div>
     </div>;
 };
+
 export default VetDirectory;

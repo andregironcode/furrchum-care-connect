@@ -152,6 +152,68 @@ export type Database = {
         }
         Relationships: []
       }
+      vet_profiles: {
+        Row: {
+          availability: string | null
+          consultation_fee: number | null
+          created_at: string
+          first_name: string
+          gender: string | null
+          id: string
+          image_url: string | null
+          languages: string[] | null
+          last_name: string
+          location: Json | null
+          rating: number | null
+          specialization: string | null
+          updated_at: string
+          years_experience: number | null
+          zip_code: string | null
+        }
+        Insert: {
+          availability?: string | null
+          consultation_fee?: number | null
+          created_at?: string
+          first_name: string
+          gender?: string | null
+          id: string
+          image_url?: string | null
+          languages?: string[] | null
+          last_name: string
+          location?: Json | null
+          rating?: number | null
+          specialization?: string | null
+          updated_at?: string
+          years_experience?: number | null
+          zip_code?: string | null
+        }
+        Update: {
+          availability?: string | null
+          consultation_fee?: number | null
+          created_at?: string
+          first_name?: string
+          gender?: string | null
+          id?: string
+          image_url?: string | null
+          languages?: string[] | null
+          last_name?: string
+          location?: Json | null
+          rating?: number | null
+          specialization?: string | null
+          updated_at?: string
+          years_experience?: number | null
+          zip_code?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vet_profiles_id_fkey"
+            columns: ["id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
