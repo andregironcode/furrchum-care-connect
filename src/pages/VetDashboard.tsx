@@ -114,7 +114,9 @@ const VetDashboard = () => {
                       </Table>
                     </CardContent>
                     <CardFooter>
-                      <Button as={Link} to="/vet-appointments">View All Appointments</Button>
+                      <Link to="/vet-appointments">
+                        <Button>View All Appointments</Button>
+                      </Link>
                     </CardFooter>
                   </Card>
                 </div>
@@ -128,12 +130,16 @@ const VetDashboard = () => {
                     <Button className="w-full justify-start">
                       <Users className="mr-2 h-4 w-4" /> Manage Patients
                     </Button>
-                    <Button as={Link} to="/vet-appointments" className="w-full justify-start">
-                      <Calendar className="mr-2 h-4 w-4" /> Schedule Appointment
-                    </Button>
-                    <Button as={Link} to="/vet-prescriptions" className="w-full justify-start">
-                      <FileText className="mr-2 h-4 w-4" /> Update Records
-                    </Button>
+                    <Link to="/vet-appointments" className="w-full">
+                      <Button className="w-full justify-start">
+                        <Calendar className="mr-2 h-4 w-4" /> Schedule Appointment
+                      </Button>
+                    </Link>
+                    <Link to="/vet-prescriptions" className="w-full">
+                      <Button className="w-full justify-start">
+                        <FileText className="mr-2 h-4 w-4" /> Update Records
+                      </Button>
+                    </Link>
                   </CardContent>
                 </Card>
               </div>
