@@ -1,35 +1,47 @@
+
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Menu, X } from 'lucide-react';
+
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  return <nav className="bg-white/80 backdrop-blur-md border-b border-[#4e2a14] sticky top-0 z-50">
+  
+  return (
+    <nav className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-[#4e2a14]/10 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
+        <div className="flex justify-between items-center h-20">
           <div className="flex items-center space-x-3">
-            <img src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" alt="Furrchum Logo" className="h-12 w-auto" />
+            <img 
+              src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" 
+              alt="Furrchum Logo" 
+              className="h-12 w-auto" 
+            />
+            <span className="font-bold text-[#4e2a14] text-xl hidden sm:inline-block">Furrchum</span>
           </div>
           
-          <div className="hidden md:flex items-center space-x-6">
-            <a href="/" className="text-[#4e2a14] hover:text-[#f39bae] transition-colors">Home</a>
-            <a href="/vets" className="text-[#4e2a14] hover:text-[#f39bae] transition-colors">Find Vets</a>
-            <a href="/records" className="text-[#4e2a14] hover:text-[#f39bae] transition-colors">Health Records</a>
+          <div className="hidden md:flex items-center space-x-8">
+            <a href="/" className="text-[#4e2a14] hover:text-primary font-medium transition-colors">Home</a>
+            <a href="/vets" className="text-[#4e2a14] hover:text-primary font-medium transition-colors">Find Vets</a>
+            <a href="/records" className="text-[#4e2a14] hover:text-primary font-medium transition-colors">Health Records</a>
           </div>
 
-          <div className="flex items-center space-x-3">
+          <div className="flex items-center space-x-4">
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" className="border-[#f39bae] text-[#f39bae] hover:bg-[#f39bae] hover:text-white">Pet Login</Button>
+                <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white font-medium">
+                  Sign In
+                </Button>
               </DialogTrigger>
-              <DialogContent className="sm:max-w-md">
+              <DialogContent className="sm:max-w-md bg-white">
                 <DialogHeader>
-                  <DialogTitle>Welcome to Furrchum</DialogTitle>
+                  <DialogTitle className="text-center text-2xl text-[#4e2a14]">Welcome to Furrchum</DialogTitle>
                 </DialogHeader>
                 <Tabs defaultValue="signin" className="w-full">
-                  <TabsList className="grid w-full grid-cols-2">
+                  <TabsList className="grid w-full grid-cols-2 mb-6">
                     <TabsTrigger value="signin">Sign In</TabsTrigger>
                     <TabsTrigger value="signup">Sign Up</TabsTrigger>
                   </TabsList>
@@ -42,7 +54,7 @@ const Navbar = () => {
                       <Label htmlFor="password">Password</Label>
                       <Input id="password" type="password" />
                     </div>
-                    <Button className="w-full bg-[#f39bae] hover:bg-[#f39bae]/90">Sign In</Button>
+                    <Button className="w-full bg-primary hover:bg-primary/90">Sign In</Button>
                   </TabsContent>
                   <TabsContent value="signup" className="space-y-4">
                     <div className="space-y-2">
@@ -64,32 +76,43 @@ const Navbar = () => {
                         <option value="vet">Veterinarian</option>
                       </select>
                     </div>
-                    <Button className="w-full bg-[#f39bae] hover:bg-[#f39bae]/90">Create Account</Button>
+                    <Button className="w-full bg-primary hover:bg-primary/90">Create Account</Button>
                   </TabsContent>
                 </Tabs>
               </DialogContent>
             </Dialog>
             
-            <Button className="bg-[#4b90a6] hover:bg-[#4b90a6]/90 text-white font-medium">Vet Login</Button>
+            <Button className="bg-accent hover:bg-accent/90 text-white font-medium">
+              Vet Portal
+            </Button>
           </div>
 
           <div className="md:hidden">
-            <button onClick={() => setIsOpen(!isOpen)} className="text-[#4e2a14] hover:text-[#f39bae]">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+            <button 
+              onClick={() => setIsOpen(!isOpen)} 
+              className="text-[#4e2a14] hover:text-primary transition-colors"
+              aria-label="Toggle menu"
+            >
+              {isOpen ? 
+                <X className="w-6 h-6" /> : 
+                <Menu className="w-6 h-6" />
+              }
             </button>
           </div>
         </div>
 
-        {isOpen && <div className="md:hidden pb-4">
-            <div className="flex flex-col space-y-2">
-              <a href="/" className="text-[#4e2a14] hover:text-[#f39bae] py-2">Home</a>
-              <a href="/vets" className="text-[#4e2a14] hover:text-[#f39bae] py-2">Find Vets</a>
-              <a href="/records" className="text-[#4e2a14] hover:text-[#f39bae] py-2">Health Records</a>
+        {isOpen && (
+          <div className="md:hidden py-4 border-t border-[#4e2a14]/10 animate-fade-in">
+            <div className="flex flex-col space-y-4">
+              <a href="/" className="text-[#4e2a14] hover:text-primary py-2 font-medium">Home</a>
+              <a href="/vets" className="text-[#4e2a14] hover:text-primary py-2 font-medium">Find Vets</a>
+              <a href="/records" className="text-[#4e2a14] hover:text-primary py-2 font-medium">Health Records</a>
             </div>
-          </div>}
+          </div>
+        )}
       </div>
-    </nav>;
+    </nav>
+  );
 };
+
 export default Navbar;
