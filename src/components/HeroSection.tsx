@@ -4,7 +4,7 @@ import { Card, CardContent } from '@/components/ui/card';
 
 const HeroSection = () => {
   return (
-    <div className="relative overflow-hidden bg-gradient-to-br from-cream to-tan-100 py-16 sm:py-24">
+    <div className="relative overflow-hidden bg-gradient-to-br from-tan-100 to-cream py-16 sm:py-24">
       <div 
         className="absolute inset-0 opacity-40"
         style={{
