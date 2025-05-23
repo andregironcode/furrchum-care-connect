@@ -13,6 +13,10 @@ import { AuthProvider } from "./context/AuthContext";
 import PetOwnerDashboard from "./pages/PetOwnerDashboard";
 import VetDashboard from "./pages/VetDashboard";
 import RouteGuard from "./components/RouteGuard";
+import VetAppointmentsPage from "./pages/VetAppointmentsPage";
+import VetPrescriptionsPage from "./pages/VetPrescriptionsPage";
+import VetProfilePage from "./pages/VetProfilePage";
+import VetBillingPage from "./pages/VetBillingPage";
 
 const queryClient = new QueryClient();
 
@@ -45,11 +49,26 @@ const App = () => (
                 <VetDashboard />
               </RouteGuard>
             } />
-            <Route path="/vet-appointments" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/prescriptions" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/vet-profile" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/vet-billing" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/vet-settings" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/vet-appointments" element={
+              <RouteGuard>
+                <VetAppointmentsPage />
+              </RouteGuard>
+            } />
+            <Route path="/prescriptions" element={
+              <RouteGuard>
+                <VetPrescriptionsPage />
+              </RouteGuard>
+            } />
+            <Route path="/vet-profile" element={
+              <RouteGuard>
+                <VetProfilePage />
+              </RouteGuard>
+            } />
+            <Route path="/vet-billing" element={
+              <RouteGuard>
+                <VetBillingPage />
+              </RouteGuard>
+            } />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

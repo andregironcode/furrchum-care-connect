@@ -60,9 +60,13 @@ const VetSidebar = () => {
   return (
     <Sidebar>
       <SidebarHeader>
-        <div className="p-2">
-          <Link to="/" className="block">
-            <h2 className="text-2xl font-bold text-primary">PetCare</h2>
+        <div className="p-4">
+          <Link to="/" className="flex justify-center">
+            <img 
+              src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" 
+              alt="Furrchum Logo" 
+              className="h-28 w-28" 
+            />
           </Link>
         </div>
       </SidebarHeader>
@@ -78,9 +82,10 @@ const VetSidebar = () => {
                     asChild
                     isActive={item.isActive}
                     tooltip={item.title}
+                    className="text-accent hover:text-primary"
                   >
                     <Link to={item.path}>
-                      <item.icon className="h-4 w-4" />
+                      <item.icon className="h-5 w-5" />
                       <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
@@ -95,10 +100,10 @@ const VetSidebar = () => {
         <div className="p-2">
           <Button 
             variant="outline" 
-            className="w-full justify-start text-destructive hover:text-destructive bg-transparent"
+            className="w-full justify-start text-white bg-accent hover:bg-accent/80"
             onClick={signOut}
           >
-            <LogOut className="mr-2 h-4 w-4" />
+            <LogOut className="mr-2 h-5 w-5" />
             Log Out
           </Button>
         </div>
