@@ -22,9 +22,7 @@ const Navbar = () => {
           <div className="flex items-center space-x-3">
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" className="border-[#f39bae] text-[#f39bae] hover:bg-[#f39bae] hover:text-white">
-                  Sign In
-                </Button>
+                <Button variant="outline" className="border-[#f39bae] text-[#f39bae] hover:bg-[#f39bae] hover:text-white">Pet Login</Button>
               </DialogTrigger>
               <DialogContent className="sm:max-w-md">
                 <DialogHeader>
