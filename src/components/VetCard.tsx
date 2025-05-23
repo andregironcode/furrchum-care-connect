@@ -18,6 +18,7 @@ interface VetCardProps {
   image?: string;
   distance?: number;
   zipCode?: string;
+  about?: string;
 }
 
 const VetCard = ({ 
@@ -31,7 +32,8 @@ const VetCard = ({
   languages,
   image,
   distance,
-  zipCode
+  zipCode,
+  about
 }: VetCardProps) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -117,6 +119,12 @@ const VetCard = ({
             <span className="font-medium text-accent-600">
               {distance.toFixed(1)} miles ({zipCode})
             </span>
+          </div>
+        )}
+        
+        {about && (
+          <div className="text-sm text-accent-500 line-clamp-2">
+            {about}
           </div>
         )}
         

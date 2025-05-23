@@ -154,6 +154,7 @@ export type Database = {
       }
       vet_profiles: {
         Row: {
+          about: string | null
           availability: string | null
           consultation_fee: number | null
           created_at: string
@@ -164,6 +165,7 @@ export type Database = {
           languages: string[] | null
           last_name: string
           location: Json | null
+          phone: string | null
           rating: number | null
           specialization: string | null
           updated_at: string
@@ -171,6 +173,7 @@ export type Database = {
           zip_code: string | null
         }
         Insert: {
+          about?: string | null
           availability?: string | null
           consultation_fee?: number | null
           created_at?: string
@@ -181,6 +184,7 @@ export type Database = {
           languages?: string[] | null
           last_name: string
           location?: Json | null
+          phone?: string | null
           rating?: number | null
           specialization?: string | null
           updated_at?: string
@@ -188,6 +192,7 @@ export type Database = {
           zip_code?: string | null
         }
         Update: {
+          about?: string | null
           availability?: string | null
           consultation_fee?: number | null
           created_at?: string
@@ -198,6 +203,7 @@ export type Database = {
           languages?: string[] | null
           last_name?: string
           location?: Json | null
+          phone?: string | null
           rating?: number | null
           specialization?: string | null
           updated_at?: string

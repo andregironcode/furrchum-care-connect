@@ -10,11 +10,12 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Upload, X } from 'lucide-react';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { v4 as uuidv4 } from 'uuid';
 
 // Define form schema using zod
 const profileSchema = z.object({
@@ -41,6 +42,8 @@ const VetProfilePage = () => {
   const [activeTab, setActiveTab] = useState("account");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [profileImage, setProfileImage] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
   const { user } = useAuth();
   
   // Initialize form
@@ -102,6 +105,11 @@ const VetProfilePage = () => {
           form.setValue('languages', data.languages ? data.languages.join(', ') : '');
           form.setValue('zipCode', data.zip_code || '');
           form.setValue('about', data.about || '');
+          
+          // Set profile image if exists
+          if (data.image_url) {
+            setProfileImage(data.image_url);
+          }
         }
       } catch (error: any) {
         console.error('Error fetching profile:', error);
@@ -113,6 +121,47 @@ const VetProfilePage = () => {
     
     fetchProfile();
   }, [user, form]);
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user || !event.target.files || event.target.files.length === 0) {
+      return;
+    }
+    
+    setUploading(true);
+    
+    try {
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/${uuidv4()}.${fileExt}`;
+      
+      // Upload image to Supabase Storage
+      const { data: uploadData, error: uploadError } = await supabase.storage
+        .from('vet-profile-images')
+        .upload(filePath, file);
+        
+      if (uploadError) throw uploadError;
+      
+      // Get the public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('vet-profile-images')
+        .getPublicUrl(filePath);
+        
+      setProfileImage(publicUrl);
+      toast.success('Profile image uploaded successfully');
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload image: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const handleRemoveImage = () => {
+    if (profileImage) {
+      setProfileImage(null);
+      toast.success('Profile image removed');
+    }
+  };
 
   const onSubmit = async (data: ProfileFormValues) => {
     if (!user) {
@@ -134,6 +183,8 @@ const VetProfilePage = () => {
         languages: data.languages ? data.languages.split(',').map(lang => lang.trim()) : null,
         zip_code: data.zipCode || null,
         about: data.about || null,
+        phone: data.phone || null,
+        image_url: profileImage,
         // We'll use a default value for availability
         availability: 'Available Soon',
       };
@@ -198,6 +249,57 @@ const VetProfilePage = () => {
                     <Form {...form}>
                       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                         <TabsContent value="account">
+                          {/* Profile Image Upload */}
+                          <div className="mb-6 flex flex-col items-center">
+                            <div className="relative w-32 h-32 mb-4">
+                              {profileImage ? (
+                                <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-primary">
+                                  <img 
+                                    src={profileImage} 
+                                    alt="Profile" 
+                                    className="w-full h-full object-cover"
+                                  />
+                                  <button 
+                                    type="button"
+                                    onClick={handleRemoveImage}
+                                    className="absolute top-0 right-0 bg-red-500 text-white p-1 rounded-full"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </button>
+                                </div>
+                              ) : (
+                                <div className="w-full h-full rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-4xl text-white font-bold border-4 border-primary">
+                                  {form.watch('firstName') && form.watch('lastName') ? 
+                                    `${form.watch('firstName')[0]}${form.watch('lastName')[0]}` : 'VP'}
+                                </div>
+                              )}
+
+                              {uploading && (
+                                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">
+                                  <Loader2 className="h-8 w-8 animate-spin text-white" />
+                                </div>
+                              )}
+                            </div>
+                            
+                            <div className="flex items-center">
+                              <label 
+                                htmlFor="profileImage" 
+                                className="cursor-pointer flex items-center px-4 py-2 text-sm bg-accent text-white rounded-md hover:bg-accent/90"
+                              >
+                                <Upload className="h-4 w-4 mr-2" />
+                                Upload Photo
+                              </label>
+                              <input 
+                                id="profileImage" 
+                                type="file" 
+                                accept="image/*" 
+                                onChange={handleImageUpload}
+                                disabled={uploading}
+                                className="hidden"
+                              />
+                            </div>
+                          </div>
+
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <FormField
                               control={form.control}
