@@ -93,7 +93,10 @@ const PetOwnerSidebar = () => {
                     asChild
                     isActive={item.isActive}
                     tooltip={item.title}
-                    className="text-white hover:bg-orange-400"
+                    className={`
+                      ${item.isActive ? "bg-white text-orange-600 font-bold" : "text-white font-medium hover:bg-orange-400"} 
+                      transition-colors
+                    `}
                   >
                     <Link to={item.path}>
                       <item.icon className="h-5 w-5" />
