@@ -49,7 +49,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      // Simple approach - using metadata directly to avoid the two-step process
+      // Using metadata to pass user information
       const { data, error } = await supabase.auth.signUp({
         email,
         password,

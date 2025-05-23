@@ -11,6 +11,7 @@ import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const Auth = () => {
   const { user, isLoading } = useAuth();
@@ -201,15 +202,18 @@ const AuthTabs = () => {
 
               <div className="space-y-2">
                 <Label htmlFor="userType">I am a:</Label>
-                <select 
-                  id="userType" 
-                  className="w-full p-2 border rounded-md bg-white"
+                <Select 
                   value={signUpData.userType}
-                  onChange={(e) => setSignUpData({...signUpData, userType: e.target.value as 'pet_owner' | 'vet'})}
+                  onValueChange={(value) => setSignUpData({...signUpData, userType: value as 'pet_owner' | 'vet'})}
                 >
-                  <option value="pet_owner">Pet Owner</option>
-                  <option value="vet">Veterinarian</option>
-                </select>
+                  <SelectTrigger id="userType" className="w-full">
+                    <SelectValue placeholder="Select user type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pet_owner">Pet Owner</SelectItem>
+                    <SelectItem value="vet">Veterinarian</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
 
               <Button 
