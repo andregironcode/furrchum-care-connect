@@ -16,7 +16,7 @@ const HeroSection = () => {
         <div className="text-center">
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-gray-900 mb-6">
             Quality Vet Care for Your
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent"> Furry Friends</span>
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-amber-500"> Furry Friends</span>
           </h1>
           
           <p className="text-xl text-gray-600 mb-8 max-w-3xl mx-auto">
@@ -26,7 +26,7 @@ const HeroSection = () => {
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
             <Button 
               size="lg" 
-              className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-semibold px-8 py-4 text-lg"
+              className="bg-gradient-to-r from-accent to-amber-500 hover:from-accent/90 hover:to-amber-500/90 text-white font-semibold px-8 py-4 text-lg"
             >
               🩺 Book Vet Consultation
             </Button>
@@ -34,7 +34,7 @@ const HeroSection = () => {
             <Button 
               size="lg" 
               variant="outline" 
-              className="border-2 border-primary text-primary hover:bg-primary hover:text-white px-8 py-4 text-lg font-semibold"
+              className="border-2 border-accent text-accent hover:bg-accent hover:text-white px-8 py-4 text-lg font-semibold"
             >
               🚨 Emergency Consult
             </Button>
@@ -43,7 +43,7 @@ const HeroSection = () => {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-16">
             <Card className="bg-white/80 backdrop-blur-sm border-tan-200 hover:shadow-lg transition-all duration-300 animate-fade-in">
               <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-accent to-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl">⚡</span>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Instant Access</h3>
@@ -53,7 +53,7 @@ const HeroSection = () => {
 
             <Card className="bg-white/80 backdrop-blur-sm border-tan-200 hover:shadow-lg transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.1s' }}>
               <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-accent to-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl">👨‍⚕️</span>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Certified Vets</h3>
@@ -63,7 +63,7 @@ const HeroSection = () => {
 
             <Card className="bg-white/80 backdrop-blur-sm border-tan-200 hover:shadow-lg transition-all duration-300 animate-fade-in" style={{ animationDelay: '0.2s' }}>
               <CardContent className="p-6 text-center">
-                <div className="w-16 h-16 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-accent to-amber-500 rounded-full flex items-center justify-center mx-auto mb-4">
                   <span className="text-2xl">💰</span>
                 </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Affordable Care</h3>
