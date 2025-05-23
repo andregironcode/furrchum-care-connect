@@ -53,41 +53,77 @@ export type Database = {
       pets: {
         Row: {
           age: number | null
+          allergies: string | null
           breed: string | null
+          chip_number: string | null
+          color: string | null
           created_at: string
+          diet_type: string | null
+          favorite_activity: string | null
           gender: string | null
           id: string
+          medical_history: string | null
+          medication: string | null
           name: string
           owner_id: string
+          photo_url: string | null
+          special_needs: string | null
           status: string | null
+          temperament: string | null
+          training_level: string | null
           type: string
           updated_at: string
+          vaccination_status: string | null
           weight: number | null
         }
         Insert: {
           age?: number | null
+          allergies?: string | null
           breed?: string | null
+          chip_number?: string | null
+          color?: string | null
           created_at?: string
+          diet_type?: string | null
+          favorite_activity?: string | null
           gender?: string | null
           id?: string
+          medical_history?: string | null
+          medication?: string | null
           name: string
           owner_id: string
+          photo_url?: string | null
+          special_needs?: string | null
           status?: string | null
+          temperament?: string | null
+          training_level?: string | null
           type: string
           updated_at?: string
+          vaccination_status?: string | null
           weight?: number | null
         }
         Update: {
           age?: number | null
+          allergies?: string | null
           breed?: string | null
+          chip_number?: string | null
+          color?: string | null
           created_at?: string
+          diet_type?: string | null
+          favorite_activity?: string | null
           gender?: string | null
           id?: string
+          medical_history?: string | null
+          medication?: string | null
           name?: string
           owner_id?: string
+          photo_url?: string | null
+          special_needs?: string | null
           status?: string | null
+          temperament?: string | null
+          training_level?: string | null
           type?: string
           updated_at?: string
+          vaccination_status?: string | null
           weight?: number | null
         }
         Relationships: []
