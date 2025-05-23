@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -10,7 +9,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Loader2, AlertCircle, Users, Calendar, FileText } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import VetSidebar from '@/components/VetSidebar';
-import Footer from '@/components/Footer';
 
 const VetDashboard = () => {
   const { user, isLoading } = useAuth();
@@ -170,7 +168,6 @@ const VetDashboard = () => {
                 </CardContent>
               </Card>
             </main>
-            <Footer />
           </div>
         </SidebarInset>
       </div>
