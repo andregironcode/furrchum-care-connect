@@ -178,7 +178,7 @@ export default function AddPetForm({ onSuccess, onCancel }: AddPetFormProps) {
   };
 
   return (
-    <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
+    <div className="bg-white p-6 rounded-lg shadow-md w-full mx-auto">
       <div className="flex justify-between items-center mb-6">
         <h2 className="text-2xl font-bold text-gray-800">Add New Pet</h2>
         <Button 
@@ -193,229 +193,331 @@ export default function AddPetForm({ onSuccess, onCancel }: AddPetFormProps) {
 
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-          <div className="flex flex-col items-center mb-4">
-            <div className="rounded-full overflow-hidden w-32 h-32 border-2 border-dashed border-gray-300 flex items-center justify-center mb-2 relative bg-gray-50">
-              {photoPreview ? (
-                <Avatar className="w-full h-full rounded-full">
-                  <AvatarImage src={photoPreview} alt="Pet preview" className="object-cover" />
-                  <AvatarFallback>Pet</AvatarFallback>
-                </Avatar>
-              ) : (
-                <div className="text-gray-400 flex flex-col items-center">
-                  <Upload className="h-8 w-8" />
-                  <span className="text-xs mt-1">Add Photo</span>
-                </div>
-              )}
-              <input
-                type="file"
-                accept="image/*"
-                onChange={handlePhotoChange}
-                className="absolute inset-0 opacity-0 cursor-pointer"
-              />
+          <div className="flex items-start gap-8">
+            <div className="flex flex-col items-center">
+              <div className="rounded-full overflow-hidden w-32 h-32 border-2 border-dashed border-gray-300 flex items-center justify-center mb-2 relative bg-gray-50">
+                {photoPreview ? (
+                  <Avatar className="w-full h-full rounded-full">
+                    <AvatarImage src={photoPreview} alt="Pet preview" className="object-cover" />
+                    <AvatarFallback>Pet</AvatarFallback>
+                  </Avatar>
+                ) : (
+                  <div className="text-gray-400 flex flex-col items-center">
+                    <Upload className="h-8 w-8" />
+                    <span className="text-xs mt-1">Add Photo</span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  accept="image/*"
+                  onChange={handlePhotoChange}
+                  className="absolute inset-0 opacity-0 cursor-pointer"
+                />
+              </div>
+              <span className="text-sm text-gray-500">Click to upload a pet photo</span>
             </div>
-            <span className="text-sm text-gray-500">Click to upload a pet photo</span>
+
+            <div className="grid grid-cols-3 gap-6 flex-1">
+              <div className="space-y-4 col-span-1">
+                <h3 className="text-lg font-semibold border-b pb-2">Basic Info</h3>
+              
+                <FormField
+                  control={form.control}
+                  name="name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pet Name*</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter your pet's name" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="type"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Pet Type*</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select pet type" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="dog">
+                            <div className="flex items-center">
+                              <Dog className="mr-2 h-4 w-4 text-orange-500" />
+                              <span>Dog</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="cat">
+                            <div className="flex items-center">
+                              <Cat className="mr-2 h-4 w-4 text-orange-500" />
+                              <span>Cat</span>
+                            </div>
+                          </SelectItem>
+                          <SelectItem value="other">
+                            <div className="flex items-center">
+                              <Rabbit className="mr-2 h-4 w-4 text-orange-500" />
+                              <span>Other</span>
+                            </div>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="breed"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Breed</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter breed" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="color"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Color</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter color" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="chipNumber"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Chip Number</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter chip number" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-4 col-span-1">
+                <h3 className="text-lg font-semibold border-b pb-2">Physical Attributes</h3>
+                
+                <FormField
+                  control={form.control}
+                  name="age"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Age (years)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.1" 
+                          placeholder="Enter age" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="weight"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Weight (kg)</FormLabel>
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.1" 
+                          placeholder="Enter weight" 
+                          {...field} 
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="gender"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Gender</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select gender" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="temperament"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Temperament</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter temperament" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="trainingLevel"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Training Level</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select training level" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="none">None</SelectItem>
+                          <SelectItem value="basic">Basic</SelectItem>
+                          <SelectItem value="intermediate">Intermediate</SelectItem>
+                          <SelectItem value="advanced">Advanced</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="space-y-4 col-span-1">
+                <h3 className="text-lg font-semibold border-b pb-2">Medical Info</h3>
+                
+                <FormField
+                  control={form.control}
+                  name="vaccinationStatus"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Vaccination Status</FormLabel>
+                      <Select
+                        onValueChange={field.onChange}
+                        defaultValue={field.value}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="up-to-date">Up to date</SelectItem>
+                          <SelectItem value="partial">Partial</SelectItem>
+                          <SelectItem value="not-vaccinated">Not vaccinated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="allergies"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Allergies</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter allergies" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="medication"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Medication</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter medication" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="dietType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Diet Type</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter diet type" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                
+                <FormField
+                  control={form.control}
+                  name="specialNeeds"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Special Needs</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Enter special needs" {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold border-b pb-2">Basic Info</h3>
-            
-              <FormField
-                control={form.control}
-                name="name"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pet Name*</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter your pet's name" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Pet Type*</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select pet type" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="dog">
-                          <div className="flex items-center">
-                            <Dog className="mr-2 h-4 w-4 text-orange-500" />
-                            <span>Dog</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="cat">
-                          <div className="flex items-center">
-                            <Cat className="mr-2 h-4 w-4 text-orange-500" />
-                            <span>Cat</span>
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="other">
-                          <div className="flex items-center">
-                            <Rabbit className="mr-2 h-4 w-4 text-orange-500" />
-                            <span>Other</span>
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="breed"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Breed</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter breed" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="color"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Color</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter color" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="chipNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Chip Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter chip number" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold border-b pb-2">Physical Attributes</h3>
-              
-              <FormField
-                control={form.control}
-                name="age"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Age (years)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.1" 
-                        placeholder="Enter age" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="weight"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Weight (kg)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step="0.1" 
-                        placeholder="Enter weight" 
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="gender"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Gender</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select gender" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="male">Male</SelectItem>
-                        <SelectItem value="female">Female</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 pt-4">
-            <div className="space-y-6">
-              <h3 className="text-lg font-semibold border-b pb-2">Medical Info</h3>
-              
-              <FormField
-                control={form.control}
-                name="vaccinationStatus"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Vaccination Status</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="up-to-date">Up to date</SelectItem>
-                        <SelectItem value="partial">Partial</SelectItem>
-                        <SelectItem value="not-vaccinated">Not vaccinated</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
+          <div className="grid grid-cols-2 gap-6 pt-4">
+            <div className="space-y-4">
+              <h3 className="text-lg font-semibold border-b pb-2">Medical History</h3>
               <FormField
                 control={form.control}
                 name="medicalHistory"
@@ -423,114 +525,16 @@ export default function AddPetForm({ onSuccess, onCancel }: AddPetFormProps) {
                   <FormItem>
                     <FormLabel>Medical History</FormLabel>
                     <FormControl>
-                      <Textarea placeholder="Enter medical history" className="resize-none" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="allergies"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Allergies</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter allergies" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="medication"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Medication</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter medication" {...field} />
+                      <Textarea placeholder="Enter medical history" className="resize-none h-24" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
             </div>
-
-            <div className="space-y-6">
+            
+            <div className="space-y-4">
               <h3 className="text-lg font-semibold border-b pb-2">Other Info</h3>
-              
-              <FormField
-                control={form.control}
-                name="dietType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Diet Type</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter diet type" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="specialNeeds"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Special Needs</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter special needs" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="temperament"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Temperament</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Enter temperament" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
-              <FormField
-                control={form.control}
-                name="trainingLevel"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Training Level</FormLabel>
-                    <Select
-                      onValueChange={field.onChange}
-                      defaultValue={field.value}
-                    >
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select training level" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        <SelectItem value="none">None</SelectItem>
-                        <SelectItem value="basic">Basic</SelectItem>
-                        <SelectItem value="intermediate">Intermediate</SelectItem>
-                        <SelectItem value="advanced">Advanced</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              
               <FormField
                 control={form.control}
                 name="favoriteActivity"
@@ -538,7 +542,7 @@ export default function AddPetForm({ onSuccess, onCancel }: AddPetFormProps) {
                   <FormItem>
                     <FormLabel>Favorite Activity</FormLabel>
                     <FormControl>
-                      <Input placeholder="Enter favorite activity" {...field} />
+                      <Textarea placeholder="Enter favorite activity" className="resize-none h-24" {...field} />
                     </FormControl>
                     <FormMessage />
                   </FormItem>

@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate, Link } from 'react-router-dom';
@@ -174,7 +175,7 @@ const MyPetsPage = () => {
                       <Plus className="mr-2 h-4 w-4" /> Add New Pet
                     </Button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[700px] p-0">
+                  <DialogContent className="sm:max-w-[900px] p-0 w-11/12">
                     <AddPetForm 
                       onSuccess={() => {
                         setShowAddForm(false);
