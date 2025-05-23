@@ -34,7 +34,7 @@ const DashboardButton = () => {
   
   return (
     <Link to={dashboardPath}>
-      <Button className="w-full sm:w-auto" variant="primary">
+      <Button className="w-full sm:w-auto bg-primary text-primary-foreground hover:bg-primary/90">
         <LayoutDashboard className="mr-2 h-4 w-4" /> Go to Dashboard
       </Button>
     </Link>
