@@ -2,69 +2,115 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, Plus, Dog, Cat, Rabbit } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Dog, Cat, Rabbit, Trash2 } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
+import AddPetForm from '@/components/AddPetForm';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogClose,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from '@/hooks/use-toast';
 
-// Mock data for pets until the database table is created
-const mockPets = [
-  {
-    id: '1',
-    name: 'Max',
-    type: 'dog',
-    breed: 'Golden Retriever',
-    age: 3,
-    weight: 30,
-    gender: 'male',
-    owner_id: '123'
-  },
-  {
-    id: '2',
-    name: 'Luna',
-    type: 'cat',
-    breed: 'Siamese',
-    age: 2,
-    weight: 4.5,
-    gender: 'female',
-    owner_id: '123'
-  }
-];
+// Define the pet type interface
+interface Pet {
+  id: string;
+  name: string;
+  type: string;
+  breed: string | null;
+  age: number | null;
+  weight: number | null;
+  gender: string | null;
+  owner_id: string;
+  status: string | null;
+  created_at: string;
+  updated_at: string;
+}
 
 const MyPetsPage = () => {
   const { user, isLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [pets, setPets] = useState<any[]>([]);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [deletingPetId, setDeletingPetId] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  // Fetch pets from Supabase
+  const fetchPets = async () => {
+    try {
+      if (user) {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from('pets')
+          .select('*')
+          .eq('owner_id', user.id);
+          
+        if (error) throw error;
+        setPets(data || []);
+      }
+    } catch (error: any) {
+      console.error('Error fetching pets:', error);
+      setError(error.message || 'Failed to fetch pets');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Delete pet
+  const handleDeletePet = async (petId: string) => {
+    if (!petId) return;
+    
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('pets')
+        .delete()
+        .eq('id', petId);
+        
+      if (error) throw error;
+      
+      // Update local state
+      setPets(pets.filter(pet => pet.id !== petId));
+      toast({
+        title: "Pet Deleted",
+        description: "Your pet has been successfully removed.",
+      });
+      
+    } catch (error: any) {
+      console.error('Error deleting pet:', error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to delete pet",
+        variant: "destructive",
+      });
+    } finally {
+      setIsDeleting(false);
+      setDeletingPetId(null);
+    }
+  };
 
   useEffect(() => {
-    const fetchPets = async () => {
-      try {
-        if (user) {
-          // In a real implementation, we would fetch from Supabase
-          // Since the 'pets' table doesn't exist yet, we'll use mock data
-          setPets(mockPets.filter(pet => pet.owner_id === user.id || true)); // true for demo purposes
-          
-          // This comment explains what the real implementation would look like:
-          // const { data, error } = await supabase
-          //   .from('pets')
-          //   .select('*')
-          //   .eq('owner_id', user.id);
-          //     
-          // if (error) throw error;
-          // setPets(data || []);
-        }
-      } catch (error: any) {
-        console.error('Error fetching pets:', error);
-        setError(error.message || 'Failed to fetch pets');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     if (!isLoading) {
       fetchPets();
     }
@@ -94,9 +140,22 @@ const MyPetsPage = () => {
                   <SidebarTrigger />
                   <h1 className="text-2xl font-bold">My Pets</h1>
                 </div>
-                <Button className="bg-orange-500 hover:bg-orange-600">
-                  <Plus className="mr-2 h-4 w-4" /> Add New Pet
-                </Button>
+                <Dialog open={showAddForm} onOpenChange={setShowAddForm}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-orange-500 hover:bg-orange-600">
+                      <Plus className="mr-2 h-4 w-4" /> Add New Pet
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent className="sm:max-w-[600px] p-0">
+                    <AddPetForm 
+                      onSuccess={() => {
+                        setShowAddForm(false);
+                        fetchPets();
+                      }} 
+                      onCancel={() => setShowAddForm(false)} 
+                    />
+                  </DialogContent>
+                </Dialog>
               </div>
             </header>
             
@@ -120,7 +179,11 @@ const MyPetsPage = () => {
                   {pets.length > 0 ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {pets.map((pet) => (
-                        <PetCard key={pet.id} pet={pet} />
+                        <PetCard 
+                          key={pet.id} 
+                          pet={pet} 
+                          onDelete={() => setDeletingPetId(pet.id)}
+                        />
                       ))}
                     </div>
                   ) : (
@@ -132,7 +195,11 @@ const MyPetsPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {pets.filter(pet => pet.type === 'dog').length > 0 ? (
                       pets.filter(pet => pet.type === 'dog').map((pet) => (
-                        <PetCard key={pet.id} pet={pet} />
+                        <PetCard 
+                          key={pet.id} 
+                          pet={pet} 
+                          onDelete={() => setDeletingPetId(pet.id)}
+                        />
                       ))
                     ) : (
                       <EmptyPetState type="dogs" />
@@ -144,7 +211,11 @@ const MyPetsPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {pets.filter(pet => pet.type === 'cat').length > 0 ? (
                       pets.filter(pet => pet.type === 'cat').map((pet) => (
-                        <PetCard key={pet.id} pet={pet} />
+                        <PetCard 
+                          key={pet.id} 
+                          pet={pet} 
+                          onDelete={() => setDeletingPetId(pet.id)}
+                        />
                       ))
                     ) : (
                       <EmptyPetState type="cats" />
@@ -156,7 +227,11 @@ const MyPetsPage = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                     {pets.filter(pet => pet.type !== 'dog' && pet.type !== 'cat').length > 0 ? (
                       pets.filter(pet => pet.type !== 'dog' && pet.type !== 'cat').map((pet) => (
-                        <PetCard key={pet.id} pet={pet} />
+                        <PetCard 
+                          key={pet.id} 
+                          pet={pet} 
+                          onDelete={() => setDeletingPetId(pet.id)}
+                        />
                       ))
                     ) : (
                       <EmptyPetState type="others" />
@@ -168,46 +243,93 @@ const MyPetsPage = () => {
           </div>
         </SidebarInset>
       </div>
+      
+      {/* Delete Pet Confirmation Dialog */}
+      <AlertDialog open={!!deletingPetId} onOpenChange={(open) => !open && setDeletingPetId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently remove your pet from your account.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deletingPetId && handleDeletePet(deletingPetId)}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>Delete</>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SidebarProvider>
   );
 };
 
 // Pet Card Component
-const PetCard = ({ pet }: { pet: any }) => {
+const PetCard = ({ pet, onDelete }: { pet: Pet; onDelete: () => void }) => {
+  const getPetIcon = () => {
+    switch (pet.type.toLowerCase()) {
+      case 'dog':
+        return <Dog className="h-6 w-6 text-orange-500" />;
+      case 'cat':
+        return <Cat className="h-6 w-6 text-orange-500" />;
+      default:
+        return <Rabbit className="h-6 w-6 text-orange-500" />;
+    }
+  };
+
   return (
     <Card className="hover:shadow-lg transition-shadow border-orange-300">
-      <CardHeader className="bg-orange-50 flex items-center gap-3">
-        <div className="rounded-full bg-orange-100 p-3">
-          {pet.type === 'dog' ? (
-            <Dog className="h-6 w-6 text-orange-500" />
-          ) : pet.type === 'cat' ? (
-            <Cat className="h-6 w-6 text-orange-500" />
-          ) : (
-            <Rabbit className="h-6 w-6 text-orange-500" />
-          )}
+      <CardHeader className="bg-orange-50 flex flex-row items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="rounded-full bg-orange-100 p-3">
+            {getPetIcon()}
+          </div>
+          <div>
+            <CardTitle className="text-xl">{pet.name}</CardTitle>
+            <p className="text-sm text-gray-500 capitalize">{pet.breed || pet.type}</p>
+          </div>
         </div>
-        <div>
-          <CardTitle className="text-xl">{pet.name}</CardTitle>
-          <p className="text-sm text-gray-500 capitalize">{pet.breed || pet.type}</p>
-        </div>
+        <Button 
+          variant="ghost" 
+          size="icon"
+          className="h-8 w-8 text-gray-500 hover:text-red-600 hover:bg-red-50"
+          onClick={(e) => {
+            e.stopPropagation();
+            onDelete();
+          }}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
       </CardHeader>
       <CardContent className="pt-6">
         <div className="grid grid-cols-2 gap-4">
           <div>
             <p className="text-sm text-gray-500">Age</p>
-            <p className="font-medium">{pet.age} years</p>
+            <p className="font-medium">{pet.age !== null ? `${pet.age} years` : 'Not provided'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Weight</p>
-            <p className="font-medium">{pet.weight} kg</p>
+            <p className="font-medium">{pet.weight !== null ? `${pet.weight} kg` : 'Not provided'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Gender</p>
-            <p className="font-medium capitalize">{pet.gender}</p>
+            <p className="font-medium capitalize">{pet.gender || 'Not provided'}</p>
           </div>
           <div>
             <p className="text-sm text-gray-500">Status</p>
-            <p className="font-medium text-green-500">Healthy</p>
+            <p className="font-medium text-green-500">{pet.status || 'Healthy'}</p>
           </div>
         </div>
       </CardContent>
@@ -249,9 +371,28 @@ const EmptyPetState = ({ type = "all" }: { type?: string }) => {
       <p className="text-gray-500 mb-4 text-center max-w-md">
         Add your pet to track their health records, schedule appointments, and manage their care.
       </p>
-      <Button className="bg-orange-500 hover:bg-orange-600">
-        <Plus className="mr-2 h-4 w-4" /> Add New Pet
-      </Button>
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button className="bg-orange-500 hover:bg-orange-600">
+            <Plus className="mr-2 h-4 w-4" /> Add New Pet
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-[600px] p-0">
+          <AddPetForm 
+            onSuccess={() => {
+              // This will close the dialog and reload pets
+              window.location.reload();
+            }} 
+            onCancel={() => {
+              // This will just close the dialog
+              const closeButton = document.querySelector('[data-dialog-close]');
+              if (closeButton && 'click' in closeButton) {
+                (closeButton as HTMLElement).click();
+              }
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

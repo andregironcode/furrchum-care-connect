@@ -9,6 +9,89 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      medical_records: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          diagnosis: string | null
+          id: string
+          notes: string | null
+          pet_id: string
+          record_date: string
+          treatment: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          diagnosis?: string | null
+          id?: string
+          notes?: string | null
+          pet_id: string
+          record_date?: string
+          treatment?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          diagnosis?: string | null
+          id?: string
+          notes?: string | null
+          pet_id?: string
+          record_date?: string
+          treatment?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "medical_records_pet_id_fkey"
+            columns: ["pet_id"]
+            isOneToOne: false
+            referencedRelation: "pets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      pets: {
+        Row: {
+          age: number | null
+          breed: string | null
+          created_at: string
+          gender: string | null
+          id: string
+          name: string
+          owner_id: string
+          status: string | null
+          type: string
+          updated_at: string
+          weight: number | null
+        }
+        Insert: {
+          age?: number | null
+          breed?: string | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          name: string
+          owner_id: string
+          status?: string | null
+          type: string
+          updated_at?: string
+          weight?: number | null
+        }
+        Update: {
+          age?: number | null
+          breed?: string | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          name?: string
+          owner_id?: string
+          status?: string | null
+          type?: string
+          updated_at?: string
+          weight?: number | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
