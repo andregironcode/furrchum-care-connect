@@ -72,14 +72,15 @@ export default function AddPetForm({ onSuccess, onCancel }: AddPetFormProps) {
 
     try {
       // Insert the new pet into Supabase
+      // Using proper type handling for numeric values
       const { data: pet, error } = await supabase
         .from('pets')
         .insert({
           name: data.name,
           type: data.type,
           breed: data.breed || null,
-          age: data.age,
-          weight: data.weight,
+          age: data.age ? parseFloat(data.age as string) : null, // Ensure proper number conversion
+          weight: data.weight ? parseFloat(data.weight as string) : null, // Ensure proper number conversion
           gender: data.gender || null,
           owner_id: user.id,
         })
