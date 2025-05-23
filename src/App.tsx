@@ -18,6 +18,14 @@ import VetPrescriptionsPage from "./pages/VetPrescriptionsPage";
 import VetProfilePage from "./pages/VetProfilePage";
 import VetBillingPage from "./pages/VetBillingPage";
 
+// Import our new pages
+import MyPetsPage from "./pages/MyPetsPage";
+import MyVetsPage from "./pages/MyVetsPage";
+import AppointmentsPage from "./pages/AppointmentsPage";
+import PrescriptionsPage from "./pages/PrescriptionsPage";
+import PaymentsPage from "./pages/PaymentsPage";
+import ProfilePage from "./pages/ProfilePage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -39,12 +47,36 @@ const App = () => (
                 <PetOwnerDashboard />
               </RouteGuard>
             } />
-            <Route path="/my-pets" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/my-vets" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/appointments" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/prescriptions" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/payments" element={<RouteGuard><NotFound /></RouteGuard>} />
-            <Route path="/profile" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/my-pets" element={
+              <RouteGuard>
+                <MyPetsPage />
+              </RouteGuard>
+            } />
+            <Route path="/my-vets" element={
+              <RouteGuard>
+                <MyVetsPage />
+              </RouteGuard>
+            } />
+            <Route path="/appointments" element={
+              <RouteGuard>
+                <AppointmentsPage />
+              </RouteGuard>
+            } />
+            <Route path="/prescriptions" element={
+              <RouteGuard>
+                <PrescriptionsPage />
+              </RouteGuard>
+            } />
+            <Route path="/payments" element={
+              <RouteGuard>
+                <PaymentsPage />
+              </RouteGuard>
+            } />
+            <Route path="/profile" element={
+              <RouteGuard>
+                <ProfilePage />
+              </RouteGuard>
+            } />
             
             {/* Vet Routes */}
             <Route path="/vet-dashboard" element={
