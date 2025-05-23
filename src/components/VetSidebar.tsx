@@ -58,7 +58,7 @@ const VetSidebar = () => {
   ];
 
   return (
-    <Sidebar>
+    <Sidebar className="bg-white border-r shadow-sm">
       <SidebarHeader>
         <div className="p-4">
           <Link to="/" className="flex justify-center">
@@ -71,22 +71,28 @@ const VetSidebar = () => {
         </div>
       </SidebarHeader>
       
-      <SidebarContent>
+      <SidebarContent className="py-4">
         <SidebarGroup>
           <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
+                <SidebarMenuItem key={item.path} className="mb-2">
                   <SidebarMenuButton
                     asChild
                     isActive={item.isActive}
                     tooltip={item.title}
-                    className="text-accent hover:text-primary"
+                    className={`
+                      flex items-center w-full font-medium
+                      ${item.isActive 
+                        ? "bg-primary/10 text-primary font-bold" 
+                        : "text-gray-700 hover:bg-gray-100"} 
+                      transition-colors p-4 rounded-md
+                    `}
                   >
-                    <Link to={item.path}>
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.title}</span>
+                    <Link to={item.path} className="flex items-center gap-3">
+                      <item.icon className={`h-5 w-5 ${item.isActive ? "text-primary" : "text-gray-500"}`} />
+                      <span className="text-base">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -97,13 +103,13 @@ const VetSidebar = () => {
       </SidebarContent>
       
       <SidebarFooter>
-        <div className="p-2">
+        <div className="p-4">
           <Button 
             variant="outline" 
-            className="w-full justify-start text-white bg-accent hover:bg-accent/80"
+            className="w-full justify-start border-gray-200 text-gray-700 hover:bg-gray-100 hover:text-gray-900 p-3"
             onClick={signOut}
           >
-            <LogOut className="mr-2 h-5 w-5" />
+            <LogOut className="mr-3 h-5 w-5" />
             Log Out
           </Button>
         </div>

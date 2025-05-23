@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -146,7 +145,7 @@ const PaymentsPage = () => {
                   <SidebarTrigger />
                   <h1 className="text-2xl font-bold">Billing & Payments</h1>
                 </div>
-                <Button className="bg-indigo-500 hover:bg-indigo-600">
+                <Button className="bg-primary hover:bg-primary-600">
                   <Plus className="mr-2 h-4 w-4" /> Add Payment Method
                 </Button>
               </div>
@@ -182,7 +181,7 @@ const PaymentsPage = () => {
                     </div>
                     <h3 className="text-lg font-medium text-gray-700 mb-2">No Payment Methods</h3>
                     <p className="text-gray-500 mb-4">You haven't added any payment methods yet.</p>
-                    <Button className="bg-indigo-500 hover:bg-indigo-600">
+                    <Button className="bg-primary hover:bg-primary-600">
                       <Plus className="mr-2 h-4 w-4" /> Add Payment Method
                     </Button>
                   </div>
@@ -194,7 +193,7 @@ const PaymentsPage = () => {
                 <h2 className="text-xl font-semibold mb-6">Transaction History</h2>
                 
                 <Tabs defaultValue="all" className="w-full">
-                  <TabsList className="w-full bg-indigo-100 mb-4 h-12">
+                  <TabsList className="w-full bg-primary-100 mb-4 h-12">
                     <TabsTrigger value="all" className="text-lg flex-1">All</TabsTrigger>
                     <TabsTrigger value="completed" className="text-lg flex-1">Completed</TabsTrigger>
                     <TabsTrigger value="pending" className="text-lg flex-1">Pending</TabsTrigger>
@@ -299,7 +298,7 @@ const PaymentCard = ({ payment }: { payment: any }) => {
   const isPending = payment.status === 'pending';
   
   return (
-    <Card className={`hover:shadow-lg transition-shadow border-${isPending ? 'orange' : 'indigo'}-200`}>
+    <Card className={`hover:shadow-lg transition-shadow border-${isPending ? 'orange' : 'primary'}-200`}>
       <CardHeader className="bg-gray-50 pb-4">
         <div className="flex justify-between items-center">
           <div>
@@ -344,7 +343,7 @@ const PaymentCard = ({ payment }: { payment: any }) => {
           </Button>
         )}
         {isPending && (
-          <Button size="sm" className="text-xs bg-indigo-500 hover:bg-indigo-600">
+          <Button size="sm" className="text-xs bg-primary hover:bg-primary-600">
             Pay Now
           </Button>
         )}
@@ -369,9 +368,9 @@ const EmptyPaymentState = ({ type = "all" }: { type?: string }) => {
   }
   
   return (
-    <div className="flex flex-col items-center justify-center bg-gray-50 rounded-lg p-12">
-      <div className="bg-gray-100 rounded-full p-6 mb-4">
-        <FileText className="h-12 w-12 text-gray-500" />
+    <div className="flex flex-col items-center justify-center bg-primary-50 rounded-lg p-12">
+      <div className="bg-primary-100 rounded-full p-6 mb-4">
+        <FileText className="h-12 w-12 text-primary-500" />
       </div>
       <h3 className="text-xl font-medium text-gray-700 mb-2">{message}</h3>
       <p className="text-gray-500 mb-4 text-center max-w-md">

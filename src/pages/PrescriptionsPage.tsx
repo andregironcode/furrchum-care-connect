@@ -117,7 +117,7 @@ const PrescriptionsPage = () => {
                   <SidebarTrigger />
                   <h1 className="text-2xl font-bold">Prescriptions</h1>
                 </div>
-                <Button className="bg-purple-500 hover:bg-purple-600">
+                <Button className="bg-primary hover:bg-primary-600">
                   <Plus className="mr-2 h-4 w-4" /> Request Prescription
                 </Button>
               </div>
@@ -132,7 +132,7 @@ const PrescriptionsPage = () => {
               )}
 
               <Tabs defaultValue="active" className="w-full">
-                <TabsList className="w-full bg-purple-100 mb-4 h-12">
+                <TabsList className="w-full bg-primary-100 mb-4 h-12">
                   <TabsTrigger value="active" className="text-lg flex-1">Active</TabsTrigger>
                   <TabsTrigger value="expired" className="text-lg flex-1">Expired</TabsTrigger>
                 </TabsList>
@@ -175,12 +175,12 @@ const PrescriptionCard = ({ prescription }: { prescription: any }) => {
   const daysLeft = isExpired ? 0 : Math.ceil((new Date(prescription.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
   
   return (
-    <Card className={`hover:shadow-lg transition-shadow border-${isExpired ? 'gray' : 'purple'}-300`}>
-      <CardHeader className={`bg-${isExpired ? 'gray' : 'purple'}-50 flex flex-col space-y-2`}>
+    <Card className={`hover:shadow-lg transition-shadow border-${isExpired ? 'gray' : 'primary'}-300`}>
+      <CardHeader className={`bg-${isExpired ? 'gray' : 'primary'}-50 flex flex-col space-y-2`}>
         <div className="flex justify-between items-start">
           <CardTitle className="text-xl">{prescription.medication}</CardTitle>
           <div className={`px-2 py-1 rounded-md text-xs font-medium 
-            ${isExpired ? 'bg-gray-100 text-gray-800' : 'bg-purple-100 text-purple-800'}`}>
+            ${isExpired ? 'bg-gray-100 text-gray-800' : 'bg-primary-100 text-primary-800'}`}>
             {isExpired ? 'Expired' : 'Active'}
           </div>
         </div>
@@ -205,7 +205,7 @@ const PrescriptionCard = ({ prescription }: { prescription: any }) => {
         </div>
         
         <div className="flex items-center gap-3 mb-4">
-          <Calendar className={`h-5 w-5 ${isExpired ? 'text-gray-500' : 'text-purple-500'}`} />
+          <Calendar className={`h-5 w-5 ${isExpired ? 'text-gray-500' : 'text-primary-500'}`} />
           <div>
             <p className="text-sm text-gray-500">
               {isExpired ? 'Expired on' : 'Valid until'}
@@ -235,7 +235,7 @@ const PrescriptionCard = ({ prescription }: { prescription: any }) => {
                 {prescription.refills} remaining
               </span>
             </div>
-            <Button className="bg-purple-500 hover:bg-purple-600">
+            <Button className="bg-primary hover:bg-primary-600">
               <ShoppingCart className="mr-2 h-4 w-4" /> Refill
             </Button>
           </>
@@ -251,9 +251,9 @@ const PrescriptionCard = ({ prescription }: { prescription: any }) => {
 // Empty State Component
 const EmptyPrescriptionState = ({ type = "active" }: { type: string }) => {
   return (
-    <div className="flex flex-col items-center justify-center bg-purple-50 rounded-lg p-12">
-      <div className="bg-purple-100 rounded-full p-6 mb-4">
-        <Pill className="h-12 w-12 text-purple-500" />
+    <div className="flex flex-col items-center justify-center bg-primary-50 rounded-lg p-12">
+      <div className="bg-primary-100 rounded-full p-6 mb-4">
+        <Pill className="h-12 w-12 text-primary-500" />
       </div>
       <h3 className="text-xl font-medium text-gray-700 mb-2">
         {type === "active" ? "No Active Prescriptions" : "No Expired Prescriptions"}
@@ -264,7 +264,7 @@ const EmptyPrescriptionState = ({ type = "active" }: { type: string }) => {
           : "You don't have any expired prescriptions. When prescriptions expire, they will be moved here for reference."}
       </p>
       {type === "active" && (
-        <Button className="bg-purple-500 hover:bg-purple-600">
+        <Button className="bg-primary hover:bg-primary-600">
           <Plus className="mr-2 h-4 w-4" /> Request Prescription
         </Button>
       )}

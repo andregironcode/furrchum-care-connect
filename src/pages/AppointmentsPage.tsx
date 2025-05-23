@@ -106,7 +106,7 @@ const AppointmentsPage = () => {
                   <SidebarTrigger />
                   <h1 className="text-2xl font-bold">My Appointments</h1>
                 </div>
-                <Button className="bg-green-500 hover:bg-green-600">
+                <Button className="bg-primary hover:bg-primary-600">
                   <Plus className="mr-2 h-4 w-4" /> Schedule Appointment
                 </Button>
               </div>
@@ -121,7 +121,7 @@ const AppointmentsPage = () => {
               )}
 
               <Tabs defaultValue="upcoming" className="w-full">
-                <TabsList className="w-full bg-green-100 mb-4 h-12">
+                <TabsList className="w-full bg-primary-100 mb-4 h-12">
                   <TabsTrigger value="upcoming" className="text-lg flex-1">Upcoming</TabsTrigger>
                   <TabsTrigger value="past" className="text-lg flex-1">Past</TabsTrigger>
                 </TabsList>
@@ -163,12 +163,12 @@ const AppointmentCard = ({ appointment }: { appointment: any }) => {
   const isPast = appointment.status === 'completed' || appointment.status === 'cancelled';
   
   return (
-    <Card className={`hover:shadow-lg transition-shadow border-${isPast ? 'gray' : 'green'}-300`}>
-      <CardHeader className={`bg-${isPast ? 'gray' : 'green'}-50 flex flex-col space-y-2`}>
+    <Card className={`hover:shadow-lg transition-shadow border-${isPast ? 'gray' : 'primary'}-300`}>
+      <CardHeader className={`bg-${isPast ? 'gray' : 'primary'}-50 flex flex-col space-y-2`}>
         <div className="flex justify-between items-start">
           <CardTitle className="text-xl">{appointment.type}</CardTitle>
           <div className={`px-2 py-1 rounded-md text-xs font-medium 
-            ${appointment.status === 'upcoming' ? 'bg-green-100 text-green-800' : 
+            ${appointment.status === 'upcoming' ? 'bg-primary-100 text-primary-800' : 
               appointment.status === 'completed' ? 'bg-blue-100 text-blue-800' : 
               'bg-gray-100 text-gray-800'}`}>
             {appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
@@ -181,14 +181,14 @@ const AppointmentCard = ({ appointment }: { appointment: any }) => {
       </CardHeader>
       <CardContent className="pt-6">
         <div className="flex items-center gap-3 mb-4">
-          <Calendar className={`h-5 w-5 ${isPast ? 'text-gray-500' : 'text-green-500'}`} />
+          <Calendar className={`h-5 w-5 ${isPast ? 'text-gray-500' : 'text-primary-500'}`} />
           <div>
             <p className="text-sm text-gray-500">Date</p>
             <p className="font-medium">{format(new Date(appointment.date), 'EEEE, MMMM d, yyyy')}</p>
           </div>
         </div>
         <div className="flex items-center gap-3">
-          <Clock className={`h-5 w-5 ${isPast ? 'text-gray-500' : 'text-green-500'}`} />
+          <Clock className={`h-5 w-5 ${isPast ? 'text-gray-500' : 'text-primary-500'}`} />
           <div>
             <p className="text-sm text-gray-500">Time</p>
             <p className="font-medium">{format(new Date(appointment.date), 'h:mm a')}</p>
@@ -205,8 +205,8 @@ const AppointmentCard = ({ appointment }: { appointment: any }) => {
       <CardFooter className="flex justify-end gap-2">
         {!isPast && (
           <>
-            <Button variant="outline" className="border-green-300 text-green-600">Reschedule</Button>
-            <Button className="bg-green-500 hover:bg-green-600">
+            <Button variant="outline" className="border-primary-300 text-primary-600">Reschedule</Button>
+            <Button className="bg-primary hover:bg-primary-600">
               <VideoIcon className="mr-2 h-4 w-4" /> Join Call
             </Button>
           </>
@@ -222,9 +222,9 @@ const AppointmentCard = ({ appointment }: { appointment: any }) => {
 // Empty State Component
 const EmptyAppointmentState = ({ type = "upcoming" }: { type: string }) => {
   return (
-    <div className="flex flex-col items-center justify-center bg-green-50 rounded-lg p-12">
-      <div className="bg-green-100 rounded-full p-6 mb-4">
-        <Calendar className="h-12 w-12 text-green-500" />
+    <div className="flex flex-col items-center justify-center bg-primary-50 rounded-lg p-12">
+      <div className="bg-primary-100 rounded-full p-6 mb-4">
+        <Calendar className="h-12 w-12 text-primary-500" />
       </div>
       <h3 className="text-xl font-medium text-gray-700 mb-2">
         {type === "upcoming" ? "No Upcoming Appointments" : "No Past Appointments"}
@@ -235,7 +235,7 @@ const EmptyAppointmentState = ({ type = "upcoming" }: { type: string }) => {
           : "You don't have any past appointments yet. Once you complete appointments, they will appear here."}
       </p>
       {type === "upcoming" && (
-        <Button className="bg-green-500 hover:bg-green-600">
+        <Button className="bg-primary hover:bg-primary-600">
           <Plus className="mr-2 h-4 w-4" /> Schedule Appointment
         </Button>
       )}
