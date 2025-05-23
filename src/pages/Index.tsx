@@ -14,8 +14,8 @@ const Index = () => {
       <section className="py-16 bg-white/50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">How Furrchum Works</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+            <h2 className="text-3xl font-bold text-[#4e2a14] mb-4">How Furrchum Works</h2>
+            <p className="text-[#4e2a14] max-w-2xl mx-auto">
               Getting quality vet care for your pet has never been easier. Follow these simple steps:
             </p>
           </div>
@@ -47,18 +47,18 @@ const Index = () => {
                 icon: "📋"
               }
             ].map((item, index) => (
-              <Card key={index} className="bg-white border-tan-200 relative overflow-hidden group hover:shadow-lg transition-all duration-300">
-                <div className="absolute top-0 right-0 w-16 h-16 bg-gradient-to-br from-primary/20 to-accent/20 rounded-bl-3xl"></div>
+              <Card key={index} className="bg-white border-[#f39bae] relative overflow-hidden group hover:shadow-lg transition-all duration-300">
+                <div className="absolute top-0 right-0 w-16 h-16 bg-[#f39bae]/20 rounded-bl-3xl"></div>
                 <CardHeader>
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center mb-4">
+                  <div className="w-12 h-12 bg-[#f39bae] rounded-lg flex items-center justify-center mb-4">
                     <span className="text-2xl">{item.icon}</span>
                   </div>
                   <CardTitle className="text-lg">
-                    <span className="text-primary font-bold">Step {item.step}:</span> {item.title}
+                    <span className="text-[#f39bae] font-bold">Step {item.step}:</span> {item.title}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <p className="text-gray-600">{item.description}</p>
+                  <p className="text-[#4e2a14]">{item.description}</p>
                 </CardContent>
               </Card>
             ))}
@@ -67,11 +67,11 @@ const Index = () => {
       </section>
       
       {/* Why Choose Furrchum */}
-      <section className="py-16 bg-gradient-to-br from-tan-100 to-cream">
+      <section className="py-16 bg-[#f39bae]/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-3xl font-bold text-gray-900 mb-4">Why Pet Owners Choose Furrchum</h2>
-            <p className="text-gray-600 max-w-2xl mx-auto">
+            <h2 className="text-3xl font-bold text-[#4e2a14] mb-4">Why Pet Owners Choose Furrchum</h2>
+            <p className="text-[#4e2a14] max-w-2xl mx-auto">
               Join thousands of satisfied pet parents who trust us with their furry family members
             </p>
           </div>
@@ -101,30 +101,30 @@ const Index = () => {
                 }
               ].map((feature, index) => (
                 <div key={index} className="flex items-start space-x-4">
-                  <div className="w-12 h-12 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 bg-[#4b90a6] rounded-lg flex items-center justify-center flex-shrink-0">
                     <span className="text-xl">{feature.icon}</span>
                   </div>
                   <div>
-                    <h3 className="font-semibold text-gray-900 mb-2">{feature.title}</h3>
-                    <p className="text-gray-600">{feature.description}</p>
+                    <h3 className="font-semibold text-[#4e2a14] mb-2">{feature.title}</h3>
+                    <p className="text-[#4e2a14]">{feature.description}</p>
                   </div>
                 </div>
               ))}
             </div>
             
             <div className="relative">
-              <div className="bg-white rounded-2xl p-8 shadow-xl border border-tan-200">
+              <div className="bg-white rounded-2xl p-8 shadow-xl border border-[#f39bae]">
                 <div className="text-center">
-                  <div className="w-20 h-20 bg-gradient-to-br from-primary to-accent rounded-full flex items-center justify-center mx-auto mb-6">
+                  <div className="w-20 h-20 bg-[#f39bae] rounded-full flex items-center justify-center mx-auto mb-6">
                     <span className="text-3xl">🐕</span>
                   </div>
-                  <h3 className="text-2xl font-bold text-gray-900 mb-4">Ready to Get Started?</h3>
-                  <p className="text-gray-600 mb-6">
+                  <h3 className="text-2xl font-bold text-[#4e2a14] mb-4">Ready to Get Started?</h3>
+                  <p className="text-[#4e2a14] mb-6">
                     Give your pet the care they deserve with professional veterinary consultations
                   </p>
                   <Button 
                     size="lg" 
-                    className="w-full bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-semibold"
+                    className="w-full bg-[#4b90a6] hover:bg-[#4b90a6]/90 text-white font-semibold"
                   >
                     Find a Vet Now
                   </Button>
