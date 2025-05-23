@@ -5,7 +5,6 @@ import VetSidebar from '@/components/VetSidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Input } from "@/components/ui/input";
-import Footer from '@/components/Footer';
 import { Calendar, Search } from 'lucide-react';
 
 // Mock data for billing transactions
@@ -115,7 +114,6 @@ const VetBillingPage = () => {
                 </div>
               </div>
             </main>
-            <Footer />
           </div>
         </SidebarInset>
       </div>

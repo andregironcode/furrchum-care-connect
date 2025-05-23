@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import Footer from '@/components/Footer';
 import { useState } from 'react';
 
 const VetProfilePage = () => {
@@ -207,7 +206,6 @@ const VetProfilePage = () => {
                 </Tabs>
               </div>
             </main>
-            <Footer />
           </div>
         </SidebarInset>
       </div>

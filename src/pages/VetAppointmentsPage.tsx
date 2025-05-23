@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import VetSidebar from '@/components/VetSidebar';
@@ -16,7 +15,6 @@ import {
   Filter,
   Search
 } from 'lucide-react';
-import Footer from '@/components/Footer';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -223,7 +221,6 @@ const VetAppointmentsPage = () => {
                 </div>
               </div>
             </main>
-            <Footer />
           </div>
         </SidebarInset>
       </div>

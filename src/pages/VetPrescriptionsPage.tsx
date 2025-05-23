@@ -6,7 +6,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, MoreVertical, PawPrint, FileText } from 'lucide-react';
-import Footer from '@/components/Footer';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,7 +96,6 @@ const VetPrescriptionsPage = () => {
                 </div>
               </div>
             </main>
-            <Footer />
           </div>
         </SidebarInset>
       </div>
