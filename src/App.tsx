@@ -89,7 +89,7 @@ const App = () => (
                 <VetAppointmentsPage />
               </RouteGuard>
             } />
-            <Route path="/prescriptions" element={
+            <Route path="/vet-prescriptions" element={
               <RouteGuard>
                 <VetPrescriptionsPage />
               </RouteGuard>

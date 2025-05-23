@@ -6,12 +6,53 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Search, FileText, Calendar, Dog, Cat } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Pill, Calendar, Dog, ShoppingCart } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
-import { supabase } from '@/integrations/supabase/client';
-import { format, addDays } from 'date-fns';
+import { format, isPast, addDays } from 'date-fns';
+
+// Mock data for prescriptions until the database table is created
+const mockPrescriptions = [
+  {
+    id: '1',
+    medication: 'Amoxicillin',
+    pet_name: 'Max',
+    vet_name: 'Dr. Sarah Johnson',
+    dosage: '50mg',
+    frequency: 'Twice daily',
+    start_date: new Date(2025, 4, 20),
+    end_date: new Date(2025, 5, 3),
+    refills: 2,
+    status: 'active',
+    instructions: 'Give with food. Complete entire course even if symptoms improve.'
+  },
+  {
+    id: '2',
+    medication: 'Metacam',
+    pet_name: 'Luna',
+    vet_name: 'Dr. Michael Chen',
+    dosage: '5ml',
+    frequency: 'Once daily',
+    start_date: new Date(2025, 5, 15),
+    end_date: new Date(2025, 5, 30),
+    refills: 1,
+    status: 'active',
+    instructions: 'For pain and inflammation. Administer orally with dropper provided.'
+  },
+  {
+    id: '3',
+    medication: 'Frontline Plus',
+    pet_name: 'Max',
+    vet_name: 'Dr. Amanda Lopez',
+    dosage: '1 applicator',
+    frequency: 'Once monthly',
+    start_date: new Date(2025, 3, 10),
+    end_date: new Date(2025, 4, 10),
+    refills: 0,
+    status: 'expired',
+    instructions: 'Apply between shoulder blades. Do not bathe pet for 48 hours after application.'
+  }
+];
 
 const PrescriptionsPage = () => {
   const { user, isLoading } = useAuth();
@@ -23,17 +64,22 @@ const PrescriptionsPage = () => {
     const fetchPrescriptions = async () => {
       try {
         if (user) {
-          const { data, error } = await supabase
-            .from('prescriptions')
-            .select('*, vet:vets(*), pet:pets(*)')
-            .eq('owner_id', user.id);
-            
-          if (error) throw error;
-          setPrescriptions(data || []);
+          // In a real implementation, we would fetch from Supabase
+          // Since the 'prescriptions' table doesn't exist yet, we'll use mock data
+          setPrescriptions(mockPrescriptions);
+          
+          // This comment explains what the real implementation would look like:
+          // const { data, error } = await supabase
+          //   .from('prescriptions')
+          //   .select('*, vets(*), pets(*)')
+          //   .eq('user_id', user.id);
+          //     
+          // if (error) throw error;
+          // setPrescriptions(data || []);
         }
       } catch (error: any) {
         console.error('Error fetching prescriptions:', error);
-        setError(error.message);
+        setError(error.message || 'Failed to fetch prescriptions');
       } finally {
         setLoading(false);
       }
@@ -56,13 +102,8 @@ const PrescriptionsPage = () => {
     return <Navigate to="/auth" />;
   }
 
-  // Filter prescriptions by status
-  const activePrescriptions = prescriptions.filter(
-    prescription => new Date(prescription.end_date) >= new Date()
-  );
-  const expiredPrescriptions = prescriptions.filter(
-    prescription => new Date(prescription.end_date) < new Date()
-  );
+  const activePrescriptions = prescriptions.filter(rx => rx.status === 'active');
+  const expiredPrescriptions = prescriptions.filter(rx => rx.status === 'expired');
 
   return (
     <SidebarProvider>
@@ -76,8 +117,8 @@ const PrescriptionsPage = () => {
                   <SidebarTrigger />
                   <h1 className="text-2xl font-bold">Prescriptions</h1>
                 </div>
-                <Button className="bg-orange-500 hover:bg-orange-600">
-                  <Search className="mr-2 h-4 w-4" /> Request Refill
+                <Button className="bg-purple-500 hover:bg-purple-600">
+                  <Plus className="mr-2 h-4 w-4" /> Request Prescription
                 </Button>
               </div>
             </header>
@@ -91,15 +132,14 @@ const PrescriptionsPage = () => {
               )}
 
               <Tabs defaultValue="active" className="w-full">
-                <TabsList className="w-full bg-orange-100 mb-4 h-12">
+                <TabsList className="w-full bg-purple-100 mb-4 h-12">
                   <TabsTrigger value="active" className="text-lg flex-1">Active</TabsTrigger>
                   <TabsTrigger value="expired" className="text-lg flex-1">Expired</TabsTrigger>
-                  <TabsTrigger value="all" className="text-lg flex-1">All</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="active">
                   {activePrescriptions.length > 0 ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {activePrescriptions.map((prescription) => (
                         <PrescriptionCard key={prescription.id} prescription={prescription} />
                       ))}
@@ -111,29 +151,13 @@ const PrescriptionsPage = () => {
                 
                 <TabsContent value="expired">
                   {expiredPrescriptions.length > 0 ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                       {expiredPrescriptions.map((prescription) => (
-                        <PrescriptionCard key={prescription.id} prescription={prescription} isExpired={true} />
+                        <PrescriptionCard key={prescription.id} prescription={prescription} />
                       ))}
                     </div>
                   ) : (
                     <EmptyPrescriptionState type="expired" />
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="all">
-                  {prescriptions.length > 0 ? (
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                      {prescriptions.map((prescription) => (
-                        <PrescriptionCard 
-                          key={prescription.id} 
-                          prescription={prescription} 
-                          isExpired={new Date(prescription.end_date) < new Date()} 
-                        />
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyPrescriptionState type="all" />
                   )}
                 </TabsContent>
               </Tabs>
@@ -146,98 +170,78 @@ const PrescriptionsPage = () => {
 };
 
 // Prescription Card Component
-const PrescriptionCard = ({ prescription, isExpired = false }: { prescription: any, isExpired?: boolean }) => {
-  // Generate placeholder dates if not available
-  const startDate = prescription.start_date 
-    ? new Date(prescription.start_date) 
-    : new Date();
+const PrescriptionCard = ({ prescription }: { prescription: any }) => {
+  const isExpired = prescription.status === 'expired' || isPast(new Date(prescription.end_date));
+  const daysLeft = isExpired ? 0 : Math.ceil((new Date(prescription.end_date).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24));
   
-  const endDate = prescription.end_date 
-    ? new Date(prescription.end_date) 
-    : addDays(startDate, 30);
-
-  const formattedStartDate = format(startDate, 'MMM d, yyyy');
-  const formattedEndDate = format(endDate, 'MMM d, yyyy');
-  
-  // Calculate refills
-  const refillsUsed = prescription.refills_used || 0;
-  const totalRefills = prescription.total_refills || 3;
-  const refillsRemaining = totalRefills - refillsUsed;
-
   return (
-    <Card className="hover:shadow-lg transition-shadow border-orange-300">
-      <CardHeader className="bg-orange-50 flex flex-row items-start gap-4 p-4">
-        <div className="bg-orange-100 rounded-md p-3 text-orange-500">
-          <FileText className="h-6 w-6" />
+    <Card className={`hover:shadow-lg transition-shadow border-${isExpired ? 'gray' : 'purple'}-300`}>
+      <CardHeader className={`bg-${isExpired ? 'gray' : 'purple'}-50 flex flex-col space-y-2`}>
+        <div className="flex justify-between items-start">
+          <CardTitle className="text-xl">{prescription.medication}</CardTitle>
+          <div className={`px-2 py-1 rounded-md text-xs font-medium 
+            ${isExpired ? 'bg-gray-100 text-gray-800' : 'bg-purple-100 text-purple-800'}`}>
+            {isExpired ? 'Expired' : 'Active'}
+          </div>
         </div>
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-xl">{prescription.medication_name || 'Medication'}</CardTitle>
-            {isExpired ? (
-              <Badge variant="destructive">Expired</Badge>
-            ) : (
-              <Badge className="bg-green-500">Active</Badge>
-            )}
+        <div className="text-sm text-gray-600">
+          <div className="flex items-center gap-1 mb-1">
+            <Dog className="h-4 w-4" />
+            <span>For: {prescription.pet_name}</span>
           </div>
-          <div className="mt-1 text-sm text-gray-500">
-            Rx #{prescription.rx_number || Math.floor(Math.random() * 9000000) + 1000000}
-          </div>
+          <div>Prescribed by: {prescription.vet_name}</div>
         </div>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="space-y-3">
-          {/* Pet Information */}
-          <div className="flex items-center gap-2 pb-2 border-b border-gray-100">
-            <div className="bg-orange-100 rounded-full p-1.5">
-              {prescription.pet?.type === 'cat' ? (
-                <Cat className="h-4 w-4 text-orange-500" />
-              ) : (
-                <Dog className="h-4 w-4 text-orange-500" />
-              )}
-            </div>
-            <span className="font-medium">{prescription.pet?.name || 'Pet'}</span>
-            <span className="text-sm text-gray-500">({prescription.pet?.breed || prescription.pet?.type || 'Unknown'})</span>
-          </div>
-          
-          {/* Medication Details */}
+      <CardContent className="pt-6">
+        <div className="grid grid-cols-2 gap-4 mb-4">
           <div>
-            <div className="font-medium">Dosage</div>
-            <div className="text-sm text-gray-700">{prescription.dosage || '10mg, twice daily'}</div>
+            <p className="text-sm text-gray-500">Dosage</p>
+            <p className="font-medium">{prescription.dosage}</p>
           </div>
-          
-          {/* Date Range */}
-          <div className="flex items-start gap-2">
-            <Calendar className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-            <div>
-              <div className="text-sm font-medium">{formattedStartDate} to {formattedEndDate}</div>
-              {isExpired && <div className="text-xs text-red-500">Expired {format(endDate, 'MMMM d, yyyy')}</div>}
-            </div>
-          </div>
-          
-          {/* Refill Status */}
-          <div className="bg-orange-50 p-3 rounded-md">
-            <div className="flex justify-between">
-              <span className="text-sm font-medium">Refills</span>
-              <span className="text-sm font-medium">{refillsUsed} of {totalRefills} used</span>
-            </div>
-            <div className="mt-2 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div 
-                className={`h-full ${isExpired || refillsUsed >= totalRefills ? 'bg-red-500' : 'bg-green-500'}`} 
-                style={{ width: `${(refillsUsed / totalRefills) * 100}%` }}
-              />
-            </div>
-          </div>
-          
-          {/* Prescriber */}
-          <div className="text-sm text-gray-500">
-            Prescribed by: {prescription.vet?.name || 'Dr. Veterinarian'}
+          <div>
+            <p className="text-sm text-gray-500">Frequency</p>
+            <p className="font-medium">{prescription.frequency}</p>
           </div>
         </div>
+        
+        <div className="flex items-center gap-3 mb-4">
+          <Calendar className={`h-5 w-5 ${isExpired ? 'text-gray-500' : 'text-purple-500'}`} />
+          <div>
+            <p className="text-sm text-gray-500">
+              {isExpired ? 'Expired on' : 'Valid until'}
+            </p>
+            <p className="font-medium">
+              {format(new Date(prescription.end_date), 'MMMM d, yyyy')}
+              {!isExpired && daysLeft <= 7 && (
+                <span className="ml-2 text-red-500 text-xs font-bold">{daysLeft} days left</span>
+              )}
+            </p>
+          </div>
+        </div>
+        
+        {prescription.instructions && (
+          <div className="mt-4 pt-4 border-t border-gray-200">
+            <p className="text-sm text-gray-500 mb-1">Instructions</p>
+            <p className="text-sm">{prescription.instructions}</p>
+          </div>
+        )}
       </CardContent>
-      <CardFooter className="flex justify-end gap-3">
-        <Button variant="outline" className="border-orange-300 text-orange-600">View Details</Button>
-        {!isExpired && refillsRemaining > 0 && (
-          <Button className="bg-orange-500 hover:bg-orange-600">Request Refill</Button>
+      <CardFooter className="flex justify-between gap-2">
+        {!isExpired && (
+          <>
+            <div className="text-sm">
+              <span className="text-gray-500">Refills: </span>
+              <span className={`font-medium ${prescription.refills > 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {prescription.refills} remaining
+              </span>
+            </div>
+            <Button className="bg-purple-500 hover:bg-purple-600">
+              <ShoppingCart className="mr-2 h-4 w-4" /> Refill
+            </Button>
+          </>
+        )}
+        {isExpired && (
+          <Button variant="outline" className="ml-auto border-gray-300 text-gray-600">Request Renewal</Button>
         )}
       </CardFooter>
     </Card>
@@ -245,33 +249,25 @@ const PrescriptionCard = ({ prescription, isExpired = false }: { prescription: a
 };
 
 // Empty State Component
-const EmptyPrescriptionState = ({ type = "all" }: { type?: string }) => {
-  let message = '';
-  let description = '';
-  
-  switch (type) {
-    case 'active':
-      message = "No active prescriptions";
-      description = "You don't have any active prescriptions at the moment.";
-      break;
-    case 'expired':
-      message = "No expired prescriptions";
-      description = "You don't have any expired prescriptions in your history.";
-      break;
-    default:
-      message = "No prescriptions found";
-      description = "Your pet's prescriptions will appear here after a vet visit.";
-  }
-  
+const EmptyPrescriptionState = ({ type = "active" }: { type: string }) => {
   return (
-    <div className="flex flex-col items-center justify-center bg-orange-50 rounded-lg p-12">
-      <div className="bg-orange-100 rounded-full p-6 mb-4">
-        <FileText className="h-12 w-12 text-orange-300" />
+    <div className="flex flex-col items-center justify-center bg-purple-50 rounded-lg p-12">
+      <div className="bg-purple-100 rounded-full p-6 mb-4">
+        <Pill className="h-12 w-12 text-purple-500" />
       </div>
-      <h3 className="text-xl font-medium text-gray-700 mb-2">{message}</h3>
+      <h3 className="text-xl font-medium text-gray-700 mb-2">
+        {type === "active" ? "No Active Prescriptions" : "No Expired Prescriptions"}
+      </h3>
       <p className="text-gray-500 mb-4 text-center max-w-md">
-        {description}
+        {type === "active" 
+          ? "You don't have any active prescriptions. After a vet visit, your prescriptions will appear here."
+          : "You don't have any expired prescriptions. When prescriptions expire, they will be moved here for reference."}
       </p>
+      {type === "active" && (
+        <Button className="bg-purple-500 hover:bg-purple-600">
+          <Plus className="mr-2 h-4 w-4" /> Request Prescription
+        </Button>
+      )}
     </div>
   );
 };

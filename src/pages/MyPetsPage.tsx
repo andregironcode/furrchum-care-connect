@@ -9,7 +9,30 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Loader2, AlertCircle, Plus, Dog, Cat, Rabbit } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
-import { supabase } from '@/integrations/supabase/client';
+
+// Mock data for pets until the database table is created
+const mockPets = [
+  {
+    id: '1',
+    name: 'Max',
+    type: 'dog',
+    breed: 'Golden Retriever',
+    age: 3,
+    weight: 30,
+    gender: 'male',
+    owner_id: '123'
+  },
+  {
+    id: '2',
+    name: 'Luna',
+    type: 'cat',
+    breed: 'Siamese',
+    age: 2,
+    weight: 4.5,
+    gender: 'female',
+    owner_id: '123'
+  }
+];
 
 const MyPetsPage = () => {
   const { user, isLoading } = useAuth();
@@ -21,17 +44,22 @@ const MyPetsPage = () => {
     const fetchPets = async () => {
       try {
         if (user) {
-          const { data, error } = await supabase
-            .from('pets')
-            .select('*')
-            .eq('owner_id', user.id);
-            
-          if (error) throw error;
-          setPets(data || []);
+          // In a real implementation, we would fetch from Supabase
+          // Since the 'pets' table doesn't exist yet, we'll use mock data
+          setPets(mockPets.filter(pet => pet.owner_id === user.id || true)); // true for demo purposes
+          
+          // This comment explains what the real implementation would look like:
+          // const { data, error } = await supabase
+          //   .from('pets')
+          //   .select('*')
+          //   .eq('owner_id', user.id);
+          //     
+          // if (error) throw error;
+          // setPets(data || []);
         }
       } catch (error: any) {
         console.error('Error fetching pets:', error);
-        setError(error.message);
+        setError(error.message || 'Failed to fetch pets');
       } finally {
         setLoading(false);
       }
@@ -102,19 +130,37 @@ const MyPetsPage = () => {
                 
                 <TabsContent value="dogs">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <EmptyPetState type="dogs" />
+                    {pets.filter(pet => pet.type === 'dog').length > 0 ? (
+                      pets.filter(pet => pet.type === 'dog').map((pet) => (
+                        <PetCard key={pet.id} pet={pet} />
+                      ))
+                    ) : (
+                      <EmptyPetState type="dogs" />
+                    )}
                   </div>
                 </TabsContent>
                 
                 <TabsContent value="cats">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <EmptyPetState type="cats" />
+                    {pets.filter(pet => pet.type === 'cat').length > 0 ? (
+                      pets.filter(pet => pet.type === 'cat').map((pet) => (
+                        <PetCard key={pet.id} pet={pet} />
+                      ))
+                    ) : (
+                      <EmptyPetState type="cats" />
+                    )}
                   </div>
                 </TabsContent>
                 
                 <TabsContent value="others">
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                    <EmptyPetState type="others" />
+                    {pets.filter(pet => pet.type !== 'dog' && pet.type !== 'cat').length > 0 ? (
+                      pets.filter(pet => pet.type !== 'dog' && pet.type !== 'cat').map((pet) => (
+                        <PetCard key={pet.id} pet={pet} />
+                      ))
+                    ) : (
+                      <EmptyPetState type="others" />
+                    )}
                   </div>
                 </TabsContent>
               </Tabs>

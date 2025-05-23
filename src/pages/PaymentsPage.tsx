@@ -3,15 +3,71 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Badge } from '@/components/ui/badge';
-import { Loader2, AlertCircle, Plus, CreditCard, Calendar, FileText, ChevronDown, Check } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, CreditCard, Calendar, Receipt, Download, FileText } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
-import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+
+// Mock data for payments until the database table is created
+const mockPayments = [
+  {
+    id: '1',
+    amount: 85.00,
+    date: new Date(2025, 5, 18),
+    vet_name: 'Dr. Sarah Johnson',
+    service: 'Routine Check-up',
+    pet_name: 'Max',
+    status: 'completed',
+    payment_method: 'Visa •••• 4242'
+  },
+  {
+    id: '2',
+    amount: 120.00,
+    date: new Date(2025, 5, 10),
+    vet_name: 'Dr. Michael Chen',
+    service: 'Vaccination & Deworming',
+    pet_name: 'Luna',
+    status: 'completed',
+    payment_method: 'Mastercard •••• 5555'
+  },
+  {
+    id: '3',
+    amount: 45.00,
+    date: new Date(2025, 5, 25),
+    vet_name: 'Dr. Amanda Lopez',
+    service: 'Prescription Renewal',
+    pet_name: 'Max',
+    status: 'pending',
+    payment_method: 'PayPal'
+  }
+];
+
+// Mock data for payment methods
+const mockPaymentMethods = [
+  {
+    id: '1',
+    type: 'visa',
+    last4: '4242',
+    expiry: '08/27',
+    is_default: true
+  },
+  {
+    id: '2',
+    type: 'mastercard',
+    last4: '5555',
+    expiry: '11/26',
+    is_default: false
+  },
+  {
+    id: '3',
+    type: 'paypal',
+    email: 'user@example.com',
+    is_default: false
+  }
+];
 
 const PaymentsPage = () => {
   const { user, isLoading } = useAuth();
@@ -21,38 +77,45 @@ const PaymentsPage = () => {
   const [paymentMethods, setPaymentMethods] = useState<any[]>([]);
 
   useEffect(() => {
-    const fetchPayments = async () => {
+    const fetchData = async () => {
       try {
         if (user) {
-          // Fetch payment history
-          const { data: paymentsData, error: paymentsError } = await supabase
-            .from('payments')
-            .select('*, vet:vets(*)')
-            .eq('user_id', user.id)
-            .order('created_at', { ascending: false });
-            
-          if (paymentsError) throw paymentsError;
-          setPayments(paymentsData || []);
+          // In a real implementation, we would fetch from Supabase
+          // Since the 'payments' and 'payment_methods' tables don't exist yet, we'll use mock data
+          setPayments(mockPayments);
+          setPaymentMethods(mockPaymentMethods);
           
-          // Fetch payment methods
-          const { data: methodsData, error: methodsError } = await supabase
-            .from('payment_methods')
-            .select('*')
-            .eq('user_id', user.id);
-            
-          if (methodsError) throw methodsError;
-          setPaymentMethods(methodsData || []);
+          // This comment explains what the real implementation would look like:
+          // const paymentsPromise = supabase
+          //   .from('payments')
+          //   .select('*, pets(*), vets(*)')
+          //   .eq('user_id', user.id)
+          //   .order('date', { ascending: false });
+          //
+          // const methodsPromise = supabase
+          //   .from('payment_methods')
+          //   .select('*')
+          //   .eq('user_id', user.id)
+          //   .order('is_default', { ascending: false });
+          //
+          // const [paymentsRes, methodsRes] = await Promise.all([paymentsPromise, methodsPromise]);
+          //
+          // if (paymentsRes.error) throw paymentsRes.error;
+          // if (methodsRes.error) throw methodsRes.error;
+          //
+          // setPayments(paymentsRes.data || []);
+          // setPaymentMethods(methodsRes.data || []);
         }
       } catch (error: any) {
         console.error('Error fetching payment data:', error);
-        setError(error.message);
+        setError(error.message || 'Failed to fetch payment information');
       } finally {
         setLoading(false);
       }
     };
 
     if (!isLoading) {
-      fetchPayments();
+      fetchData();
     }
   }, [user, isLoading]);
 
@@ -68,6 +131,9 @@ const PaymentsPage = () => {
     return <Navigate to="/auth" />;
   }
 
+  const completedPayments = payments.filter(p => p.status === 'completed');
+  const pendingPayments = payments.filter(p => p.status === 'pending');
+
   return (
     <SidebarProvider>
       <div className="min-h-screen flex w-full bg-background">
@@ -78,9 +144,9 @@ const PaymentsPage = () => {
               <div className="container flex h-16 items-center justify-between">
                 <div className="flex items-center gap-2">
                   <SidebarTrigger />
-                  <h1 className="text-2xl font-bold">Payments</h1>
+                  <h1 className="text-2xl font-bold">Billing & Payments</h1>
                 </div>
-                <Button className="bg-orange-500 hover:bg-orange-600">
+                <Button className="bg-indigo-500 hover:bg-indigo-600">
                   <Plus className="mr-2 h-4 w-4" /> Add Payment Method
                 </Button>
               </div>
@@ -94,59 +160,83 @@ const PaymentsPage = () => {
                 </Alert>
               )}
 
-              <Tabs defaultValue="payment-methods" className="w-full">
-                <TabsList className="w-full bg-orange-100 mb-4 h-12">
-                  <TabsTrigger value="payment-methods" className="text-lg flex-1">Payment Methods</TabsTrigger>
-                  <TabsTrigger value="invoices" className="text-lg flex-1">Invoices</TabsTrigger>
-                  <TabsTrigger value="history" className="text-lg flex-1">Payment History</TabsTrigger>
-                </TabsList>
+              {/* Payment Methods Section */}
+              <section className="mb-12">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl font-semibold">Payment Methods</h2>
+                  <Button variant="outline" size="sm">
+                    <Plus className="h-4 w-4 mr-1" /> Add New
+                  </Button>
+                </div>
                 
-                <TabsContent value="payment-methods">
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-semibold">Saved Payment Methods</h2>
-                    </div>
-                    
-                    {paymentMethods.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {paymentMethods.map((method) => (
-                          <PaymentMethodCard key={method.id} method={method} />
-                        ))}
-                      </div>
-                    ) : (
-                      <EmptyPaymentState type="payment-methods" />
-                    )}
+                {paymentMethods.length > 0 ? (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {paymentMethods.map((method) => (
+                      <PaymentMethodCard key={method.id} method={method} />
+                    ))}
                   </div>
-                </TabsContent>
-                
-                <TabsContent value="invoices">
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-semibold">Pending Invoices</h2>
+                ) : (
+                  <div className="bg-gray-50 rounded-lg p-8 text-center">
+                    <div className="bg-gray-100 mx-auto rounded-full p-4 w-16 h-16 flex items-center justify-center mb-4">
+                      <CreditCard className="h-8 w-8 text-gray-500" />
                     </div>
-                    
-                    <EmptyPaymentState type="invoices" />
+                    <h3 className="text-lg font-medium text-gray-700 mb-2">No Payment Methods</h3>
+                    <p className="text-gray-500 mb-4">You haven't added any payment methods yet.</p>
+                    <Button className="bg-indigo-500 hover:bg-indigo-600">
+                      <Plus className="mr-2 h-4 w-4" /> Add Payment Method
+                    </Button>
                   </div>
-                </TabsContent>
+                )}
+              </section>
+
+              {/* Transactions Section */}
+              <section>
+                <h2 className="text-xl font-semibold mb-6">Transaction History</h2>
                 
-                <TabsContent value="history">
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h2 className="text-xl font-semibold">Payment History</h2>
-                    </div>
-                    
+                <Tabs defaultValue="all" className="w-full">
+                  <TabsList className="w-full bg-indigo-100 mb-4 h-12">
+                    <TabsTrigger value="all" className="text-lg flex-1">All</TabsTrigger>
+                    <TabsTrigger value="completed" className="text-lg flex-1">Completed</TabsTrigger>
+                    <TabsTrigger value="pending" className="text-lg flex-1">Pending</TabsTrigger>
+                  </TabsList>
+                  
+                  <TabsContent value="all">
                     {payments.length > 0 ? (
-                      <div className="space-y-4">
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {payments.map((payment) => (
-                          <PaymentHistoryItem key={payment.id} payment={payment} />
+                          <PaymentCard key={payment.id} payment={payment} />
                         ))}
                       </div>
                     ) : (
-                      <EmptyPaymentState type="history" />
+                      <EmptyPaymentState />
                     )}
-                  </div>
-                </TabsContent>
-              </Tabs>
+                  </TabsContent>
+                  
+                  <TabsContent value="completed">
+                    {completedPayments.length > 0 ? (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {completedPayments.map((payment) => (
+                          <PaymentCard key={payment.id} payment={payment} />
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyPaymentState type="completed" />
+                    )}
+                  </TabsContent>
+                  
+                  <TabsContent value="pending">
+                    {pendingPayments.length > 0 ? (
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        {pendingPayments.map((payment) => (
+                          <PaymentCard key={payment.id} payment={payment} />
+                        ))}
+                      </div>
+                    ) : (
+                      <EmptyPaymentState type="pending" />
+                    )}
+                  </TabsContent>
+                </Tabs>
+              </section>
             </main>
           </div>
         </SidebarInset>
@@ -157,185 +247,136 @@ const PaymentsPage = () => {
 
 // Payment Method Card Component
 const PaymentMethodCard = ({ method }: { method: any }) => {
-  const getCardIcon = (type: string) => {
-    switch(type?.toLowerCase()) {
-      case 'visa':
-        return <span className="font-bold text-blue-600">VISA</span>;
-      case 'mastercard':
-        return <span className="font-bold text-red-500">MC</span>;
-      case 'amex':
-        return <span className="font-bold text-blue-500">AMEX</span>;
-      case 'discover':
-        return <span className="font-bold text-orange-600">DISC</span>;
-      default:
-        return <CreditCard className="h-6 w-6" />;
-    }
-  };
-
-  const last4 = method.last4 || '4242';
-  const expiryMonth = method.expiry_month || '12';
-  const expiryYear = method.expiry_year || '25';
-
+  let cardIcon;
+  
+  if (method.type === 'paypal') {
+    cardIcon = <div className="bg-blue-600 rounded text-white px-2 py-1 text-xs">PayPal</div>;
+  } else if (method.type === 'visa') {
+    cardIcon = <div className="bg-blue-800 rounded text-white px-2 py-1 text-xs">VISA</div>;
+  } else if (method.type === 'mastercard') {
+    cardIcon = <div className="bg-red-600 rounded text-white px-2 py-1 text-xs">MasterCard</div>;
+  } else {
+    cardIcon = <CreditCard className="h-5 w-5 text-gray-500" />;
+  }
+  
   return (
-    <Card className="hover:shadow-lg transition-shadow border-orange-300">
-      <CardHeader className="bg-orange-50 flex flex-row items-center gap-4 p-4">
-        <div className="bg-orange-100 rounded-md p-3 text-orange-500">
-          {getCardIcon(method.card_type)}
-        </div>
-        <div className="flex-1">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg">•••• •••• •••• {last4}</CardTitle>
+    <Card className="hover:shadow-lg transition-shadow">
+      <CardContent className="p-6 flex justify-between items-start">
+        <div>
+          <div className="flex items-center gap-2 mb-4">
+            {cardIcon}
             {method.is_default && (
-              <Badge className="bg-green-500">Default</Badge>
+              <span className="bg-green-100 text-green-800 text-xs px-2 py-1 rounded">Default</span>
             )}
           </div>
-          <div className="flex items-center gap-2 mt-1">
-            <div className="text-sm text-gray-500">Expires {expiryMonth}/{expiryYear}</div>
-            {method.card_type && (
-              <div className="text-sm text-gray-500 capitalize">{method.card_type}</div>
-            )}
-          </div>
+          
+          {method.type !== 'paypal' ? (
+            <div>
+              <div className="font-medium">•••• {method.last4}</div>
+              <div className="text-sm text-gray-500">Expires: {method.expiry}</div>
+            </div>
+          ) : (
+            <div>
+              <div className="font-medium">{method.email}</div>
+              <div className="text-sm text-gray-500">PayPal Account</div>
+            </div>
+          )}
         </div>
-      </CardHeader>
-      <CardContent className="pt-4 flex justify-end gap-3">
-        <Button variant="outline" className="text-xs border-orange-300 text-orange-600">Edit</Button>
-        {!method.is_default && (
-          <Button variant="outline" className="text-xs border-orange-300 text-orange-600">Set Default</Button>
-        )}
-        <Button variant="outline" className="text-xs border-red-300 text-red-600">Remove</Button>
+        
+        <div className="space-x-2">
+          {!method.is_default && (
+            <Button variant="outline" size="sm" className="text-xs">Set Default</Button>
+          )}
+          <Button variant="outline" size="sm" className="text-xs text-red-600 hover:bg-red-50 hover:text-red-700">Remove</Button>
+        </div>
       </CardContent>
     </Card>
   );
 };
 
-// Payment History Item Component
-const PaymentHistoryItem = ({ payment }: { payment: any }) => {
-  const [expanded, setExpanded] = useState(false);
-  const paymentDate = payment.created_at ? new Date(payment.created_at) : new Date();
-  const formattedDate = format(paymentDate, 'MMM d, yyyy');
-  
-  let statusBadge;
-  switch(payment.status) {
-    case 'completed':
-      statusBadge = <Badge className="bg-green-500">Paid</Badge>;
-      break;
-    case 'pending':
-      statusBadge = <Badge className="bg-yellow-500">Pending</Badge>;
-      break;
-    case 'failed':
-      statusBadge = <Badge className="bg-red-500">Failed</Badge>;
-      break;
-    default:
-      statusBadge = <Badge className="bg-blue-500">Processing</Badge>;
-  }
+// Payment Card Component
+const PaymentCard = ({ payment }: { payment: any }) => {
+  const isPending = payment.status === 'pending';
   
   return (
-    <Card className="hover:shadow-sm transition-shadow border-gray-200">
-      <div 
-        className="flex items-center justify-between p-4 cursor-pointer"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <div className="flex items-center gap-3">
-          <div className={`p-2 rounded-full ${payment.status === 'completed' ? 'bg-green-100' : 'bg-orange-100'}`}>
-            {payment.status === 'completed' ? (
-              <Check className="h-5 w-5 text-green-500" />
-            ) : (
-              <FileText className="h-5 w-5 text-orange-500" />
-            )}
-          </div>
+    <Card className={`hover:shadow-lg transition-shadow border-${isPending ? 'orange' : 'indigo'}-200`}>
+      <CardHeader className="bg-gray-50 pb-4">
+        <div className="flex justify-between items-center">
           <div>
-            <div className="font-medium">{payment.description || `Payment to ${payment.vet?.name || 'Veterinarian'}`}</div>
-            <div className="text-sm text-gray-500">{formattedDate}</div>
+            <div className="text-sm text-gray-500">
+              {format(new Date(payment.date), 'MMM dd, yyyy')}
+            </div>
+            <CardTitle className="text-xl">${payment.amount.toFixed(2)}</CardTitle>
+          </div>
+          <div className={`px-2 py-1 rounded-md text-xs font-medium 
+            ${isPending ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>
+            {isPending ? 'Pending' : 'Completed'}
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <div className="text-right">
-            <div className="font-bold">${payment.amount?.toFixed(2) || '0.00'}</div>
-            <div>{statusBadge}</div>
+      </CardHeader>
+      <CardContent className="pt-6">
+        <div className="space-y-3">
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Service:</span>
+            <span className="font-medium">{payment.service}</span>
           </div>
-          <ChevronDown className={`h-5 w-5 transition-transform ${expanded ? 'transform rotate-180' : ''}`} />
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Veterinarian:</span>
+            <span>{payment.vet_name}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Pet:</span>
+            <span>{payment.pet_name}</span>
+          </div>
+          <div className="flex justify-between text-sm">
+            <span className="text-gray-500">Payment Method:</span>
+            <span>{payment.payment_method}</span>
+          </div>
         </div>
-      </div>
-      
-      {expanded && (
-        <CardContent className="border-t pt-4">
-          <div className="space-y-3">
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <div className="text-sm text-gray-500">Payment ID</div>
-                <div className="font-medium">{payment.payment_id || payment.id || 'XXXXXXXX'}</div>
-              </div>
-              <div>
-                <div className="text-sm text-gray-500">Method</div>
-                <div className="font-medium">{payment.payment_method || 'Visa •••• 4242'}</div>
-              </div>
-            </div>
-            
-            <div>
-              <div className="text-sm text-gray-500">Service</div>
-              <div className="font-medium">{payment.service_description || 'Veterinary services'}</div>
-            </div>
-            
-            <div>
-              <div className="text-sm text-gray-500">Clinic</div>
-              <div className="font-medium">{payment.vet?.name || 'Veterinary Clinic'}</div>
-              <div className="text-sm">{payment.vet?.address || 'Clinic address'}</div>
-            </div>
-            
-            {payment.invoice_number && (
-              <div className="flex justify-end">
-                <Button variant="outline" className="text-sm border-orange-300 text-orange-600">
-                  View Receipt
-                </Button>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      )}
+      </CardContent>
+      <CardFooter className="flex justify-end gap-2 pt-4 border-t border-gray-100">
+        <Button variant="outline" size="sm" className="text-xs">
+          <Receipt className="mr-1 h-3 w-3" /> View Receipt
+        </Button>
+        {!isPending && (
+          <Button variant="outline" size="sm" className="text-xs">
+            <Download className="mr-1 h-3 w-3" /> Download Invoice
+          </Button>
+        )}
+        {isPending && (
+          <Button size="sm" className="text-xs bg-indigo-500 hover:bg-indigo-600">
+            Pay Now
+          </Button>
+        )}
+      </CardFooter>
     </Card>
   );
 };
 
 // Empty State Component
-const EmptyPaymentState = ({ type = "payment-methods" }: { type?: string }) => {
+const EmptyPaymentState = ({ type = "all" }: { type?: string }) => {
   let message = '';
-  let description = '';
-  let icon = <CreditCard className="h-12 w-12 text-orange-300" />;
   
   switch (type) {
-    case 'payment-methods':
-      message = "No payment methods saved";
-      description = "Add a credit card or payment method to easily pay for veterinary services.";
+    case 'completed':
+      message = "You don't have any completed payments.";
       break;
-    case 'invoices':
-      message = "No pending invoices";
-      description = "You don't have any bills that need to be paid at this time.";
-      icon = <FileText className="h-12 w-12 text-orange-300" />;
-      break;
-    case 'history':
-      message = "No payment history";
-      description = "Your payment history will appear here after you make payments for veterinary services.";
-      icon = <Calendar className="h-12 w-12 text-orange-300" />;
+    case 'pending':
+      message = "You don't have any pending payments.";
       break;
     default:
-      message = "No payment information";
-      description = "Add payment methods to manage your veterinary expenses.";
+      message = "No payment history found.";
   }
   
   return (
-    <div className="flex flex-col items-center justify-center bg-orange-50 rounded-lg p-12">
-      <div className="bg-orange-100 rounded-full p-6 mb-4">
-        {icon}
+    <div className="flex flex-col items-center justify-center bg-gray-50 rounded-lg p-12">
+      <div className="bg-gray-100 rounded-full p-6 mb-4">
+        <FileText className="h-12 w-12 text-gray-500" />
       </div>
       <h3 className="text-xl font-medium text-gray-700 mb-2">{message}</h3>
       <p className="text-gray-500 mb-4 text-center max-w-md">
-        {description}
+        Your payment history will appear here after you've made payments for veterinary services.
       </p>
-      {type === 'payment-methods' && (
-        <Button className="bg-orange-500 hover:bg-orange-600">
-          <Plus className="mr-2 h-4 w-4" /> Add Payment Method
-        </Button>
-      )}
     </div>
   );
 };

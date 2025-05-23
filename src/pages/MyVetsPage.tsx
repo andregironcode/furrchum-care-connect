@@ -4,37 +4,73 @@ import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, Plus, Search, Star, MapPin, Phone, Clock } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Star, Phone, VideoIcon } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
-import { supabase } from '@/integrations/supabase/client';
+import { Input } from '@/components/ui/input';
+
+// Mock data for veterinarians until the database table is created
+const mockVets = [
+  {
+    id: '1',
+    name: 'Dr. Sarah Johnson',
+    specialty: 'Small Animal Care',
+    experience: '8 years',
+    rating: 4.8,
+    image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=300&h=300',
+    distance: '2.3 miles',
+    available: true
+  },
+  {
+    id: '2',
+    name: 'Dr. Michael Chen',
+    specialty: 'Feline Specialist',
+    experience: '12 years',
+    rating: 4.9,
+    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&h=300',
+    distance: '4.1 miles',
+    available: false
+  },
+  {
+    id: '3',
+    name: 'Dr. Amanda Lopez',
+    specialty: 'Emergency Care',
+    experience: '10 years',
+    rating: 4.7,
+    image: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&w=300&h=300',
+    distance: '1.8 miles',
+    available: true
+  }
+];
 
 const MyVetsPage = () => {
   const { user, isLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [vets, setVets] = useState<any[]>([]);
+  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchVets = async () => {
       try {
         if (user) {
-          const { data, error } = await supabase
-            .from('vet_favorites')
-            .select('vet_id, vets(*)')
-            .eq('user_id', user.id);
-            
-          if (error) throw error;
+          // In a real implementation, we would fetch from Supabase
+          // Since the 'vet_favorites' table doesn't exist yet, we'll use mock data
+          setVets(mockVets);
           
-          // Extract vet data from the join
-          const formattedVets = data?.map(item => item.vets) || [];
-          setVets(formattedVets);
+          // This comment explains what the real implementation would look like:
+          // const { data, error } = await supabase
+          //   .from('vet_favorites')
+          //   .select('vet_id, vets(*)')
+          //   .eq('user_id', user.id);
+          //     
+          // if (error) throw error;
+          // setVets(data?.map(item => item.vets) || []);
         }
       } catch (error: any) {
         console.error('Error fetching vets:', error);
-        setError(error.message);
+        setError(error.message || 'Failed to fetch favorite veterinarians');
       } finally {
         setLoading(false);
       }
@@ -44,6 +80,11 @@ const MyVetsPage = () => {
       fetchVets();
     }
   }, [user, isLoading]);
+
+  const filteredVets = vets.filter(vet => 
+    vet.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    vet.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (isLoading || loading) {
     return (
@@ -67,10 +108,10 @@ const MyVetsPage = () => {
               <div className="container flex h-16 items-center justify-between">
                 <div className="flex items-center gap-2">
                   <SidebarTrigger />
-                  <h1 className="text-2xl font-bold">My Vets</h1>
+                  <h1 className="text-2xl font-bold">My Veterinarians</h1>
                 </div>
-                <Button className="bg-orange-500 hover:bg-orange-600">
-                  <Search className="mr-2 h-4 w-4" /> Find Vets
+                <Button className="bg-blue-500 hover:bg-blue-600">
+                  <Plus className="mr-2 h-4 w-4" /> Find New Vet
                 </Button>
               </div>
             </header>
@@ -83,33 +124,27 @@ const MyVetsPage = () => {
                 </Alert>
               )}
 
-              <Tabs defaultValue="favorites" className="w-full">
-                <TabsList className="w-full bg-orange-100 mb-4 h-12">
-                  <TabsTrigger value="favorites" className="text-lg flex-1">Favorite Vets</TabsTrigger>
-                  <TabsTrigger value="recent" className="text-lg flex-1">Recent Visits</TabsTrigger>
-                  <TabsTrigger value="all" className="text-lg flex-1">All Vets</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="favorites">
-                  {vets.length > 0 ? (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {vets.map((vet) => (
-                        <VetCard key={vet.id} vet={vet} />
-                      ))}
-                    </div>
-                  ) : (
-                    <EmptyVetState type="favorites" />
-                  )}
-                </TabsContent>
-                
-                <TabsContent value="recent">
-                  <EmptyVetState type="recent" />
-                </TabsContent>
-                
-                <TabsContent value="all">
-                  <EmptyVetState type="all" />
-                </TabsContent>
-              </Tabs>
+              <div className="mb-6">
+                <div className="relative">
+                  <Input
+                    type="text"
+                    placeholder="Search by name or specialty..."
+                    className="pl-4 pr-10 py-2 border rounded-lg w-full"
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {filteredVets.length > 0 ? (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredVets.map((vet) => (
+                    <VetCard key={vet.id} vet={vet} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyVetState />
+              )}
             </main>
           </div>
         </SidebarInset>
@@ -121,91 +156,68 @@ const MyVetsPage = () => {
 // Vet Card Component
 const VetCard = ({ vet }: { vet: any }) => {
   return (
-    <Card className="hover:shadow-lg transition-shadow border-orange-300">
-      <CardHeader className="bg-orange-50 flex flex-row items-center gap-4 p-4">
-        <div className="h-16 w-16 rounded-full bg-orange-200 overflow-hidden">
-          {vet.profile_picture ? (
-            <img src={vet.profile_picture} alt={vet.name} className="h-full w-full object-cover" />
-          ) : (
-            <div className="h-full w-full flex items-center justify-center bg-orange-200 text-orange-600 font-bold text-xl">
-              {vet.name?.charAt(0) || 'V'}
-            </div>
-          )}
-        </div>
-        <div className="flex-1">
-          <CardTitle className="text-xl">{vet.name || 'Veterinarian'}</CardTitle>
-          <div className="flex items-center mt-1">
-            <p className="text-sm text-gray-500">{vet.specialty || 'General Practitioner'}</p>
-            <div className="flex ml-2">
-              {[...Array(5)].map((_, i) => (
-                <Star 
-                  key={i} 
-                  className={`h-4 w-4 ${i < (vet.rating || 4) ? 'text-yellow-500 fill-yellow-500' : 'text-gray-300'}`} 
-                />
-              ))}
+    <Card className="hover:shadow-lg transition-shadow border-blue-300">
+      <CardHeader className="bg-blue-50 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          <div className="h-16 w-16 rounded-full overflow-hidden bg-blue-100">
+            {vet.image ? (
+              <img src={vet.image} alt={vet.name} className="h-full w-full object-cover" />
+            ) : (
+              <div className="h-full w-full flex items-center justify-center bg-blue-100 text-blue-500 text-2xl font-bold">
+                {vet.name.charAt(0)}
+              </div>
+            )}
+          </div>
+          <div>
+            <CardTitle className="text-xl">{vet.name}</CardTitle>
+            <p className="text-sm text-gray-500">{vet.specialty}</p>
+            <div className="flex items-center mt-1 text-yellow-500">
+              <Star className="h-4 w-4 fill-current" />
+              <span className="ml-1 text-sm">{vet.rating}</span>
+              <span className="ml-2 text-xs text-gray-500">({vet.experience} exp)</span>
             </div>
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="space-y-3">
-          <div className="flex items-start gap-2">
-            <MapPin className="h-5 w-5 text-orange-500 shrink-0 mt-0.5" />
-            <span className="text-sm">{vet.address || '123 Pet Street, Animal City, AC 12345'}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Phone className="h-5 w-5 text-orange-500" />
-            <span className="text-sm">{vet.phone || '(555) 123-4567'}</span>
-          </div>
-          <div className="flex items-center gap-2">
-            <Clock className="h-5 w-5 text-orange-500" />
-            <span className="text-sm">{vet.hours || 'Mon-Fri: 9AM-6PM | Sat: 10AM-4PM'}</span>
+      <CardContent className="pt-6">
+        <div className="mb-4">
+          <p className="text-sm text-gray-500 mb-1">Distance</p>
+          <p className="font-medium">{vet.distance}</p>
+        </div>
+        <div>
+          <p className="text-sm text-gray-500 mb-1">Availability</p>
+          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+            vet.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+          }`}>
+            {vet.available ? 'Available Now' : 'Unavailable'}
           </div>
         </div>
       </CardContent>
-      <CardFooter className="flex justify-end gap-3">
-        <Button variant="outline" className="border-orange-300 text-orange-600">View Profile</Button>
-        <Button className="bg-orange-500 hover:bg-orange-600">Book Appointment</Button>
+      <CardFooter className="flex justify-between gap-2">
+        <Button variant="outline" className="border-blue-300 text-blue-600">
+          <Phone className="h-4 w-4 mr-2" /> Call
+        </Button>
+        <Button className="bg-blue-500 hover:bg-blue-600">
+          <VideoIcon className="h-4 w-4 mr-2" /> Start Video
+        </Button>
       </CardFooter>
     </Card>
   );
 };
 
 // Empty State Component
-const EmptyVetState = ({ type = "all" }: { type?: string }) => {
-  let message = '';
-  let description = '';
-  let buttonText = '';
-  let icon = <Search className="h-12 w-12 text-orange-300" />;
-  
-  switch (type) {
-    case 'favorites':
-      message = "No favorite vets yet";
-      description = "Add vets to your favorites for quick access to their profiles and easy appointment scheduling.";
-      buttonText = "Find Vets";
-      break;
-    case 'recent':
-      message = "No recent vet visits";
-      description = "Your recent veterinary visits will appear here after appointments.";
-      buttonText = "Schedule an Appointment";
-      break;
-    default:
-      message = "No vets found";
-      description = "Search for veterinarians in your area to add to your network.";
-      buttonText = "Find Vets";
-  }
-  
+const EmptyVetState = () => {
   return (
-    <div className="flex flex-col items-center justify-center bg-orange-50 rounded-lg p-12">
-      <div className="bg-orange-100 rounded-full p-6 mb-4">
-        {icon}
+    <div className="flex flex-col items-center justify-center bg-blue-50 rounded-lg p-12">
+      <div className="bg-blue-100 rounded-full p-6 mb-4">
+        <Phone className="h-12 w-12 text-blue-500" />
       </div>
-      <h3 className="text-xl font-medium text-gray-700 mb-2">{message}</h3>
+      <h3 className="text-xl font-medium text-gray-700 mb-2">No Veterinarians Found</h3>
       <p className="text-gray-500 mb-4 text-center max-w-md">
-        {description}
+        You haven't saved any veterinarians yet. Find and save your preferred vets for quick access to their services.
       </p>
-      <Button className="bg-orange-500 hover:bg-orange-600">
-        <Search className="mr-2 h-4 w-4" /> {buttonText}
+      <Button className="bg-blue-500 hover:bg-blue-600">
+        <Plus className="mr-2 h-4 w-4" /> Find a Veterinarian
       </Button>
     </div>
   );

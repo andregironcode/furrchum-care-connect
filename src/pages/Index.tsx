@@ -1,16 +1,16 @@
 
 import Navbar from '@/components/Navbar';
-import HeroSection from '@/components/HeroSection';
+import BookingSection from '@/components/BookingSection';
 import Footer from '@/components/Footer';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, PhoneCall, Shield } from 'lucide-react';
 
 const Index = () => {
   return (
     <div className="min-h-screen bg-cream-50">
       <Navbar />
-      <HeroSection />
+      <BookingSection />
       
       {/* How It Works Section */}
       <section className="py-20 bg-gradient-to-b from-cream-50 to-white">
