@@ -29,17 +29,27 @@ const App = () => (
             <Route path="/records" element={<HealthRecords />} />
             <Route path="/auth" element={<Auth />} />
             
-            {/* Protected Routes */}
+            {/* Pet Owner Routes */}
             <Route path="/dashboard" element={
               <RouteGuard>
                 <PetOwnerDashboard />
               </RouteGuard>
             } />
+            <Route path="/my-pets" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/appointments" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/settings" element={<RouteGuard><NotFound /></RouteGuard>} />
+            
+            {/* Vet Routes */}
             <Route path="/vet-dashboard" element={
               <RouteGuard>
                 <VetDashboard />
               </RouteGuard>
             } />
+            <Route path="/vet-appointments" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/prescriptions" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/vet-profile" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/vet-billing" element={<RouteGuard><NotFound /></RouteGuard>} />
+            <Route path="/vet-settings" element={<RouteGuard><NotFound /></RouteGuard>} />
             
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />

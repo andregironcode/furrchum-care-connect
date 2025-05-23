@@ -14,7 +14,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Calendar, FileText, Settings, Home, Users, LogOut, Stethoscope } from "lucide-react";
+import { Home, Calendar, FileText, User, Wallet, LogOut } from "lucide-react";
 
 const VetSidebar = () => {
   const { signOut } = useAuth();
@@ -32,34 +32,28 @@ const VetSidebar = () => {
       isActive: isActive("/vet-dashboard"),
     },
     {
-      title: "Appointments",
+      title: "Appointment",
       path: "/vet-appointments",
       icon: Calendar,
       isActive: isActive("/vet-appointments"),
     },
     {
-      title: "Patients",
-      path: "/patients",
-      icon: Users,
-      isActive: isActive("/patients"),
-    },
-    {
-      title: "Medical Records",
-      path: "/medical-records",
+      title: "Prescription",
+      path: "/prescriptions",
       icon: FileText,
-      isActive: isActive("/medical-records"),
+      isActive: isActive("/prescriptions"),
     },
     {
-      title: "Treatment Plans",
-      path: "/treatments",
-      icon: Stethoscope,
-      isActive: isActive("/treatments"),
+      title: "Profile",
+      path: "/vet-profile",
+      icon: User,
+      isActive: isActive("/vet-profile"),
     },
     {
-      title: "Settings",
-      path: "/vet-settings",
-      icon: Settings,
-      isActive: isActive("/vet-settings"),
+      title: "Billing",
+      path: "/vet-billing",
+      icon: Wallet,
+      isActive: isActive("/vet-billing"),
     },
   ];
 
@@ -67,8 +61,9 @@ const VetSidebar = () => {
     <Sidebar>
       <SidebarHeader>
         <div className="p-2">
-          <h2 className="text-xl font-bold text-primary">PetCare</h2>
-          <p className="text-xs text-muted-foreground">Veterinarian Portal</p>
+          <Link to="/" className="block">
+            <h2 className="text-2xl font-bold text-primary">PetCare</h2>
+          </Link>
         </div>
       </SidebarHeader>
       
@@ -100,11 +95,11 @@ const VetSidebar = () => {
         <div className="p-2">
           <Button 
             variant="outline" 
-            className="w-full justify-start text-destructive hover:text-destructive"
+            className="w-full justify-start text-destructive hover:text-destructive bg-transparent"
             onClick={signOut}
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Sign Out
+            Log Out
           </Button>
         </div>
       </SidebarFooter>

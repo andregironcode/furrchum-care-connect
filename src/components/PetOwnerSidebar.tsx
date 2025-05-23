@@ -12,7 +12,6 @@ import {
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
-  SidebarProvider,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { PawPrint, Calendar, FileText, Settings, Home, LogOut } from "lucide-react";
@@ -62,8 +61,9 @@ const PetOwnerSidebar = () => {
     <Sidebar>
       <SidebarHeader>
         <div className="p-2">
-          <h2 className="text-xl font-bold text-primary">PetCare</h2>
-          <p className="text-xs text-muted-foreground">Pet Owner Dashboard</p>
+          <Link to="/" className="block">
+            <h2 className="text-2xl font-bold text-primary">PetCare</h2>
+          </Link>
         </div>
       </SidebarHeader>
       
@@ -95,7 +95,7 @@ const PetOwnerSidebar = () => {
         <div className="p-2">
           <Button 
             variant="outline" 
-            className="w-full justify-start text-destructive hover:text-destructive"
+            className="w-full justify-start text-destructive hover:text-destructive bg-transparent"
             onClick={signOut}
           >
             <LogOut className="mr-2 h-4 w-4" />
