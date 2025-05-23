@@ -83,29 +83,27 @@ const PetOwnerSidebar = () => {
         </div>
       </SidebarHeader>
       
-      <SidebarContent>
+      <SidebarContent className="py-4">
         <SidebarGroup>
-          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
-                <SidebarMenuItem key={item.path}>
+                <SidebarMenuItem key={item.path} className="mb-2">
                   <SidebarMenuButton
                     asChild
                     isActive={item.isActive}
                     tooltip={item.title}
-                    size="lg"
                     className={`
+                      flex items-center w-full font-medium text-lg
                       ${item.isActive 
                         ? "bg-white text-orange-600 font-bold" 
-                        : "bg-orange-600 text-white font-medium hover:bg-orange-400"} 
-                      transition-colors
-                      px-4 py-2
+                        : "bg-orange-600 text-white hover:bg-orange-400"} 
+                      transition-colors p-4 rounded-md
                     `}
                   >
-                    <Link to={item.path}>
-                      <item.icon className="h-5 w-5" />
-                      <span>{item.title}</span>
+                    <Link to={item.path} className="flex items-center gap-3">
+                      <item.icon className="h-6 w-6" />
+                      <span className="text-base lg:text-lg">{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
@@ -116,13 +114,13 @@ const PetOwnerSidebar = () => {
       </SidebarContent>
       
       <SidebarFooter>
-        <div className="p-2">
+        <div className="p-4">
           <Button 
             variant="outline" 
-            className="w-full justify-start bg-orange-600 text-white border-white hover:bg-orange-400"
+            className="w-full justify-start bg-orange-600 text-white text-lg border-white hover:bg-orange-400 p-3"
             onClick={signOut}
           >
-            <LogOut className="mr-2 h-5 w-5" />
+            <LogOut className="mr-3 h-6 w-6" />
             Log Out
           </Button>
         </div>
