@@ -110,7 +110,7 @@ const MyVetsPage = () => {
                   <SidebarTrigger />
                   <h1 className="text-2xl font-bold">My Veterinarians</h1>
                 </div>
-                <Button className="bg-blue-500 hover:bg-blue-600">
+                <Button className="bg-primary hover:bg-primary-600">
                   <Plus className="mr-2 h-4 w-4" /> Find New Vet
                 </Button>
               </div>
@@ -156,14 +156,14 @@ const MyVetsPage = () => {
 // Vet Card Component
 const VetCard = ({ vet }: { vet: any }) => {
   return (
-    <Card className="hover:shadow-lg transition-shadow border-blue-300">
-      <CardHeader className="bg-blue-50 flex items-center justify-between">
+    <Card className="hover:shadow-lg transition-shadow border-primary-300">
+      <CardHeader className="bg-primary-50 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          <div className="h-16 w-16 rounded-full overflow-hidden bg-blue-100">
+          <div className="h-16 w-16 rounded-full overflow-hidden bg-primary-100">
             {vet.image ? (
               <img src={vet.image} alt={vet.name} className="h-full w-full object-cover" />
             ) : (
-              <div className="h-full w-full flex items-center justify-center bg-blue-100 text-blue-500 text-2xl font-bold">
+              <div className="h-full w-full flex items-center justify-center bg-primary-100 text-primary-500 text-2xl font-bold">
                 {vet.name.charAt(0)}
               </div>
             )}
@@ -194,10 +194,10 @@ const VetCard = ({ vet }: { vet: any }) => {
         </div>
       </CardContent>
       <CardFooter className="flex justify-between gap-2">
-        <Button variant="outline" className="border-blue-300 text-blue-600">
+        <Button variant="outline" className="border-primary-300 text-primary-600">
           <Phone className="h-4 w-4 mr-2" /> Call
         </Button>
-        <Button className="bg-blue-500 hover:bg-blue-600">
+        <Button className="bg-primary hover:bg-primary-600">
           <VideoIcon className="h-4 w-4 mr-2" /> Start Video
         </Button>
       </CardFooter>
@@ -208,15 +208,15 @@ const VetCard = ({ vet }: { vet: any }) => {
 // Empty State Component
 const EmptyVetState = () => {
   return (
-    <div className="flex flex-col items-center justify-center bg-blue-50 rounded-lg p-12">
-      <div className="bg-blue-100 rounded-full p-6 mb-4">
-        <Phone className="h-12 w-12 text-blue-500" />
+    <div className="flex flex-col items-center justify-center bg-primary-50 rounded-lg p-12">
+      <div className="bg-primary-100 rounded-full p-6 mb-4">
+        <Phone className="h-12 w-12 text-primary-500" />
       </div>
       <h3 className="text-xl font-medium text-gray-700 mb-2">No Veterinarians Found</h3>
       <p className="text-gray-500 mb-4 text-center max-w-md">
         You haven't saved any veterinarians yet. Find and save your preferred vets for quick access to their services.
       </p>
-      <Button className="bg-blue-500 hover:bg-blue-600">
+      <Button className="bg-primary hover:bg-primary-600">
         <Plus className="mr-2 h-4 w-4" /> Find a Veterinarian
       </Button>
     </div>
