@@ -25,105 +25,108 @@ import ProfilePage from "./pages/ProfilePage";
 import BookingPage from "./pages/BookingPage";
 import PaymentPage from "./pages/PaymentPage";
 
-const queryClient = new QueryClient();
-
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <AuthProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Redirecting root to vets page */}
-            <Route path="/" element={<Navigate to="/vets" replace />} />
-            <Route path="/vets" element={<VetDirectory />} />
-            <Route path="/records" element={<HealthRecords />} />
-            <Route path="/auth" element={<Auth />} />
-            
-            {/* Pet Owner Routes */}
-            <Route path="/dashboard" element={
-              <RouteGuard>
-                <PetOwnerDashboard />
-              </RouteGuard>
-            } />
-            <Route path="/my-pets" element={
-              <RouteGuard>
-                <MyPetsPage />
-              </RouteGuard>
-            } />
-            <Route path="/my-vets" element={
-              <RouteGuard>
-                <MyVetsPage />
-              </RouteGuard>
-            } />
-            <Route path="/appointments" element={
-              <RouteGuard>
-                <AppointmentsPage />
-              </RouteGuard>
-            } />
-            <Route path="/prescriptions" element={
-              <RouteGuard>
-                <PrescriptionsPage />
-              </RouteGuard>
-            } />
-            <Route path="/payments" element={
-              <RouteGuard>
-                <PaymentsPage />
-              </RouteGuard>
-            } />
-            <Route path="/profile" element={
-              <RouteGuard>
-                <ProfilePage />
-              </RouteGuard>
-            } />
-            
-            {/* New Booking and Payment Routes */}
-            <Route path="/booking/:vetId" element={
-              <RouteGuard>
-                <BookingPage />
-              </RouteGuard>
-            } />
-            <Route path="/payment" element={
-              <RouteGuard>
-                <PaymentPage />
-              </RouteGuard>
-            } />
-            
-            {/* Vet Routes */}
-            <Route path="/vet-dashboard" element={
-              <RouteGuard>
-                <VetDashboard />
-              </RouteGuard>
-            } />
-            <Route path="/vet-appointments" element={
-              <RouteGuard>
-                <VetAppointmentsPage />
-              </RouteGuard>
-            } />
-            <Route path="/vet-prescriptions" element={
-              <RouteGuard>
-                <VetPrescriptionsPage />
-              </RouteGuard>
-            } />
-            <Route path="/vet-profile" element={
-              <RouteGuard>
-                <VetProfilePage />
-              </RouteGuard>
-            } />
-            <Route path="/vet-billing" element={
-              <RouteGuard>
-                <VetBillingPage />
-              </RouteGuard>
-            } />
-            
-            {/* Catch-all route */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </AuthProvider>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+const App = () => {
+  // Move queryClient inside the component
+  const queryClient = new QueryClient();
+  
+  return (
+    <QueryClientProvider client={queryClient}>
+      <TooltipProvider>
+        <AuthProvider>
+          <Toaster />
+          <Sonner />
+          <BrowserRouter>
+            <Routes>
+              {/* Redirecting root to vets page */}
+              <Route path="/" element={<Navigate to="/vets" replace />} />
+              <Route path="/vets" element={<VetDirectory />} />
+              <Route path="/records" element={<HealthRecords />} />
+              <Route path="/auth" element={<Auth />} />
+              
+              {/* Pet Owner Routes */}
+              <Route path="/dashboard" element={
+                <RouteGuard>
+                  <PetOwnerDashboard />
+                </RouteGuard>
+              } />
+              <Route path="/my-pets" element={
+                <RouteGuard>
+                  <MyPetsPage />
+                </RouteGuard>
+              } />
+              <Route path="/my-vets" element={
+                <RouteGuard>
+                  <MyVetsPage />
+                </RouteGuard>
+              } />
+              <Route path="/appointments" element={
+                <RouteGuard>
+                  <AppointmentsPage />
+                </RouteGuard>
+              } />
+              <Route path="/prescriptions" element={
+                <RouteGuard>
+                  <PrescriptionsPage />
+                </RouteGuard>
+              } />
+              <Route path="/payments" element={
+                <RouteGuard>
+                  <PaymentsPage />
+                </RouteGuard>
+              } />
+              <Route path="/profile" element={
+                <RouteGuard>
+                  <ProfilePage />
+                </RouteGuard>
+              } />
+              
+              {/* New Booking and Payment Routes */}
+              <Route path="/booking/:vetId" element={
+                <RouteGuard>
+                  <BookingPage />
+                </RouteGuard>
+              } />
+              <Route path="/payment" element={
+                <RouteGuard>
+                  <PaymentPage />
+                </RouteGuard>
+              } />
+              
+              {/* Vet Routes */}
+              <Route path="/vet-dashboard" element={
+                <RouteGuard>
+                  <VetDashboard />
+                </RouteGuard>
+              } />
+              <Route path="/vet-appointments" element={
+                <RouteGuard>
+                  <VetAppointmentsPage />
+                </RouteGuard>
+              } />
+              <Route path="/vet-prescriptions" element={
+                <RouteGuard>
+                  <VetPrescriptionsPage />
+                </RouteGuard>
+              } />
+              <Route path="/vet-profile" element={
+                <RouteGuard>
+                  <VetProfilePage />
+                </RouteGuard>
+              } />
+              <Route path="/vet-billing" element={
+                <RouteGuard>
+                  <VetBillingPage />
+                </RouteGuard>
+              } />
+              
+              {/* Catch-all route */}
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </AuthProvider>
+      </TooltipProvider>
+    </QueryClientProvider>
+  );
+};
 
 export default App;
