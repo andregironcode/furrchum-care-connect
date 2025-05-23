@@ -3,8 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import Index from "./pages/Index";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import VetDirectory from "./pages/VetDirectory";
 import HealthRecords from "./pages/HealthRecords";
 import Auth from "./pages/Auth";
@@ -17,14 +16,14 @@ import VetAppointmentsPage from "./pages/VetAppointmentsPage";
 import VetPrescriptionsPage from "./pages/VetPrescriptionsPage";
 import VetProfilePage from "./pages/VetProfilePage";
 import VetBillingPage from "./pages/VetBillingPage";
-
-// Import our new pages
 import MyPetsPage from "./pages/MyPetsPage";
 import MyVetsPage from "./pages/MyVetsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
 import PrescriptionsPage from "./pages/PrescriptionsPage";
 import PaymentsPage from "./pages/PaymentsPage";
 import ProfilePage from "./pages/ProfilePage";
+import BookingPage from "./pages/BookingPage";
+import PaymentPage from "./pages/PaymentPage";
 
 const queryClient = new QueryClient();
 
@@ -36,7 +35,8 @@ const App = () => (
         <Sonner />
         <BrowserRouter>
           <Routes>
-            <Route path="/" element={<Index />} />
+            {/* Redirecting root to vets page */}
+            <Route path="/" element={<Navigate to="/vets" replace />} />
             <Route path="/vets" element={<VetDirectory />} />
             <Route path="/records" element={<HealthRecords />} />
             <Route path="/auth" element={<Auth />} />
@@ -78,6 +78,18 @@ const App = () => (
               </RouteGuard>
             } />
             
+            {/* New Booking and Payment Routes */}
+            <Route path="/booking/:vetId" element={
+              <RouteGuard>
+                <BookingPage />
+              </RouteGuard>
+            } />
+            <Route path="/payment" element={
+              <RouteGuard>
+                <PaymentPage />
+              </RouteGuard>
+            } />
+            
             {/* Vet Routes */}
             <Route path="/vet-dashboard" element={
               <RouteGuard>
@@ -105,7 +117,7 @@ const App = () => (
               </RouteGuard>
             } />
             
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            {/* Catch-all route */}
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
