@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
@@ -10,26 +9,27 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
-    <nav className="bg-white/80 backdrop-blur-md border-b border-tan-200 sticky top-0 z-50">
+    <nav className="bg-white/80 backdrop-blur-md border-b border-[#4e2a14] sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex justify-between items-center h-16">
           <div className="flex items-center space-x-3">
-            <div className="w-8 h-8 bg-gradient-to-br from-primary to-accent rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-sm">🐾</span>
-            </div>
-            <span className="text-xl font-bold text-gray-800">Furrchum</span>
+            <img 
+              src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" 
+              alt="Furrchum Logo" 
+              className="h-12 w-auto"
+            />
           </div>
           
           <div className="hidden md:flex items-center space-x-6">
-            <a href="/" className="text-gray-600 hover:text-primary transition-colors">Home</a>
-            <a href="/vets" className="text-gray-600 hover:text-primary transition-colors">Find Vets</a>
-            <a href="/records" className="text-gray-600 hover:text-primary transition-colors">Health Records</a>
+            <a href="/" className="text-[#4e2a14] hover:text-[#f39bae] transition-colors">Home</a>
+            <a href="/vets" className="text-[#4e2a14] hover:text-[#f39bae] transition-colors">Find Vets</a>
+            <a href="/records" className="text-[#4e2a14] hover:text-[#f39bae] transition-colors">Health Records</a>
           </div>
 
           <div className="flex items-center space-x-3">
             <Dialog>
               <DialogTrigger asChild>
-                <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white">
+                <Button variant="outline" className="border-[#f39bae] text-[#f39bae] hover:bg-[#f39bae] hover:text-white">
                   Sign In
                 </Button>
               </DialogTrigger>
@@ -51,7 +51,7 @@ const Navbar = () => {
                       <Label htmlFor="password">Password</Label>
                       <Input id="password" type="password" />
                     </div>
-                    <Button className="w-full bg-primary hover:bg-primary/90">Sign In</Button>
+                    <Button className="w-full bg-[#f39bae] hover:bg-[#f39bae]/90">Sign In</Button>
                   </TabsContent>
                   <TabsContent value="signup" className="space-y-4">
                     <div className="space-y-2">
@@ -73,14 +73,14 @@ const Navbar = () => {
                         <option value="vet">Veterinarian</option>
                       </select>
                     </div>
-                    <Button className="w-full bg-primary hover:bg-primary/90">Create Account</Button>
+                    <Button className="w-full bg-[#f39bae] hover:bg-[#f39bae]/90">Create Account</Button>
                   </TabsContent>
                 </Tabs>
               </DialogContent>
             </Dialog>
             
             <Button 
-              className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 text-white font-medium"
+              className="bg-[#4b90a6] hover:bg-[#4b90a6]/90 text-white font-medium"
             >
               Emergency Consult
             </Button>
@@ -89,7 +89,7 @@ const Navbar = () => {
           <div className="md:hidden">
             <button
               onClick={() => setIsOpen(!isOpen)}
-              className="text-gray-600 hover:text-primary"
+              className="text-[#4e2a14] hover:text-[#f39bae]"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
@@ -101,9 +101,9 @@ const Navbar = () => {
         {isOpen && (
           <div className="md:hidden pb-4">
             <div className="flex flex-col space-y-2">
-              <a href="/" className="text-gray-600 hover:text-primary py-2">Home</a>
-              <a href="/vets" className="text-gray-600 hover:text-primary py-2">Find Vets</a>
-              <a href="/records" className="text-gray-600 hover:text-primary py-2">Health Records</a>
+              <a href="/" className="text-[#4e2a14] hover:text-[#f39bae] py-2">Home</a>
+              <a href="/vets" className="text-[#4e2a14] hover:text-[#f39bae] py-2">Find Vets</a>
+              <a href="/records" className="text-[#4e2a14] hover:text-[#f39bae] py-2">Health Records</a>
             </div>
           </div>
         )}
