@@ -30,8 +30,8 @@ const petSchema = z.object({
   name: z.string().min(1, 'Pet name is required'),
   type: z.string().min(1, 'Pet type is required'),
   breed: z.string().optional(),
-  age: z.string().optional().transform(val => val ? parseFloat(val) : null),
-  weight: z.string().optional().transform(val => val ? parseFloat(val) : null),
+  age: z.string().optional(), // Keep as string in the form
+  weight: z.string().optional(), // Keep as string in the form
   gender: z.string().optional(),
 });
 
@@ -79,8 +79,8 @@ export default function AddPetForm({ onSuccess, onCancel }: AddPetFormProps) {
           name: data.name,
           type: data.type,
           breed: data.breed || null,
-          age: data.age ? parseFloat(data.age as string) : null, // Ensure proper number conversion
-          weight: data.weight ? parseFloat(data.weight as string) : null, // Ensure proper number conversion
+          age: data.age ? parseFloat(data.age) : null, // Convert string to number or null
+          weight: data.weight ? parseFloat(data.weight) : null, // Convert string to number or null
           gender: data.gender || null,
           owner_id: user.id,
         })
