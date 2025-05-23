@@ -85,6 +85,7 @@ const PetOwnerSidebar = () => {
       
       <SidebarContent>
         <SidebarGroup>
+          <SidebarGroupLabel>Navigation</SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {menuItems.map((item) => (
@@ -93,11 +94,13 @@ const PetOwnerSidebar = () => {
                     asChild
                     isActive={item.isActive}
                     tooltip={item.title}
+                    size="lg"
                     className={`
                       ${item.isActive 
                         ? "bg-white text-orange-600 font-bold" 
                         : "bg-orange-600 text-white font-medium hover:bg-orange-400"} 
                       transition-colors
+                      px-4 py-2
                     `}
                   >
                     <Link to={item.path}>
