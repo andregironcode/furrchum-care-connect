@@ -1,5 +1,4 @@
-
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import { Input } from '@/components/ui/input';
@@ -29,6 +28,22 @@ interface Coordinate {
   lng: number;
 }
 
+// Define interface for Vet
+interface Vet {
+  id: string;
+  name: string;
+  specialization: string;
+  experience: number;
+  rating: number;
+  fee: number;
+  availability: 'Available Now' | 'Available Soon' | 'Scheduled Only';
+  languages: string[];
+  image: string;
+  location: Coordinate;
+  zipCode: string;
+  distance?: number; // Make distance optional since it's added conditionally
+}
+
 // Calculate distance between two points using Haversine formula
 const calculateDistance = (coord1: Coordinate, coord2: Coordinate): number => {
   const R = 3958.8; // Earth's radius in miles
@@ -56,22 +71,22 @@ const VetDirectory = () => {
   const navigate = useNavigate();
 
   // Initialize zip code from URL params if present
-  useState(() => {
+  useEffect(() => {
     const zipFromUrl = searchParams.get('zip');
     if (zipFromUrl) {
       setZipCode(zipFromUrl);
     }
-  });
+  }, [searchParams]); // Fixed the useState to useEffect with proper dependency
 
   // Mock data for vets with location coordinates
-  const vets = [{
+  const vets: Vet[] = [{
     id: '1',
     name: 'Dr. Sarah Johnson',
     specialization: 'General Practice',
     experience: 8,
     rating: 4.9,
     fee: 45,
-    availability: 'Available Now' as const,
+    availability: 'Available Now',
     languages: ['English', 'Spanish'],
     image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?w=800&auto=format&fit=crop',
     location: { lat: 40.748817, lng: -73.985428 }, // NYC
@@ -83,7 +98,7 @@ const VetDirectory = () => {
     experience: 12,
     rating: 4.8,
     fee: 65,
-    availability: 'Available Soon' as const,
+    availability: 'Available Soon',
     languages: ['English', 'Mandarin'],
     image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&auto=format&fit=crop',
     location: { lat: 34.052235, lng: -118.243683 }, // LA
@@ -95,7 +110,7 @@ const VetDirectory = () => {
     experience: 15,
     rating: 4.9,
     fee: 80,
-    availability: 'Scheduled Only' as const,
+    availability: 'Scheduled Only',
     languages: ['English', 'Spanish'],
     image: 'https://images.unsplash.com/photo-1594824476967-48c8b964273f?w=800&auto=format&fit=crop',
     location: { lat: 41.878113, lng: -87.629799 }, // Chicago
@@ -107,7 +122,7 @@ const VetDirectory = () => {
     experience: 10,
     rating: 4.7,
     fee: 55,
-    availability: 'Available Now' as const,
+    availability: 'Available Now',
     languages: ['English', 'Korean'],
     image: 'https://images.unsplash.com/photo-1622253692010-333f2da6031d?w=800&auto=format&fit=crop',
     location: { lat: 37.773972, lng: -122.431297 }, // San Francisco
@@ -119,7 +134,7 @@ const VetDirectory = () => {
     experience: 18,
     rating: 4.9,
     fee: 90,
-    availability: 'Available Soon' as const,
+    availability: 'Available Soon',
     languages: ['English'],
     image: 'https://images.unsplash.com/photo-1651008376811-b90baee60c1f?w=800&auto=format&fit=crop',
     location: { lat: 47.606209, lng: -122.332069 }, // Seattle
@@ -131,7 +146,7 @@ const VetDirectory = () => {
     experience: 6,
     rating: 4.6,
     fee: 40,
-    availability: 'Available Now' as const,
+    availability: 'Available Now',
     languages: ['English', 'French'],
     image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&auto=format&fit=crop',
     location: { lat: 25.761681, lng: -80.191788 }, // Miami
@@ -158,7 +173,7 @@ const VetDirectory = () => {
       }));
       
       // Sort by distance
-      filtered.sort((a, b) => (a.distance || Infinity) - (b.distance || Infinity));
+      filtered.sort((a, b) => (a.distance ?? Infinity) - (b.distance ?? Infinity));
     }
     
     return filtered;
