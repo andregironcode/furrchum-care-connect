@@ -75,7 +75,7 @@ const PetOwnerSidebar = () => {
         <div className="p-4">
           <Link to="/" className="flex justify-center">
             <img 
-              src="/lovable-uploads/f1cfd8b6-2fe1-42e8-bfa4-ea65c031203f.png" 
+              src="/lovable-uploads/020d6fdc-02f4-4190-acb2-59288e109f8d.png" 
               alt="Furrchum Logo" 
               className="h-28 w-28" 
             />
@@ -94,7 +94,9 @@ const PetOwnerSidebar = () => {
                     isActive={item.isActive}
                     tooltip={item.title}
                     className={`
-                      ${item.isActive ? "bg-white text-orange-600 font-bold" : "text-white font-medium hover:bg-orange-400"} 
+                      ${item.isActive 
+                        ? "bg-white text-orange-600 font-bold" 
+                        : "bg-orange-600 text-white font-medium hover:bg-orange-400"} 
                       transition-colors
                     `}
                   >
@@ -114,7 +116,7 @@ const PetOwnerSidebar = () => {
         <div className="p-2">
           <Button 
             variant="outline" 
-            className="w-full justify-start text-white border-white hover:bg-orange-400"
+            className="w-full justify-start bg-orange-600 text-white border-white hover:bg-orange-400"
             onClick={signOut}
           >
             <LogOut className="mr-2 h-5 w-5" />
