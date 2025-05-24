@@ -188,6 +188,57 @@ export type Database = {
         }
         Relationships: []
       }
+      prescriptions: {
+        Row: {
+          created_at: string
+          diagnosis: string | null
+          dosage: string
+          duration: string
+          frequency: string
+          id: string
+          instructions: string | null
+          medication_name: string
+          pet_id: string
+          pet_owner_id: string
+          prescribed_date: string
+          status: string
+          updated_at: string
+          vet_id: string
+        }
+        Insert: {
+          created_at?: string
+          diagnosis?: string | null
+          dosage: string
+          duration: string
+          frequency: string
+          id?: string
+          instructions?: string | null
+          medication_name: string
+          pet_id: string
+          pet_owner_id: string
+          prescribed_date?: string
+          status?: string
+          updated_at?: string
+          vet_id: string
+        }
+        Update: {
+          created_at?: string
+          diagnosis?: string | null
+          dosage?: string
+          duration?: string
+          frequency?: string
+          id?: string
+          instructions?: string | null
+          medication_name?: string
+          pet_id?: string
+          pet_owner_id?: string
+          prescribed_date?: string
+          status?: string
+          updated_at?: string
+          vet_id?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
