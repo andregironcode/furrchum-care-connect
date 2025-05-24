@@ -118,15 +118,16 @@ const VetAppointmentsPage = () => {
   };
 
   const fetchPetsAndOwners = async (bookings: Booking[]) => {
-    const petIds = [...new Set(bookings.map(booking => booking.pet_id))];
-    const ownerIds = [...new Set(bookings.map(booking => booking.pet_owner_id))];
+    const petIds = [...new Set(bookings.map(booking => booking.pet_id).filter(Boolean))];
+    const ownerIds = [...new Set(bookings.map(booking => booking.pet_owner_id).filter(Boolean))];
     
     console.log('Fetching pets for IDs:', petIds);
     console.log('Fetching owners for IDs:', ownerIds);
     
-    // Fetch pets
+    // Fetch pets with better error handling
     if (petIds.length > 0) {
       try {
+        // First, let's check if we can access the pets table at all
         const { data: petsData, error: petsError } = await supabase
           .from('pets')
           .select('*')
@@ -134,20 +135,40 @@ const VetAppointmentsPage = () => {
           
         if (petsError) {
           console.error('Error fetching pets:', petsError);
+          console.log('Pets error details:', {
+            message: petsError.message,
+            code: petsError.code,
+            details: petsError.details,
+            hint: petsError.hint
+          });
         } else {
           console.log('Fetched pets:', petsData);
-          const petsRecord: Record<string, Pet> = {};
-          petsData?.forEach(pet => {
-            petsRecord[pet.id] = pet;
-          });
-          setPets(petsRecord);
+          if (petsData && petsData.length > 0) {
+            const petsRecord: Record<string, Pet> = {};
+            petsData.forEach(pet => {
+              petsRecord[pet.id] = pet;
+            });
+            setPets(petsRecord);
+          } else {
+            console.log('No pets found for the given IDs. This might be due to RLS policies or missing data.');
+            // Set empty pets with pet IDs as keys so we can show "Pet not found" instead of "Loading"
+            const emptyPetsRecord: Record<string, Pet> = {};
+            petIds.forEach(petId => {
+              emptyPetsRecord[petId] = {
+                id: petId,
+                name: 'Pet not found',
+                type: 'Unknown'
+              };
+            });
+            setPets(emptyPetsRecord);
+          }
         }
       } catch (error) {
         console.error('Error processing pets data:', error);
       }
     }
     
-    // Fetch pet owners
+    // Fetch pet owners with better error handling
     if (ownerIds.length > 0) {
       try {
         const { data: ownersData, error: ownersError } = await supabase
@@ -157,13 +178,32 @@ const VetAppointmentsPage = () => {
           
         if (ownersError) {
           console.error('Error fetching pet owners:', ownersError);
+          console.log('Owners error details:', {
+            message: ownersError.message,
+            code: ownersError.code,
+            details: ownersError.details,
+            hint: ownersError.hint
+          });
         } else {
           console.log('Fetched owners:', ownersData);
-          const ownersRecord: Record<string, PetOwner> = {};
-          ownersData?.forEach(owner => {
-            ownersRecord[owner.id] = owner;
-          });
-          setPetOwners(ownersRecord);
+          if (ownersData && ownersData.length > 0) {
+            const ownersRecord: Record<string, PetOwner> = {};
+            ownersData.forEach(owner => {
+              ownersRecord[owner.id] = owner;
+            });
+            setPetOwners(ownersRecord);
+          } else {
+            console.log('No owners found for the given IDs. This might be due to RLS policies or missing data.');
+            // Set empty owners with owner IDs as keys so we can show "Owner not found" instead of "Loading"
+            const emptyOwnersRecord: Record<string, PetOwner> = {};
+            ownerIds.forEach(ownerId => {
+              emptyOwnersRecord[ownerId] = {
+                id: ownerId,
+                full_name: 'Owner not found'
+              };
+            });
+            setPetOwners(emptyOwnersRecord);
+          }
         }
       } catch (error) {
         console.error('Error processing pet owners data:', error);
@@ -173,6 +213,9 @@ const VetAppointmentsPage = () => {
 
   const openAppointmentDetails = (appointment: Booking) => {
     console.log('Opening appointment details for:', appointment.id);
+    console.log('Pet data available:', pets[appointment.pet_id]);
+    console.log('Owner data available:', petOwners[appointment.pet_owner_id]);
+    
     setSelectedAppointment(appointment);
     setIsDetailsModalOpen(true);
   };
@@ -368,59 +411,64 @@ const VetAppointmentsPage = () => {
                     </TableHeader>
                     <TableBody>
                       {filteredAppointments.length > 0 ? (
-                        filteredAppointments.map((appointment) => (
-                          <TableRow key={appointment.id} className="hover:bg-slate-50">
-                            <TableCell>{appointment.booking_date}</TableCell>
-                            <TableCell>{appointment.start_time.slice(0, 5)}</TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className={appointment.consultation_type === 'video' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-purple-100 text-purple-800 border-purple-200'}>
-                                {appointment.consultation_type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <div className="font-medium">{pets[appointment.pet_id]?.name || 'Loading...'}</div>
-                                <div className="text-sm text-gray-500">{petOwners[appointment.pet_owner_id]?.full_name || 'Loading...'}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="max-w-xs truncate">
-                                {appointment.notes || 'No notes'}
-                              </div>
-                            </TableCell>
-                            <TableCell>{renderStatusBadge(appointment.status)}</TableCell>
-                            <TableCell>
-                              <div className="flex gap-2">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm"
-                                  onClick={() => openAppointmentDetails(appointment)}
-                                >
-                                  <Eye className="h-4 w-4" />
-                                </Button>
-                                <DropdownMenu>
-                                  <DropdownMenuTrigger asChild>
-                                    <Button variant="ghost" size="sm">
-                                      <MoreVertical className="h-4 w-4" />
-                                      <span className="sr-only">Actions</span>
-                                    </Button>
-                                  </DropdownMenuTrigger>
-                                  <DropdownMenuContent align="end">
-                                    <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'confirmed')}>
-                                      Mark as Confirmed
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'completed')}>
-                                      Mark as Completed
-                                    </DropdownMenuItem>
-                                    <DropdownMenuItem className="text-red-500" onClick={() => handleStatusUpdate(appointment.id, 'cancelled')}>
-                                      Cancel Appointment
-                                    </DropdownMenuItem>
-                                  </DropdownMenuContent>
-                                </DropdownMenu>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                        filteredAppointments.map((appointment) => {
+                          const pet = pets[appointment.pet_id];
+                          const owner = petOwners[appointment.pet_owner_id];
+                          
+                          return (
+                            <TableRow key={appointment.id} className="hover:bg-slate-50">
+                              <TableCell>{appointment.booking_date}</TableCell>
+                              <TableCell>{appointment.start_time.slice(0, 5)}</TableCell>
+                              <TableCell>
+                                <Badge variant="outline" className={appointment.consultation_type === 'video' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-purple-100 text-purple-800 border-purple-200'}>
+                                  {appointment.consultation_type}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div>
+                                  <div className="font-medium">{pet?.name || 'Pet not found'}</div>
+                                  <div className="text-sm text-gray-500">{owner?.full_name || 'Owner not found'}</div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="max-w-xs truncate">
+                                  {appointment.notes || 'No notes'}
+                                </div>
+                              </TableCell>
+                              <TableCell>{renderStatusBadge(appointment.status)}</TableCell>
+                              <TableCell>
+                                <div className="flex gap-2">
+                                  <Button 
+                                    variant="outline" 
+                                    size="sm"
+                                    onClick={() => openAppointmentDetails(appointment)}
+                                  >
+                                    <Eye className="h-4 w-4" />
+                                  </Button>
+                                  <DropdownMenu>
+                                    <DropdownMenuTrigger asChild>
+                                      <Button variant="ghost" size="sm">
+                                        <MoreVertical className="h-4 w-4" />
+                                        <span className="sr-only">Actions</span>
+                                      </Button>
+                                    </DropdownMenuTrigger>
+                                    <DropdownMenuContent align="end">
+                                      <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'confirmed')}>
+                                        Mark as Confirmed
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'completed')}>
+                                        Mark as Completed
+                                      </DropdownMenuItem>
+                                      <DropdownMenuItem className="text-red-500" onClick={() => handleStatusUpdate(appointment.id, 'cancelled')}>
+                                        Cancel Appointment
+                                      </DropdownMenuItem>
+                                    </DropdownMenuContent>
+                                  </DropdownMenu>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                       ) : (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
