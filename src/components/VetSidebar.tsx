@@ -14,7 +14,7 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Home, Calendar, FileText, User, Wallet, LogOut } from "lucide-react";
+import { Home, Calendar, FileText, User, Wallet, LogOut, Users } from "lucide-react";
 
 const VetSidebar = () => {
   const { signOut } = useAuth();
@@ -36,6 +36,12 @@ const VetSidebar = () => {
       path: "/vet-appointments",
       icon: Calendar,
       isActive: isActive("/vet-appointments"),
+    },
+    {
+      title: "Patients",
+      path: "/vet-patients",
+      icon: Users,
+      isActive: isActive("/vet-patients"),
     },
     {
       title: "Prescription",

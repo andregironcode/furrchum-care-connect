@@ -16,6 +16,7 @@ import VetAppointmentsPage from "./pages/VetAppointmentsPage";
 import VetPrescriptionsPage from "./pages/VetPrescriptionsPage";
 import VetProfilePage from "./pages/VetProfilePage";
 import VetBillingPage from "./pages/VetBillingPage";
+import VetPatientsPage from "./pages/VetPatientsPage";
 import MyPetsPage from "./pages/MyPetsPage";
 import MyVetsPage from "./pages/MyVetsPage";
 import AppointmentsPage from "./pages/AppointmentsPage";
@@ -103,6 +104,11 @@ const App = () => {
               <Route path="/vet-appointments" element={
                 <RouteGuard>
                   <VetAppointmentsPage />
+                </RouteGuard>
+              } />
+              <Route path="/vet-patients" element={
+                <RouteGuard>
+                  <VetPatientsPage />
                 </RouteGuard>
               } />
               <Route path="/vet-prescriptions" element={
