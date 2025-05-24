@@ -1,12 +1,12 @@
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, ChangeEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import VetSidebar from '@/components/VetSidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, Save, Edit2 } from 'lucide-react';
+import { Loader2, Save, Edit2, Upload, Camera } from 'lucide-react';
 import VetAvailabilityForm from './VetProfile/VetAvailabilityForm';
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,8 @@ import { toast } from 'sonner';
 import { Form, FormField, FormItem, FormLabel, FormControl, FormDescription, FormMessage } from '@/components/ui/form';
 import { useForm } from 'react-hook-form';
 import { Textarea } from '@/components/ui/textarea';
+import { v4 as uuidv4 } from 'uuid';
+import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 
 interface VetProfile {
   id: string;
@@ -38,6 +40,9 @@ const VetProfilePage = () => {
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const form = useForm<VetProfile>({
     defaultValues: {
@@ -67,6 +72,11 @@ const VetProfilePage = () => {
         consultation_fee: profile.consultation_fee || 0,
         years_experience: profile.years_experience || 0
       });
+      
+      // Set image preview if exists
+      if (profile.image_url) {
+        setImagePreview(profile.image_url);
+      }
     }
   }, [profile, form]);
 
@@ -88,9 +98,76 @@ const VetProfilePage = () => {
     }
   };
 
+  const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size and type
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image size should be less than 5MB');
+      return;
+    }
+
+    if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+      toast.error('Please upload a JPG or PNG image');
+      return;
+    }
+
+    setSelectedImage(file);
+    
+    // Create a preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const uploadProfileImage = async (userId: string) => {
+    if (!selectedImage) return null;
+    
+    try {
+      setUploadingImage(true);
+      
+      // Create a unique file name
+      const fileExt = selectedImage.name.split('.').pop();
+      const fileName = `${userId}/${uuidv4()}.${fileExt}`;
+      
+      // Upload to Storage
+      const { error: uploadError } = await supabase.storage
+        .from('vet_profiles')
+        .upload(fileName, selectedImage);
+        
+      if (uploadError) throw uploadError;
+      
+      // Get the public URL
+      const { data } = supabase.storage
+        .from('vet_profiles')
+        .getPublicUrl(fileName);
+        
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload profile image');
+      return null;
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const saveProfile = async (values: VetProfile) => {
     try {
       setIsSaving(true);
+      
+      // Handle image upload first if there's a new image
+      let imageUrl = profile?.image_url;
+      if (selectedImage) {
+        const newImageUrl = await uploadProfileImage(user?.id as string);
+        if (newImageUrl) {
+          imageUrl = newImageUrl;
+        }
+      }
+      
       const { error } = await supabase
         .from('vet_profiles')
         .update({
@@ -102,15 +179,17 @@ const VetProfilePage = () => {
           years_experience: values.years_experience,
           phone: values.phone,
           gender: values.gender,
-          zip_code: values.zip_code
+          zip_code: values.zip_code,
+          image_url: imageUrl,
         })
         .eq('id', user?.id);
 
       if (error) throw error;
       
       // Update local state with new values
-      setProfile(prev => prev ? { ...prev, ...values } : null);
+      setProfile(prev => prev ? { ...prev, ...values, image_url: imageUrl as string } : null);
       setIsEditing(false);
+      setSelectedImage(null);
       toast.success("Profile updated successfully");
     } catch (error) {
       console.error('Error updating vet profile:', error);
@@ -169,22 +248,19 @@ const VetProfilePage = () => {
                           </Button>
                         </CardHeader>
                         <CardContent className="flex flex-col items-center">
-                          <div className="w-48 h-48 rounded-full overflow-hidden">
+                          <Avatar className="w-48 h-48 rounded-full">
                             {profile?.image_url ? (
-                              <img 
+                              <AvatarImage 
                                 src={profile.image_url} 
-                                alt="Profile" 
-                                className="w-full h-full object-cover"
+                                alt={`${profile.first_name} ${profile.last_name}`}
                               />
                             ) : (
-                              <div className="w-full h-full bg-primary/20 flex items-center justify-center">
-                                <span className="text-4xl font-bold text-primary">
-                                  {profile?.first_name?.charAt(0) || ''}
-                                  {profile?.last_name?.charAt(0) || ''}
-                                </span>
-                              </div>
+                              <AvatarFallback className="text-4xl">
+                                {profile?.first_name?.charAt(0) || ''}
+                                {profile?.last_name?.charAt(0) || ''}
+                              </AvatarFallback>
                             )}
-                          </div>
+                          </Avatar>
                         </CardContent>
                       </Card>
                       
@@ -248,6 +324,41 @@ const VetProfilePage = () => {
                       <CardContent>
                         <Form {...form}>
                           <form onSubmit={form.handleSubmit(saveProfile)} className="space-y-6">
+                            <div className="flex flex-col items-center mb-4">
+                              <div className="relative w-40 h-40 mb-4">
+                                <Avatar className="w-full h-full">
+                                  {imagePreview ? (
+                                    <AvatarImage 
+                                      src={imagePreview} 
+                                      alt="Profile Preview"
+                                      className="object-cover"
+                                    />
+                                  ) : (
+                                    <AvatarFallback className="text-4xl">
+                                      {form.getValues("first_name")?.charAt(0) || ''}
+                                      {form.getValues("last_name")?.charAt(0) || ''}
+                                    </AvatarFallback>
+                                  )}
+                                </Avatar>
+                                <Label
+                                  htmlFor="profile-image"
+                                  className="absolute bottom-0 right-0 p-2 bg-primary rounded-full cursor-pointer shadow-md"
+                                >
+                                  <Camera className="h-5 w-5 text-white" />
+                                </Label>
+                                <Input 
+                                  id="profile-image" 
+                                  type="file" 
+                                  onChange={handleImageChange}
+                                  accept="image/png, image/jpeg, image/jpg"
+                                  className="hidden"
+                                />
+                              </div>
+                              {selectedImage && (
+                                <p className="text-sm text-muted-foreground">{selectedImage.name}</p>
+                              )}
+                            </div>
+                            
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <FormField
                                 control={form.control}
@@ -378,16 +489,24 @@ const VetProfilePage = () => {
                               <Button
                                 type="button" 
                                 variant="outline" 
-                                onClick={() => setIsEditing(false)}
+                                onClick={() => {
+                                  setIsEditing(false);
+                                  setSelectedImage(null);
+                                  setImagePreview(profile?.image_url || null);
+                                }}
                               >
                                 Cancel
                               </Button>
                               <Button 
                                 type="submit"
-                                disabled={isSaving}
+                                disabled={isSaving || uploadingImage}
                                 className="flex items-center gap-2"
                               >
-                                {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                                {(isSaving || uploadingImage) ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" /> 
+                                ) : (
+                                  <Save className="h-4 w-4" />
+                                )}
                                 Save Changes
                               </Button>
                             </div>
