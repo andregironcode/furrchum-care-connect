@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -5,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, ArrowLeft, MapPin, Calendar, CheckCircle, Phone, Mail } from 'lucide-react';
+import { Loader2, ArrowLeft, MapPin, Calendar, CheckCircle, Phone, Mail, FileText, Images } from 'lucide-react';
 import Navbar from '@/components/Navbar';
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/context/AuthContext";
@@ -26,6 +27,11 @@ interface VetProfile {
   availability: string;
   zip_code: string;
   phone: string;
+  clinic_location: string;
+  clinic_images: string[];
+  license_url: string;
+  offers_video_calls: boolean;
+  offers_in_person: boolean;
 }
 
 interface VetAvailability {
@@ -203,7 +209,7 @@ const VetDetailsPage = () => {
                       {vet.about || `Dr. ${vet.first_name} ${vet.last_name} is an experienced veterinarian with ${vet.years_experience || 'several'} years of experience in animal healthcare.`}
                     </p>
                   </div>
-                  
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="flex items-center">
                       <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
@@ -223,14 +229,62 @@ const VetDetailsPage = () => {
                         <span>Zip Code: {vet.zip_code}</span>
                       </div>
                     )}
+
+                    {vet.license_url && (
+                      <div className="flex items-center">
+                        <FileText className="h-5 w-5 text-purple-500 mr-2" />
+                        <a 
+                          href={vet.license_url} 
+                          target="_blank" 
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:underline"
+                        >
+                          View License
+                        </a>
+                      </div>
+                    )}
                     
                     <div className="flex items-center">
                       <Mail className="h-5 w-5 text-purple-500 mr-2" />
                       <span>Contact through platform</span>
                     </div>
                   </div>
-                  
+
                   <Separator />
+
+                  <div>
+                    <h3 className="text-lg font-semibold mb-2">Services Offered</h3>
+                    <div className="flex flex-wrap gap-2">
+                      {vet.offers_video_calls && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                          Video Consultations
+                        </Badge>
+                      )}
+                      {vet.offers_in_person && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700">
+                          In-Person Visits
+                        </Badge>
+                      )}
+                      {!vet.offers_video_calls && !vet.offers_in_person && (
+                        <span className="text-gray-500">Contact for service details</span>
+                      )}
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  {vet.clinic_location && (
+                    <>
+                      <div>
+                        <h3 className="text-lg font-semibold mb-2 flex items-center">
+                          <MapPin className="h-5 w-5 mr-2" />
+                          Clinic Location
+                        </h3>
+                        <p className="text-gray-700">{vet.clinic_location}</p>
+                      </div>
+                      <Separator />
+                    </>
+                  )}
                   
                   <div>
                     <h3 className="text-lg font-semibold mb-2">Languages</h3>
@@ -244,6 +298,30 @@ const VetDetailsPage = () => {
                       )}
                     </div>
                   </div>
+
+                  {vet.clinic_images && vet.clinic_images.length > 0 && (
+                    <>
+                      <Separator />
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3 flex items-center">
+                          <Images className="h-5 w-5 mr-2" />
+                          Clinic Images
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {vet.clinic_images.map((imageUrl, index) => (
+                            <div key={index} className="aspect-square rounded-lg overflow-hidden border">
+                              <img 
+                                src={imageUrl} 
+                                alt={`Clinic image ${index + 1}`}
+                                className="w-full h-full object-cover hover:scale-105 transition-transform cursor-pointer"
+                                onClick={() => window.open(imageUrl, '_blank')}
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -337,6 +415,35 @@ const VetDetailsPage = () => {
       </div>
     </div>
   );
+};
+
+const fetchVetAvailability = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('vet_availability')
+      .select('*')
+      .eq('vet_id', vetId)
+      .eq('is_available', true)
+      .order('day_of_week', { ascending: true });
+
+    if (error) throw error;
+    setAvailability(data || []);
+  } catch (error) {
+    console.error('Error fetching vet availability:', error);
+  }
+};
+
+const handleBookNow = (id: string) => {
+  if (!user) {
+    toast.error("Please login to book a consultation", {
+      action: {
+        label: "Login",
+        onClick: () => navigate("/auth")
+      }
+    });
+    return;
+  }
+  navigate(`/booking/${id}`);
 };
 
 export default VetDetailsPage;
