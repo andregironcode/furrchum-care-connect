@@ -6,16 +6,33 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, Plus, Calendar, FileText, User, PawPrint, CreditCard } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Calendar, FileText, User, PawPrint, CreditCard, Pill } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+
+interface Prescription {
+  id: string;
+  medication_name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string;
+  diagnosis: string;
+  prescribed_date: string;
+  status: string;
+  pet_id: string;
+  pet_name: string;
+  vet_name: string;
+}
 
 const PetOwnerDashboard = () => {
   const { user, isLoading } = useAuth();
   const [profile, setProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [prescriptionsLoading, setPrescriptionsLoading] = useState(true);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -40,6 +57,67 @@ const PetOwnerDashboard = () => {
 
     if (!isLoading) {
       fetchProfile();
+    }
+  }, [user, isLoading]);
+
+  useEffect(() => {
+    const fetchPrescriptions = async () => {
+      try {
+        if (user) {
+          // First get all prescriptions for this pet owner
+          const { data: prescriptionsData, error: prescriptionsError } = await supabase
+            .from('prescriptions')
+            .select('*')
+            .eq('pet_owner_id', user.id)
+            .eq('status', 'active')
+            .order('prescribed_date', { ascending: false })
+            .limit(5);
+
+          if (prescriptionsError) throw prescriptionsError;
+
+          if (prescriptionsData && prescriptionsData.length > 0) {
+            // Get pet names
+            const petIds = [...new Set(prescriptionsData.map(p => p.pet_id))];
+            const { data: petsData, error: petsError } = await supabase
+              .from('pets')
+              .select('id, name')
+              .in('id', petIds);
+
+            if (petsError) throw petsError;
+
+            // Get vet names
+            const vetIds = [...new Set(prescriptionsData.map(p => p.vet_id))];
+            const { data: vetsData, error: vetsError } = await supabase
+              .from('vet_profiles')
+              .select('id, first_name, last_name')
+              .in('id', vetIds);
+
+            if (vetsError) throw vetsError;
+
+            // Combine data
+            const enrichedPrescriptions = prescriptionsData.map(prescription => {
+              const pet = petsData?.find(p => p.id === prescription.pet_id);
+              const vet = vetsData?.find(v => v.id === prescription.vet_id);
+              
+              return {
+                ...prescription,
+                pet_name: pet?.name || 'Unknown Pet',
+                vet_name: vet ? `Dr. ${vet.first_name} ${vet.last_name}` : 'Unknown Vet'
+              };
+            });
+
+            setPrescriptions(enrichedPrescriptions);
+          }
+        }
+      } catch (error: any) {
+        console.error('Error fetching prescriptions:', error);
+      } finally {
+        setPrescriptionsLoading(false);
+      }
+    };
+
+    if (!isLoading && user) {
+      fetchPrescriptions();
     }
   }, [user, isLoading]);
 
@@ -117,7 +195,7 @@ const PetOwnerDashboard = () => {
                       <CardDescription>Current medications</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <p className="text-3xl font-bold text-primary">5</p>
+                      <p className="text-3xl font-bold text-primary">{prescriptions.length}</p>
                     </CardContent>
                   </Card>
                 </div>
@@ -127,6 +205,9 @@ const PetOwnerDashboard = () => {
                 <TabsList className="w-full bg-white border-b mb-4 rounded-none justify-start">
                   <TabsTrigger value="pets" className="data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none">
                     Quick Actions
+                  </TabsTrigger>
+                  <TabsTrigger value="prescriptions" className="data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none">
+                    Active Prescriptions
                   </TabsTrigger>
                   <TabsTrigger value="appointments" className="data-[state=active]:text-primary data-[state=active]:border-b-2 data-[state=active]:border-primary data-[state=active]:shadow-none rounded-none">
                     Recent Activity
@@ -186,6 +267,80 @@ const PetOwnerDashboard = () => {
                       </CardFooter>
                     </Card>
                   </div>
+                </TabsContent>
+
+                <TabsContent value="prescriptions">
+                  {prescriptionsLoading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-6 w-6 animate-spin text-primary" />
+                    </div>
+                  ) : prescriptions.length > 0 ? (
+                    <div className="space-y-4">
+                      {prescriptions.map((prescription) => (
+                        <Card key={prescription.id} className="bg-white">
+                          <CardHeader className="pb-3">
+                            <div className="flex justify-between items-start">
+                              <div className="flex items-center gap-3">
+                                <div className="bg-primary/10 p-2 rounded-full">
+                                  <Pill className="h-5 w-5 text-primary" />
+                                </div>
+                                <div>
+                                  <CardTitle className="text-lg">{prescription.medication_name}</CardTitle>
+                                  <CardDescription>
+                                    For: {prescription.pet_name} • Prescribed by: {prescription.vet_name}
+                                  </CardDescription>
+                                </div>
+                              </div>
+                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                {prescription.status}
+                              </span>
+                            </div>
+                          </CardHeader>
+                          <CardContent className="pt-0">
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                              <div>
+                                <p className="text-sm font-medium text-gray-600">Dosage</p>
+                                <p className="text-sm">{prescription.dosage}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-600">Frequency</p>
+                                <p className="text-sm">{prescription.frequency}</p>
+                              </div>
+                              <div>
+                                <p className="text-sm font-medium text-gray-600">Duration</p>
+                                <p className="text-sm">{prescription.duration}</p>
+                              </div>
+                            </div>
+                            {prescription.diagnosis && (
+                              <div className="mb-4">
+                                <p className="text-sm font-medium text-gray-600">Diagnosis</p>
+                                <p className="text-sm">{prescription.diagnosis}</p>
+                              </div>
+                            )}
+                            {prescription.instructions && (
+                              <div>
+                                <p className="text-sm font-medium text-gray-600">Instructions</p>
+                                <p className="text-sm">{prescription.instructions}</p>
+                              </div>
+                            )}
+                          </CardContent>
+                          <CardFooter className="flex justify-between items-center pt-4 border-t">
+                            <span className="text-sm text-gray-500">
+                              Prescribed: {new Date(prescription.prescribed_date).toLocaleDateString()}
+                            </span>
+                          </CardFooter>
+                        </Card>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-12">
+                      <div className="bg-gray-100 rounded-full p-6 w-24 h-24 mx-auto mb-4 flex items-center justify-center">
+                        <Pill className="h-8 w-8 text-gray-400" />
+                      </div>
+                      <h3 className="text-lg font-medium text-gray-700 mb-2">No Active Prescriptions</h3>
+                      <p className="text-gray-500">You don't have any active prescriptions at the moment.</p>
+                    </div>
+                  )}
                 </TabsContent>
                 
                 <TabsContent value="appointments">
