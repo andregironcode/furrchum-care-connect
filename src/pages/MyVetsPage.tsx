@@ -1,10 +1,11 @@
+
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, Plus, Star, user, book } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Star, User, BookOpen, Phone } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Input } from '@/components/ui/input';
@@ -224,16 +225,16 @@ const VetCard = ({ vet }: { vet: Vet }) => {
       <CardFooter className="flex justify-between gap-2">
         <Button 
           variant="outline" 
-          className="border-primary-300 text-primary-600 flex-1"
+          className="border-primary-300 text-primary-600 flex-1 flex items-center justify-center"
           onClick={handleViewProfile}
         >
-          <user className="h-4 w-4 mr-2" /> View Profile
+          <User className="h-4 w-4 mr-2" /> View Profile
         </Button>
         <Button 
-          className="bg-primary hover:bg-primary-600 flex-1" 
+          className="bg-primary hover:bg-primary-600 flex-1 flex items-center justify-center" 
           onClick={handleBookAppointment}
         >
-          <book className="h-4 w-4 mr-2" /> Book Appointment
+          <BookOpen className="h-4 w-4 mr-2" /> Book Appointment
         </Button>
       </CardFooter>
     </Card>
