@@ -5,7 +5,7 @@ import { Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, CalendarIcon } from 'lucide-react';
+import { Loader2, CalendarIcon, Eye } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from 'sonner';
+import AppointmentDetailsModal from '@/components/AppointmentDetailsModal';
 
 interface Booking {
   id: string;
@@ -36,13 +37,25 @@ interface Pet {
   type: string;
 }
 
+interface Vet {
+  id: string;
+  first_name: string;
+  last_name: string;
+  specialization?: string;
+  phone?: string;
+  zip_code?: string;
+  about?: string;
+}
+
 const AppointmentsPage = () => {
   const { user, isLoading } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [pets, setPets] = useState<Record<string, Pet>>({});
-  const [vets, setVets] = useState<Record<string, {first_name: string, last_name: string}>>({});
+  const [vets, setVets] = useState<Record<string, Vet>>({});
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [date, setDate] = useState<Date | undefined>(undefined); // Default to undefined to show all appointments
+  const [selectedAppointment, setSelectedAppointment] = useState<Booking | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -124,7 +137,7 @@ const AppointmentsPage = () => {
       try {
         const { data: vetsData, error } = await supabase
           .from('vet_profiles')
-          .select('id, first_name, last_name')
+          .select('id, first_name, last_name, specialization, phone, zip_code, about')
           .in('id', vetIds);
           
         if (error) {
@@ -133,9 +146,9 @@ const AppointmentsPage = () => {
         }
           
         if (vetsData) {
-          const vetsRecord: Record<string, {first_name: string, last_name: string}> = {};
+          const vetsRecord: Record<string, Vet> = {};
           vetsData.forEach(vet => {
-            vetsRecord[vet.id] = { first_name: vet.first_name, last_name: vet.last_name };
+            vetsRecord[vet.id] = vet;
           });
           console.log('Fetched vets:', vetsRecord);
           setVets(vetsRecord);
@@ -167,6 +180,11 @@ const AppointmentsPage = () => {
     } finally {
       setLoadingBookings(false);
     }
+  };
+
+  const openAppointmentDetails = (booking: Booking) => {
+    setSelectedAppointment(booking);
+    setIsDetailsModalOpen(true);
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -306,17 +324,26 @@ const AppointmentsPage = () => {
                             <p className="text-base">{booking.notes}</p>
                           </div>
                         )}
-                        {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                          <div className="flex justify-end pt-2">
+                        <div className="flex justify-between items-center pt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => openAppointmentDetails(booking)}
+                            className="flex items-center gap-1"
+                          >
+                            <Eye className="h-4 w-4" /> View Details
+                          </Button>
+                          
+                          {(booking.status === 'pending' || booking.status === 'confirmed') && (
                             <Button
                               variant="destructive"
                               size="sm"
                               onClick={() => handleCancelAppointment(booking.id)}
                             >
-                              Cancel Appointment
+                              Cancel
                             </Button>
-                          </div>
-                        )}
+                          )}
+                        </div>
                       </CardContent>
                     </Card>
                   ))}
@@ -325,6 +352,18 @@ const AppointmentsPage = () => {
             </main>
           </SidebarInset>
         </div>
+
+        {/* Appointment Details Modal */}
+        {selectedAppointment && (
+          <AppointmentDetailsModal
+            isOpen={isDetailsModalOpen}
+            onClose={() => setIsDetailsModalOpen(false)}
+            appointment={selectedAppointment}
+            pet={pets[selectedAppointment.pet_id]}
+            vet={vets[selectedAppointment.vet_id]}
+            onCancelAppointment={handleCancelAppointment}
+          />
+        )}
       </div>
     </SidebarProvider>
   );
