@@ -5,15 +5,14 @@ import { Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2 } from 'lucide-react';
+import { Loader2, CalendarIcon } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from '@/components/ui/button';
-import { Calendar } from "@/components/ui/calendar"
-import { CalendarIcon } from "lucide-react"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { cn } from "@/lib/utils"
-import { format } from "date-fns"
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { cn } from "@/lib/utils";
+import { format } from "date-fns";
 import { toast } from 'sonner';
 
 interface Booking {
@@ -28,7 +27,7 @@ interface Booking {
   end_time: string;
   consultation_type: string;
   notes: string | null;
-  status: string; // Using string type to match database response
+  status: string;
 }
 
 interface Pet {
@@ -43,7 +42,7 @@ const AppointmentsPage = () => {
   const [pets, setPets] = useState<Record<string, Pet>>({});
   const [vets, setVets] = useState<Record<string, {first_name: string, last_name: string}>>({});
   const [loadingBookings, setLoadingBookings] = useState(true);
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date | undefined>(undefined); // Default to undefined to show all appointments
 
   useEffect(() => {
     if (user) {
@@ -61,6 +60,7 @@ const AppointmentsPage = () => {
         .select('*')
         .eq('pet_owner_id', user?.id);
 
+      // Only filter by date if a date is selected
       if (formattedDate) {
         query = query.eq('booking_date', formattedDate);
       }
@@ -77,7 +77,7 @@ const AppointmentsPage = () => {
         setBookings(data as Booking[]);
         await fetchPetsAndVets(data as Booking[]);
       } else {
-        console.log('No bookings found for date:', formattedDate);
+        console.log('No bookings found' + (formattedDate ? ' for date: ' + formattedDate : ''));
         setBookings([]);
       }
     } catch (error) {
@@ -179,11 +179,17 @@ const AppointmentsPage = () => {
     }
   };
 
+  const clearDateFilter = () => {
+    setDate(undefined);
+  };
+
   if (isLoading || loadingBookings) {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
+      <SidebarProvider>
+        <div className="min-h-screen flex items-center justify-center bg-background w-full">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </SidebarProvider>
     );
   }
 
@@ -207,21 +213,33 @@ const AppointmentsPage = () => {
             </header>
             
             <main className="container mx-auto px-4 py-8">
-              <div className="mb-4">
+              <div className="flex justify-between mb-4 items-center">
+                <div className="flex items-center space-x-4">
+                  {date && (
+                    <Button 
+                      variant="outline" 
+                      onClick={clearDateFilter}
+                      className="text-sm"
+                    >
+                      Show all appointments
+                    </Button>
+                  )}
+                </div>
+                
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-[300px] justify-start text-left font-normal",
+                        "w-[250px] justify-start text-left font-normal",
                         !date && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : <span>Pick a date</span>}
+                      {date ? format(date, "PPP") : <span>Filter by date (optional)</span>}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
+                  <PopoverContent className="w-auto p-0" align="end">
                     <Calendar
                       mode="single"
                       selected={date}
@@ -236,10 +254,18 @@ const AppointmentsPage = () => {
                 <Card>
                   <CardHeader>
                     <CardTitle>No Appointments</CardTitle>
-                    <CardDescription>You have no appointments scheduled for this date.</CardDescription>
+                    <CardDescription>
+                      {date 
+                        ? "You have no appointments scheduled for this date." 
+                        : "You have no appointments scheduled."}
+                    </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p>Check back later or select a different date.</p>
+                    <p>
+                      {date 
+                        ? "Check back later or select a different date." 
+                        : "Book an appointment with one of our veterinarians."}
+                    </p>
                   </CardContent>
                 </Card>
               ) : (
