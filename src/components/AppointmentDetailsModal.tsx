@@ -15,6 +15,9 @@ interface Appointment {
   status: string;
   pet_id: string;
   vet_id: string;
+  meeting_id?: string | null;
+  meeting_url?: string | null;
+  host_meeting_url?: string | null;
 }
 
 interface Pet {
@@ -187,6 +190,52 @@ const AppointmentDetailsModal = ({
             )}
           </div>
         </div>
+
+        {/* Video Call Section */}
+        {appointment.consultation_type === 'video_call' && appointment.meeting_url && (
+          <>
+            <Separator />
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Video Consultation</h3>
+              <div className="space-y-4">
+                {(() => {
+                  const now = new Date();
+                  const appointmentDate = new Date(`${appointment.booking_date}T${appointment.start_time}`);
+                  const endTime = new Date(`${appointment.booking_date}T${appointment.end_time}`);
+                  const isWithin15Minutes = appointmentDate.getTime() - now.getTime() <= 15 * 60 * 1000;
+                  const hasStarted = now >= appointmentDate;
+                  const hasEnded = now > endTime;
+
+                  if (hasEnded) {
+                    return (
+                      <div className="text-sm text-muted-foreground">
+                        This consultation has ended.
+                      </div>
+                    );
+                  }
+
+                  if (!hasStarted && !isWithin15Minutes) {
+                    return (
+                      <div className="text-sm text-muted-foreground">
+                        The video call link will be available 15 minutes before the appointment.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <Button
+                      variant="default"
+                      onClick={() => window.open(appointment.meeting_url!, '_blank')}
+                      className="w-full sm:w-auto"
+                    >
+                      Join Video Call
+                    </Button>
+                  );
+                })()}
+              </div>
+            </div>
+          </>
+        )}
 
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
           {(appointment.status === 'pending' || appointment.status === 'confirmed') && (
