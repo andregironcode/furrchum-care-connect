@@ -308,6 +308,8 @@ export type Database = {
         Row: {
           about: string | null
           availability: string | null
+          clinic_images: string[] | null
+          clinic_location: string | null
           consultation_fee: number | null
           created_at: string
           first_name: string
@@ -316,7 +318,10 @@ export type Database = {
           image_url: string | null
           languages: string[] | null
           last_name: string
+          license_url: string | null
           location: Json | null
+          offers_in_person: boolean | null
+          offers_video_calls: boolean | null
           phone: string | null
           rating: number | null
           specialization: string | null
@@ -327,6 +332,8 @@ export type Database = {
         Insert: {
           about?: string | null
           availability?: string | null
+          clinic_images?: string[] | null
+          clinic_location?: string | null
           consultation_fee?: number | null
           created_at?: string
           first_name: string
@@ -335,7 +342,10 @@ export type Database = {
           image_url?: string | null
           languages?: string[] | null
           last_name: string
+          license_url?: string | null
           location?: Json | null
+          offers_in_person?: boolean | null
+          offers_video_calls?: boolean | null
           phone?: string | null
           rating?: number | null
           specialization?: string | null
@@ -346,6 +356,8 @@ export type Database = {
         Update: {
           about?: string | null
           availability?: string | null
+          clinic_images?: string[] | null
+          clinic_location?: string | null
           consultation_fee?: number | null
           created_at?: string
           first_name?: string
@@ -354,7 +366,10 @@ export type Database = {
           image_url?: string | null
           languages?: string[] | null
           last_name?: string
+          license_url?: string | null
           location?: Json | null
+          offers_in_person?: boolean | null
+          offers_video_calls?: boolean | null
           phone?: string | null
           rating?: number | null
           specialization?: string | null

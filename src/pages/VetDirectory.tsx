@@ -1,4 +1,3 @@
-
 import { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
@@ -7,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { MapPin, Search, Loader2 } from 'lucide-react';
+import { MapPin, Search, Loader2, Video, Users, FileText, Images } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { Badge } from '@/components/ui/badge';
 
 // Mapping of zip codes to coordinates (latitude, longitude)
 // This is a simplified version - in a production app, you'd use a geocoding API
@@ -43,7 +43,14 @@ interface Vet {
   image: string;
   location?: Coordinate;
   zipCode?: string;
-  distance?: number; // Make distance optional since it's added conditionally
+  distance?: number;
+  about?: string;
+  phone?: string;
+  clinic_location?: string;
+  offers_video_calls?: boolean;
+  offers_in_person?: boolean;
+  license_url?: string;
+  clinic_images?: string[];
 }
 
 // Calculate distance between two points using Haversine formula
@@ -115,7 +122,14 @@ const VetDirectory = () => {
               languages: vet.languages || ['English'],
               image: vet.image_url || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&auto=format&fit=crop',
               zipCode: vet.zip_code,
-              location
+              location,
+              about: vet.about,
+              phone: vet.phone,
+              clinic_location: vet.clinic_location,
+              offers_video_calls: vet.offers_video_calls,
+              offers_in_person: vet.offers_in_person,
+              license_url: vet.license_url,
+              clinic_images: vet.clinic_images
             };
           });
           
@@ -123,7 +137,6 @@ const VetDirectory = () => {
         }
       } catch (error) {
         console.error('Error fetching vet profiles:', error);
-        // If we fail to fetch from DB, we'll fall back to the mock data
       } finally {
         setIsLoading(false);
       }
@@ -196,8 +209,9 @@ const VetDirectory = () => {
     });
     return Array.from(specialSet);
   }, [vets]);
-  
-  return <div className="min-h-screen bg-neutral-50">
+
+  return (
+    <div className="min-h-screen bg-neutral-50">
       <Navbar />
       
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -300,10 +314,54 @@ const VetDirectory = () => {
                     </div>
                   </div>
                   
+                  {vet.about && (
+                    <p className="text-sm text-slate-600 mb-3 line-clamp-2">{vet.about}</p>
+                  )}
+                  
                   <div className="flex items-center mb-3 text-sm text-slate-700">
                     <span className="mr-3">{vet.experience} years exp.</span>
                     <span>${vet.fee}/consultation</span>
                   </div>
+                  
+                  {/* Consultation Types */}
+                  <div className="flex gap-2 mb-3">
+                    {vet.offers_video_calls && (
+                      <Badge variant="outline" className="text-xs">
+                        <Video className="w-3 h-3 mr-1" />
+                        Video Calls
+                      </Badge>
+                    )}
+                    {vet.offers_in_person && (
+                      <Badge variant="outline" className="text-xs">
+                        <Users className="w-3 h-3 mr-1" />
+                        In-Person
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {/* License and Clinic Images */}
+                  <div className="flex gap-2 mb-3">
+                    {vet.license_url && (
+                      <Badge variant="secondary" className="text-xs">
+                        <FileText className="w-3 h-3 mr-1" />
+                        Licensed
+                      </Badge>
+                    )}
+                    {vet.clinic_images && vet.clinic_images.length > 0 && (
+                      <Badge variant="secondary" className="text-xs">
+                        <Images className="w-3 h-3 mr-1" />
+                        {vet.clinic_images.length} Photos
+                      </Badge>
+                    )}
+                  </div>
+                  
+                  {/* Clinic Location */}
+                  {vet.clinic_location && (
+                    <div className="mb-3 text-sm text-slate-700">
+                      <MapPin className="w-4 h-4 inline mr-1" />
+                      <span className="text-xs">{vet.clinic_location}</span>
+                    </div>
+                  )}
                   
                   <div className="flex flex-wrap gap-2 mb-4">
                     {vet.languages.map(lang => (
@@ -330,12 +388,23 @@ const VetDirectory = () => {
                     }`}>
                       {vet.availability}
                     </div>
-                    <Button 
-                      onClick={() => handleBookNow(vet.id)} 
-                      className="text-white bg-orange-500 hover:bg-orange-400"
-                    >
-                      Book Now
-                    </Button>
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/vet-details/${vet.id}`)}
+                        className="text-xs"
+                      >
+                        View Profile
+                      </Button>
+                      <Button 
+                        onClick={() => handleBookNow(vet.id)} 
+                        size="sm"
+                        className="text-white bg-orange-500 hover:bg-orange-400 text-xs"
+                      >
+                        Book Now
+                      </Button>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -360,7 +429,8 @@ const VetDirectory = () => {
           </div>
         )}
       </div>
-    </div>;
+    </div>
+  );
 };
 
 export default VetDirectory;
