@@ -192,113 +192,115 @@ const AppointmentsPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background w-full">
-      <div className="flex h-full">
-        <PetOwnerSidebar />
-        <div className="flex-1">
-          <header className="sticky top-0 z-10 bg-background border-b">
-            <div className="container flex h-16 items-center justify-between">
-              <div className="flex items-center gap-2">
-                <SidebarTrigger />
-                <h1 className="text-2xl font-bold">My Appointments</h1>
+    <SidebarProvider>
+      <div className="min-h-screen bg-background w-full">
+        <div className="flex h-full">
+          <PetOwnerSidebar />
+          <SidebarInset className="lg:pl-0">
+            <header className="sticky top-0 z-10 bg-background border-b">
+              <div className="container flex h-16 items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <SidebarTrigger />
+                  <h1 className="text-2xl font-bold">My Appointments</h1>
+                </div>
               </div>
-            </div>
-          </header>
-          
-          <main className="container mx-auto px-4 py-8">
-            <div className="mb-4">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant={"outline"}
-                    className={cn(
-                      "w-[300px] justify-start text-left font-normal",
-                      !date && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {date ? format(date, "PPP") : <span>Pick a date</span>}
-                  </Button>
-                </PopoverTrigger>
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    mode="single"
-                    selected={date}
-                    onSelect={setDate}
-                    initialFocus
-                  />
-                </PopoverContent>
-              </Popover>
-            </div>
+            </header>
+            
+            <main className="container mx-auto px-4 py-8">
+              <div className="mb-4">
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "w-[300px] justify-start text-left font-normal",
+                        !date && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {date ? format(date, "PPP") : <span>Pick a date</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      initialFocus
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
 
-            {bookings.length === 0 ? (
-              <Card>
-                <CardHeader>
-                  <CardTitle>No Appointments</CardTitle>
-                  <CardDescription>You have no appointments scheduled for this date.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <p>Check back later or select a different date.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {bookings.map((booking) => (
-                  <Card key={booking.id} className="h-full">
-                    <CardHeader>
-                      <div className="flex justify-between items-start">
+              {bookings.length === 0 ? (
+                <Card>
+                  <CardHeader>
+                    <CardTitle>No Appointments</CardTitle>
+                    <CardDescription>You have no appointments scheduled for this date.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <p>Check back later or select a different date.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {bookings.map((booking) => (
+                    <Card key={booking.id} className="h-full">
+                      <CardHeader>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle>
+                              {pets[booking.pet_id]?.name || "Pet"} - {pets[booking.pet_id]?.type || "Unknown"}
+                            </CardTitle>
+                            <CardDescription>
+                              With Dr. {vets[booking.vet_id]?.first_name || ""} {vets[booking.vet_id]?.last_name || ""}
+                            </CardDescription>
+                          </div>
+                          <Badge variant={getStatusBadgeVariant(booking.status)}>{booking.status}</Badge>
+                        </div>
+                      </CardHeader>
+                      <CardContent className="space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <h3 className="text-sm font-medium">Date</h3>
+                            <p className="text-lg">{booking.booking_date}</p>
+                          </div>
+                          <div>
+                            <h3 className="text-sm font-medium">Time</h3>
+                            <p className="text-lg">{booking.start_time.slice(0, 5)}</p>
+                          </div>
+                        </div>
                         <div>
-                          <CardTitle>
-                            {pets[booking.pet_id]?.name || "Pet"} - {pets[booking.pet_id]?.type || "Unknown"}
-                          </CardTitle>
-                          <CardDescription>
-                            With Dr. {vets[booking.vet_id]?.first_name || ""} {vets[booking.vet_id]?.last_name || ""}
-                          </CardDescription>
+                          <h3 className="text-sm font-medium">Type</h3>
+                          <p className="text-base capitalize">{booking.consultation_type}</p>
                         </div>
-                        <Badge variant={getStatusBadgeVariant(booking.status)}>{booking.status}</Badge>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
-                      <div className="grid grid-cols-2 gap-4">
-                        <div>
-                          <h3 className="text-sm font-medium">Date</h3>
-                          <p className="text-lg">{booking.booking_date}</p>
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-medium">Time</h3>
-                          <p className="text-lg">{booking.start_time.slice(0, 5)}</p>
-                        </div>
-                      </div>
-                      <div>
-                        <h3 className="text-sm font-medium">Type</h3>
-                        <p className="text-base capitalize">{booking.consultation_type}</p>
-                      </div>
-                      {booking.notes && (
-                        <div>
-                          <h3 className="text-sm font-medium">Notes</h3>
-                          <p className="text-base">{booking.notes}</p>
-                        </div>
-                      )}
-                      {(booking.status === 'pending' || booking.status === 'confirmed') && (
-                        <div className="flex justify-end pt-2">
-                          <Button
-                            variant="destructive"
-                            size="sm"
-                            onClick={() => handleCancelAppointment(booking.id)}
-                          >
-                            Cancel Appointment
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            )}
-          </main>
+                        {booking.notes && (
+                          <div>
+                            <h3 className="text-sm font-medium">Notes</h3>
+                            <p className="text-base">{booking.notes}</p>
+                          </div>
+                        )}
+                        {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                          <div className="flex justify-end pt-2">
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() => handleCancelAppointment(booking.id)}
+                            >
+                              Cancel Appointment
+                            </Button>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </main>
+          </SidebarInset>
         </div>
       </div>
-    </div>
+    </SidebarProvider>
   );
 };
 
