@@ -64,23 +64,61 @@ const VetPrescriptionsPage = () => {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
+      // First get prescriptions for this vet
+      const { data: prescriptionsData, error: prescriptionsError } = await supabase
         .from('prescriptions')
-        .select(`
-          *,
-          pets!inner(name, type, breed),
-          profiles!inner(full_name)
-        `)
+        .select('*')
         .eq('vet_id', user?.id)
         .order('prescribed_date', { ascending: false });
 
-      if (fetchError) throw fetchError;
+      if (prescriptionsError) throw prescriptionsError;
 
-      const formattedPrescriptions = data?.map(prescription => ({
-        ...prescription,
-        pet: prescription.pets,
-        owner: prescription.profiles
-      })) || [];
+      if (!prescriptionsData || prescriptionsData.length === 0) {
+        setPrescriptions([]);
+        return;
+      }
+
+      // Get unique pet IDs and owner IDs
+      const petIds = [...new Set(prescriptionsData.map(p => p.pet_id))];
+      const ownerIds = [...new Set(prescriptionsData.map(p => p.pet_owner_id))];
+
+      // Fetch pets data
+      const { data: petsData, error: petsError } = await supabase
+        .from('pets')
+        .select('id, name, type, breed')
+        .in('id', petIds);
+
+      if (petsError) {
+        console.error('Error fetching pets:', petsError);
+      }
+
+      // Fetch owners data
+      const { data: ownersData, error: ownersError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ownerIds);
+
+      if (ownersError) {
+        console.error('Error fetching owners:', ownersError);
+      }
+
+      // Combine the data
+      const formattedPrescriptions = prescriptionsData.map(prescription => {
+        const pet = petsData?.find(p => p.id === prescription.pet_id);
+        const owner = ownersData?.find(o => o.id === prescription.pet_owner_id);
+        
+        return {
+          ...prescription,
+          pet: pet ? {
+            name: pet.name,
+            type: pet.type,
+            breed: pet.breed
+          } : undefined,
+          owner: owner ? {
+            full_name: owner.full_name
+          } : undefined
+        };
+      });
 
       setPrescriptions(formattedPrescriptions);
     } catch (error: any) {
@@ -240,7 +278,7 @@ const VetPrescriptionsPage = () => {
                         filteredPrescriptions.map((prescription) => (
                           <TableRow key={prescription.id}>
                             <TableCell className="font-medium">
-                              {prescription.pet?.name}
+                              {prescription.pet?.name || 'Pet not found'}
                               <div className="text-sm text-muted-foreground">
                                 {prescription.pet?.type}{prescription.pet?.breed && ` - ${prescription.pet.breed}`}
                               </div>

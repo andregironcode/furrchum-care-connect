@@ -52,32 +52,47 @@ const CreatePrescriptionModal = ({ isOpen, onClose, onPrescriptionCreated }: Cre
       // Get pets that have appointments with this vet
       const { data: appointments, error: appointmentsError } = await supabase
         .from('bookings')
-        .select(`
-          pet_id,
-          pet_owner_id,
-          pets!inner(id, name, type, breed, owner_id),
-          profiles!inner(full_name)
-        `)
+        .select('pet_id, pet_owner_id')
         .eq('vet_id', user?.id)
         .not('pet_id', 'is', null);
 
       if (appointmentsError) throw appointmentsError;
 
-      // Create unique pets list
-      const uniquePets = appointments?.reduce((acc: Pet[], appointment: any) => {
-        const pet = appointment.pets;
-        const ownerName = appointment.profiles?.full_name;
-        
-        if (!acc.find(p => p.id === pet.id)) {
-          acc.push({
-            ...pet,
-            owner_name: ownerName
-          });
-        }
-        return acc;
-      }, []) || [];
+      if (!appointments || appointments.length === 0) {
+        setPets([]);
+        return;
+      }
 
-      setPets(uniquePets);
+      // Get unique pet IDs and owner IDs
+      const petIds = [...new Set(appointments.map(a => a.pet_id))];
+      const ownerIds = [...new Set(appointments.map(a => a.pet_owner_id))];
+
+      // Fetch pets data
+      const { data: petsData, error: petsError } = await supabase
+        .from('pets')
+        .select('id, name, type, breed, owner_id')
+        .in('id', petIds);
+
+      if (petsError) throw petsError;
+
+      // Fetch owners data
+      const { data: ownersData, error: ownersError } = await supabase
+        .from('profiles')
+        .select('id, full_name')
+        .in('id', ownerIds);
+
+      if (ownersError) throw ownersError;
+
+      // Combine pets with owner names
+      const petsWithOwners = petsData?.map(pet => {
+        const owner = ownersData?.find(o => o.id === pet.owner_id);
+        return {
+          ...pet,
+          owner_name: owner?.full_name || 'Unknown'
+        };
+      }) || [];
+
+      setPets(petsWithOwners);
     } catch (error: any) {
       console.error('Error fetching pets:', error);
       toast({
