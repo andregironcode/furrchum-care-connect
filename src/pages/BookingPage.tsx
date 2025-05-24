@@ -76,6 +76,7 @@ const BookingPage = () => {
   const [pet, setPet] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [consultationType, setConsultationType] = useState<'in_person' | 'video_call'>('in_person');
+  const [duration, setDuration] = useState<number>(30); // Default to 30 minutes
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingPets, setIsLoadingPets] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -211,29 +212,41 @@ const BookingPage = () => {
     const startMinute = parseInt(startTimeParts[1], 10);
     const endHour = parseInt(endTimeParts[0], 10);
     
-    // Generate 30-minute slots
+    // Generate time slots based on selected duration
     const slots: string[] = [];
     let currentHourSlot = startHour;
     let currentMinuteSlot = startMinute;
     
-    while (currentHourSlot < endHour || (currentHourSlot === endHour && currentMinuteSlot < parseInt(endTimeParts[1], 10))) {
+    while (currentHourSlot < endHour || (currentHourSlot === endHour && currentMinuteSlot < endMinute)) {
+      // Calculate slot end time
+      const slotEndHour = currentMinuteSlot + duration > 59 ? currentHourSlot + 1 : currentHourSlot;
+      const slotEndMinute = (currentMinuteSlot + duration) % 60;
+      
+      // Check if the slot fits before the end of the vet's availability
+      if (slotEndHour > endHour || (slotEndHour === endHour && slotEndMinute > endMinute)) {
+        break;
+      }
+      
       const formattedHour = currentHourSlot.toString().padStart(2, '0');
       const formattedMinute = currentMinuteSlot.toString().padStart(2, '0');
       
       // Skip past time slots for today
-      if (isToday && (currentHourSlot < currentHour || (currentHourSlot === currentHour && currentMinuteSlot < currentMinute))) {
-        currentMinuteSlot = 30;
-        continue;
+      if (isToday) {
+        const slotTime = new Date();
+        slotTime.setHours(currentHourSlot, currentMinuteSlot, 0, 0);
+        if (slotTime >= now) {
+          slots.push(`${formattedHour}:${formattedMinute}`);
+        }
+      } else {
+        slots.push(`${formattedHour}:${formattedMinute}`);
       }
       
-      slots.push(`${formattedHour}:${formattedMinute}`);
-      
-      // Advance 30 minutes
-      if (currentMinuteSlot === 30) {
+      // Move to next slot (30-minute intervals for better UX)
+      if (currentMinuteSlot + 30 > 59) {
         currentHourSlot += 1;
         currentMinuteSlot = 0;
       } else {
-        currentMinuteSlot = 30;
+        currentMinuteSlot += 30;
       }
     }
     
@@ -243,7 +256,7 @@ const BookingPage = () => {
     if (timeSlot && !slots.includes(timeSlot)) {
       setTimeSlot('');
     }
-  }, [date, availabilityByDay, timeSlot]);
+  }, [date, availabilityByDay, timeSlot, duration]);
 
   useEffect(() => {
     if (!user) {
@@ -286,13 +299,21 @@ const BookingPage = () => {
 
   const createVideoMeeting = async (appointmentDate: Date) => {
     try {
+      // Create a new date object for the meeting end time based on selected duration
       const endDate = new Date(appointmentDate);
-      endDate.setMinutes(endDate.getMinutes() + 30);
+      endDate.setMinutes(endDate.getMinutes() + duration);
       
       return await createMeeting({
+        startDate: appointmentDate.toISOString(),
         endDate: endDate.toISOString(),
         roomNamePrefix: `vet-consult-${vetId}-${Date.now()}`,
-        isLocked: true
+        isLocked: true,
+        fields: ['hostRoomUrl', 'viewerRoomUrl'],
+        roomModeProps: {
+          isWaitingRoomEnabled: true,
+          isLocked: true,
+          isRecordingEnabled: false
+        }
       });
     } catch (error) {
       console.error("Error creating video meeting:", error);
@@ -483,25 +504,21 @@ const BookingPage = () => {
             <CardContent>
               <div className="space-y-6">
                 {/* Consultation Type */}
-                <div>
-                  <h3 className="font-medium mb-2">Consultation Type</h3>
-                  <RadioGroup 
+                <div className="space-y-2">
+                  <Label htmlFor="consultation-type">Consultation Type</Label>
+                  <RadioGroup
+                    id="consultation-type"
                     value={consultationType}
                     onValueChange={(value: 'in_person' | 'video_call') => setConsultationType(value)}
                     className="grid grid-cols-2 gap-4"
                   >
                     <div>
-                      <RadioGroupItem 
-                        value="in_person" 
-                        id="in_person" 
-                        className="peer sr-only" 
-                        disabled={!vet.offers_in_person}
-                      />
+                      <RadioGroupItem value="in_person" id="in-person" className="peer sr-only" disabled={!vet.offers_in_person} />
                       <Label
-                        htmlFor="in_person"
+                        htmlFor="in-person"
                         className={`flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer ${!vet.offers_in_person ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                        <UsersIcon className="mb-2 h-6 w-6" />
+                        <UsersIcon className="mb-3 h-6 w-6" />
                         <span>In-Person</span>
                         {!vet.offers_in_person && (
                           <span className="text-xs text-muted-foreground">Not Available</span>
@@ -511,15 +528,15 @@ const BookingPage = () => {
                     <div>
                       <RadioGroupItem 
                         value="video_call" 
-                        id="video_call" 
-                        className="peer sr-only"
-                        disabled={!vet.offers_video_calls}
+                        id="video-call" 
+                        className="peer sr-only" 
+                        disabled={!vet.offers_video_calls} 
                       />
                       <Label
-                        htmlFor="video_call"
+                        htmlFor="video-call"
                         className={`flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer ${!vet.offers_video_calls ? 'opacity-50 cursor-not-allowed' : ''}`}
                       >
-                        <VideoIcon className="mb-2 h-6 w-6" />
+                        <VideoIcon className="mb-3 h-6 w-6" />
                         <span>Video Call</span>
                         {!vet.offers_video_calls && (
                           <span className="text-xs text-muted-foreground">Not Available</span>
@@ -528,6 +545,26 @@ const BookingPage = () => {
                     </div>
                   </RadioGroup>
                 </div>
+
+                {/* Duration Selector */}
+                {consultationType === 'video_call' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="duration">Duration</Label>
+                    <Select
+                      value={duration.toString()}
+                      onValueChange={(value) => setDuration(Number(value))}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select duration" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="30">30 minutes</SelectItem>
+                        <SelectItem value="60">1 hour</SelectItem>
+                        <SelectItem value="90">1.5 hours</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
                 
                 {/* Date Picker */}
                 <div>
