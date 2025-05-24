@@ -211,6 +211,7 @@ const BookingPage = () => {
     const startHour = parseInt(startTimeParts[0], 10);
     const startMinute = parseInt(startTimeParts[1], 10);
     const endHour = parseInt(endTimeParts[0], 10);
+    const endMinute = parseInt(endTimeParts[1], 10);
     
     // Generate time slots based on selected duration
     const slots: string[] = [];
