@@ -1,4 +1,7 @@
-import { useState } from 'react';
+
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import VetSidebar from '@/components/VetSidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -13,7 +16,9 @@ import {
   UserCircle,
   CalendarPlus,
   Filter,
-  Search
+  Search,
+  Eye,
+  Loader2
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -24,25 +29,192 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from 'sonner';
+import VetAppointmentDetailsModal from '@/components/VetAppointmentDetailsModal';
 
-// Mock data for appointments
-const mockAppointments = [
-  { id: 1, date: '21/05/2025', time: '12:18', type: 'Visit', petName: 'Nobita Nobita', recommendation: 'Health problem', status: 'Pending' },
-  { id: 2, date: '19/05/2025', time: '17:55', type: 'Visit', petName: 'Bravo Bravo', recommendation: 'Neutering', status: 'Pending' },
-  { id: 3, date: '19/05/2025', time: '11:02', type: 'Video', petName: 'my pet222 my pet222', recommendation: 'test22', status: 'Cancelled' },
-  { id: 4, date: '18/05/2025', time: '14:55', type: 'Video', petName: 'Bruno Bruno', recommendation: 'health problem', status: 'Confirmed' },
-  { id: 5, date: '17/05/2025', time: '17:59', type: 'Visit', petName: 'Bravo Bravo', recommendation: 'Skin anergy', status: 'Pending' },
-  { id: 6, date: '16/05/2025', time: '11:31', type: 'Video', petName: 'Bravo Bravo', recommendation: 'Ear Infections', status: 'Pending' },
-  { id: 7, date: '16/05/2025', time: '09:35', type: 'Visit', petName: 'my pet my pet', recommendation: 'test', status: 'Pending' },
-  { id: 8, date: '16/05/2025', time: '16:45', type: 'Video', petName: 'Bravo Bravo', recommendation: 'Neutering', status: 'Pending' },
-  { id: 9, date: '16/05/2025', time: '15:47', type: 'Video', petName: 'Rocky Rocky', recommendation: 'May cause coughing', status: 'Cancelled' },
-  { id: 10, date: '16/05/2025', time: '15:27', type: 'Video', petName: 'tommy tommy', recommendation: 'Skin anergy', status: 'Pending' },
-];
+interface Booking {
+  id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  consultation_type: string;
+  notes: string | null;
+  status: string;
+  pet_id: string;
+  vet_id: string;
+  pet_owner_id: string;
+  created_at: string;
+}
+
+interface Pet {
+  id: string;
+  name: string;
+  type: string;
+  breed?: string;
+  age?: number;
+  weight?: number;
+  gender?: string;
+  color?: string;
+  medical_history?: string;
+  allergies?: string;
+  medication?: string;
+}
+
+interface PetOwner {
+  id: string;
+  full_name?: string;
+}
 
 const VetAppointmentsPage = () => {
-  const [appointments] = useState(mockAppointments);
+  const { user, isLoading } = useAuth();
+  const [appointments, setAppointments] = useState<Booking[]>([]);
+  const [pets, setPets] = useState<Record<string, Pet>>({});
+  const [petOwners, setPetOwners] = useState<Record<string, PetOwner>>({});
+  const [loadingAppointments, setLoadingAppointments] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedAppointment, setSelectedAppointment] = useState<Booking | null>(null);
+  const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      fetchAppointments();
+    }
+  }, [user]);
+
+  const fetchAppointments = async () => {
+    try {
+      setLoadingAppointments(true);
+      const { data: bookingsData, error } = await supabase
+        .from('bookings')
+        .select('*')
+        .eq('vet_id', user?.id)
+        .order('booking_date', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        throw error;
+      }
+      
+      if (bookingsData && bookingsData.length > 0) {
+        setAppointments(bookingsData);
+        await fetchPetsAndOwners(bookingsData);
+      } else {
+        setAppointments([]);
+      }
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+      toast.error('Failed to load appointments');
+    } finally {
+      setLoadingAppointments(false);
+    }
+  };
+
+  const fetchPetsAndOwners = async (bookings: Booking[]) => {
+    // Get unique pet IDs and owner IDs
+    const petIds = [...new Set(bookings.map(booking => booking.pet_id))];
+    const ownerIds = [...new Set(bookings.map(booking => booking.pet_owner_id))];
+    
+    // Fetch pets
+    if (petIds.length > 0) {
+      try {
+        const { data: petsData, error } = await supabase
+          .from('pets')
+          .select('*')
+          .in('id', petIds);
+          
+        if (error) {
+          console.error('Error fetching pets:', error);
+          throw error;
+        }
+          
+        if (petsData) {
+          const petsRecord: Record<string, Pet> = {};
+          petsData.forEach(pet => {
+            petsRecord[pet.id] = pet;
+          });
+          setPets(petsRecord);
+        }
+      } catch (error) {
+        console.error('Error processing pets data:', error);
+      }
+    }
+    
+    // Fetch pet owners
+    if (ownerIds.length > 0) {
+      try {
+        const { data: ownersData, error } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', ownerIds);
+          
+        if (error) {
+          console.error('Error fetching pet owners:', error);
+          throw error;
+        }
+          
+        if (ownersData) {
+          const ownersRecord: Record<string, PetOwner> = {};
+          ownersData.forEach(owner => {
+            ownersRecord[owner.id] = owner;
+          });
+          setPetOwners(ownersRecord);
+        }
+      } catch (error) {
+        console.error('Error processing pet owners data:', error);
+      }
+    }
+  };
+
+  const openAppointmentDetails = (appointment: Booking) => {
+    setSelectedAppointment(appointment);
+    setIsDetailsModalOpen(true);
+  };
+
+  const handleRescheduleAppointment = async (appointmentId: string, newDate: string, newStartTime: string, newEndTime: string) => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          booking_date: newDate, 
+          start_time: newStartTime,
+          end_time: newEndTime 
+        })
+        .eq('id', appointmentId);
+
+      if (error) {
+        console.error('Error rescheduling appointment:', error);
+        throw error;
+      }
+      
+      toast.success('Appointment rescheduled successfully');
+      fetchAppointments(); // Refresh appointments after rescheduling
+    } catch (error) {
+      console.error('Error rescheduling appointment:', error);
+      toast.error('Failed to reschedule appointment');
+    }
+  };
+
+  const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: newStatus })
+        .eq('id', appointmentId);
+
+      if (error) {
+        console.error('Error updating appointment status:', error);
+        throw error;
+      }
+      
+      toast.success('Appointment status updated successfully');
+      fetchAppointments(); // Refresh appointments after status update
+    } catch (error) {
+      console.error('Error updating appointment status:', error);
+      toast.error('Failed to update appointment status');
+    }
+  };
 
   // Function to render status badge with appropriate color
   const renderStatusBadge = (status: string) => {
@@ -53,6 +225,8 @@ const VetAppointmentsPage = () => {
         return <Badge className="bg-red-500 hover:bg-red-600">{status}</Badge>;
       case 'confirmed':
         return <Badge className="bg-green-500 hover:bg-green-600">{status}</Badge>;
+      case 'completed':
+        return <Badge className="bg-blue-500 hover:bg-blue-600">{status}</Badge>;
       default:
         return <Badge>{status}</Badge>;
     }
@@ -60,14 +234,32 @@ const VetAppointmentsPage = () => {
 
   // Function to filter appointments based on search query and status filter
   const filteredAppointments = appointments.filter(appointment => {
-    const matchesSearch = appointment.petName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          appointment.recommendation.toLowerCase().includes(searchQuery.toLowerCase());
+    const pet = pets[appointment.pet_id];
+    const owner = petOwners[appointment.pet_owner_id];
+    
+    const matchesSearch = (pet?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          appointment.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          owner?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())) ?? false;
     
     const matchesStatus = filterStatus === "all" || 
                           appointment.status.toLowerCase() === filterStatus.toLowerCase();
     
     return matchesSearch && matchesStatus;
   });
+
+  if (isLoading || loadingAppointments) {
+    return (
+      <SidebarProvider>
+        <div className="min-h-screen flex items-center justify-center bg-background w-full">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        </div>
+      </SidebarProvider>
+    );
+  }
+
+  if (!user) {
+    return <Navigate to="/auth" />;
+  }
 
   return (
     <SidebarProvider>
@@ -94,7 +286,7 @@ const VetAppointmentsPage = () => {
                     <div className="relative">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
-                        placeholder="Search pet or issue..."
+                        placeholder="Search pet, owner, or notes..."
                         className="pl-8"
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
@@ -113,6 +305,7 @@ const VetAppointmentsPage = () => {
                           <SelectItem value="all">All Statuses</SelectItem>
                           <SelectItem value="pending">Pending</SelectItem>
                           <SelectItem value="confirmed">Confirmed</SelectItem>
+                          <SelectItem value="completed">Completed</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
@@ -145,12 +338,12 @@ const VetAppointmentsPage = () => {
                         <TableHead className="text-white font-medium">Type</TableHead>
                         <TableHead className="text-white font-medium">
                           <div className="flex items-center">
-                            <UserCircle className="h-4 w-4 mr-2" /> Pet Name
+                            <UserCircle className="h-4 w-4 mr-2" /> Pet & Owner
                           </div>
                         </TableHead>
                         <TableHead className="text-white font-medium">
                           <div className="flex items-center">
-                            <ThumbsUp className="h-4 w-4 mr-2" /> Recommendation
+                            <ThumbsUp className="h-4 w-4 mr-2" /> Notes
                           </div>
                         </TableHead>
                         <TableHead className="text-white font-medium">Status</TableHead>
@@ -161,34 +354,54 @@ const VetAppointmentsPage = () => {
                       {filteredAppointments.length > 0 ? (
                         filteredAppointments.map((appointment) => (
                           <TableRow key={appointment.id} className="hover:bg-slate-50">
-                            <TableCell>{appointment.date}</TableCell>
-                            <TableCell>{appointment.time}</TableCell>
+                            <TableCell>{appointment.booking_date}</TableCell>
+                            <TableCell>{appointment.start_time.slice(0, 5)}</TableCell>
                             <TableCell>
-                              <Badge variant="outline" className={appointment.type === 'Video' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-purple-100 text-purple-800 border-purple-200'}>
-                                {appointment.type}
+                              <Badge variant="outline" className={appointment.consultation_type === 'video' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-purple-100 text-purple-800 border-purple-200'}>
+                                {appointment.consultation_type}
                               </Badge>
                             </TableCell>
-                            <TableCell>{appointment.petName}</TableCell>
                             <TableCell>
-                              <Badge variant="outline" className="bg-green-100 text-green-800 hover:bg-green-200 border-green-200">
-                                {appointment.recommendation}
-                              </Badge>
+                              <div>
+                                <div className="font-medium">{pets[appointment.pet_id]?.name || 'Unknown Pet'}</div>
+                                <div className="text-sm text-gray-500">{petOwners[appointment.pet_owner_id]?.full_name || 'Unknown Owner'}</div>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="max-w-xs truncate">
+                                {appointment.notes || 'No notes'}
+                              </div>
                             </TableCell>
                             <TableCell>{renderStatusBadge(appointment.status)}</TableCell>
                             <TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreVertical className="h-4 w-4" />
-                                    <span className="sr-only">Actions</span>
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>View Details</DropdownMenuItem>
-                                  <DropdownMenuItem>Edit Appointment</DropdownMenuItem>
-                                  <DropdownMenuItem className="text-red-500">Cancel Appointment</DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
+                              <div className="flex gap-2">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm"
+                                  onClick={() => openAppointmentDetails(appointment)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button variant="ghost" size="sm">
+                                      <MoreVertical className="h-4 w-4" />
+                                      <span className="sr-only">Actions</span>
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'confirmed')}>
+                                      Mark as Confirmed
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'completed')}>
+                                      Mark as Completed
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem className="text-red-500" onClick={() => handleStatusUpdate(appointment.id, 'cancelled')}>
+                                      Cancel Appointment
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
                             </TableCell>
                           </TableRow>
                         ))
@@ -207,23 +420,25 @@ const VetAppointmentsPage = () => {
                   <div className="text-sm text-muted-foreground">
                     Showing {filteredAppointments.length} of {appointments.length} appointments
                   </div>
-                  <div className="flex gap-1">
-                    <Button variant="outline" size="sm" disabled>
-                      &lt;
-                    </Button>
-                    <Button variant="outline" size="sm" className="bg-primary text-white hover:bg-primary/90">
-                      1
-                    </Button>
-                    <Button variant="outline" size="sm">2</Button>
-                    <Button variant="outline" size="sm">3</Button>
-                    <Button variant="outline" size="sm">&gt;</Button>
-                  </div>
                 </div>
               </div>
             </main>
           </div>
         </SidebarInset>
       </div>
+
+      {/* Appointment Details Modal */}
+      {selectedAppointment && (
+        <VetAppointmentDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          appointment={selectedAppointment}
+          pet={pets[selectedAppointment.pet_id]}
+          petOwner={petOwners[selectedAppointment.pet_owner_id]}
+          onReschedule={handleRescheduleAppointment}
+          onStatusUpdate={handleStatusUpdate}
+        />
+      )}
     </SidebarProvider>
   );
 };
