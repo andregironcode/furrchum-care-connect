@@ -9,68 +9,60 @@ import { Loader2, AlertCircle, Plus, Star, Phone, VideoIcon } from 'lucide-react
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Input } from '@/components/ui/input';
+import { supabase } from '@/integrations/supabase/client';
 
-// Mock data for veterinarians until the database table is created
-const mockVets = [
-  {
-    id: '1',
-    name: 'Dr. Sarah Johnson',
-    specialty: 'Small Animal Care',
-    experience: '8 years',
-    rating: 4.8,
-    image: 'https://images.unsplash.com/photo-1559839734-2b71ea197ec2?auto=format&fit=crop&w=300&h=300',
-    distance: '2.3 miles',
-    available: true
-  },
-  {
-    id: '2',
-    name: 'Dr. Michael Chen',
-    specialty: 'Feline Specialist',
-    experience: '12 years',
-    rating: 4.9,
-    image: 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?auto=format&fit=crop&w=300&h=300',
-    distance: '4.1 miles',
-    available: false
-  },
-  {
-    id: '3',
-    name: 'Dr. Amanda Lopez',
-    specialty: 'Emergency Care',
-    experience: '10 years',
-    rating: 4.7,
-    image: 'https://images.unsplash.com/photo-1527613426441-4da17471b66d?auto=format&fit=crop&w=300&h=300',
-    distance: '1.8 miles',
-    available: true
-  }
-];
+interface Vet {
+  id: string;
+  first_name: string;
+  last_name: string;
+  specialization: string;
+  years_experience: number;
+  rating: number;
+  image_url?: string;
+  consultation_fee?: number;
+  clinic_location?: string;
+  offers_video_calls: boolean;
+  offers_in_person: boolean;
+  phone?: string;
+}
 
 const MyVetsPage = () => {
   const { user, isLoading } = useAuth();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [vets, setVets] = useState<any[]>([]);
+  const [vets, setVets] = useState<Vet[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const fetchVets = async () => {
       try {
         if (user) {
-          // In a real implementation, we would fetch from Supabase
-          // Since the 'vet_favorites' table doesn't exist yet, we'll use mock data
-          setVets(mockVets);
-          
-          // This comment explains what the real implementation would look like:
-          // const { data, error } = await supabase
-          //   .from('vet_favorites')
-          //   .select('vet_id, vets(*)')
-          //   .eq('user_id', user.id);
-          //     
-          // if (error) throw error;
-          // setVets(data?.map(item => item.vets) || []);
+          // Get all unique vet IDs from bookings made by this user
+          const { data: bookingsData, error: bookingsError } = await supabase
+            .from('bookings')
+            .select('vet_id')
+            .eq('pet_owner_id', user.id);
+
+          if (bookingsError) throw bookingsError;
+
+          if (bookingsData && bookingsData.length > 0) {
+            // Get unique vet IDs
+            const vetIds = [...new Set(bookingsData.map(booking => booking.vet_id))];
+            
+            // Fetch vet profiles for these IDs
+            const { data: vetsData, error: vetsError } = await supabase
+              .from('vet_profiles')
+              .select('*')
+              .in('id', vetIds);
+
+            if (vetsError) throw vetsError;
+
+            setVets(vetsData || []);
+          }
         }
       } catch (error: any) {
         console.error('Error fetching vets:', error);
-        setError(error.message || 'Failed to fetch favorite veterinarians');
+        setError(error.message || 'Failed to fetch your veterinarians');
       } finally {
         setLoading(false);
       }
@@ -82,8 +74,8 @@ const MyVetsPage = () => {
   }, [user, isLoading]);
 
   const filteredVets = vets.filter(vet => 
-    vet.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    vet.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+    `${vet.first_name} ${vet.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) || 
+    (vet.specialization && vet.specialization.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   if (isLoading || loading) {
@@ -154,50 +146,68 @@ const MyVetsPage = () => {
 };
 
 // Vet Card Component
-const VetCard = ({ vet }: { vet: any }) => {
+const VetCard = ({ vet }: { vet: Vet }) => {
+  const name = `Dr. ${vet.first_name} ${vet.last_name}`;
+  const isAvailable = vet.offers_video_calls || vet.offers_in_person;
+  
   return (
     <Card className="hover:shadow-lg transition-shadow border-primary-300">
       <CardHeader className="bg-primary-50 flex items-center justify-between">
         <div className="flex items-center gap-4">
           <div className="h-16 w-16 rounded-full overflow-hidden bg-primary-100">
-            {vet.image ? (
-              <img src={vet.image} alt={vet.name} className="h-full w-full object-cover" />
+            {vet.image_url ? (
+              <img src={vet.image_url} alt={name} className="h-full w-full object-cover" />
             ) : (
               <div className="h-full w-full flex items-center justify-center bg-primary-100 text-primary-500 text-2xl font-bold">
-                {vet.name.charAt(0)}
+                {vet.first_name.charAt(0)}{vet.last_name.charAt(0)}
               </div>
             )}
           </div>
           <div>
-            <CardTitle className="text-xl">{vet.name}</CardTitle>
-            <p className="text-sm text-gray-500">{vet.specialty}</p>
+            <CardTitle className="text-xl">{name}</CardTitle>
+            <p className="text-sm text-gray-500">{vet.specialization || 'General Practice'}</p>
             <div className="flex items-center mt-1 text-yellow-500">
               <Star className="h-4 w-4 fill-current" />
-              <span className="ml-1 text-sm">{vet.rating}</span>
-              <span className="ml-2 text-xs text-gray-500">({vet.experience} exp)</span>
+              <span className="ml-1 text-sm">{vet.rating || 5.0}</span>
+              <span className="ml-2 text-xs text-gray-500">({vet.years_experience || 0} years exp)</span>
             </div>
           </div>
         </div>
       </CardHeader>
       <CardContent className="pt-6">
-        <div className="mb-4">
-          <p className="text-sm text-gray-500 mb-1">Distance</p>
-          <p className="font-medium">{vet.distance}</p>
-        </div>
+        {vet.consultation_fee && (
+          <div className="mb-4">
+            <p className="text-sm text-gray-500 mb-1">Consultation Fee</p>
+            <p className="font-medium">${vet.consultation_fee}</p>
+          </div>
+        )}
+        {vet.clinic_location && (
+          <div className="mb-4">
+            <p className="text-sm text-gray-500 mb-1">Location</p>
+            <p className="font-medium">{vet.clinic_location}</p>
+          </div>
+        )}
         <div>
-          <p className="text-sm text-gray-500 mb-1">Availability</p>
-          <div className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-            vet.available ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-          }`}>
-            {vet.available ? 'Available Now' : 'Unavailable'}
+          <p className="text-sm text-gray-500 mb-1">Services</p>
+          <div className="flex flex-wrap gap-2">
+            {vet.offers_video_calls && (
+              <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                Video Calls
+              </div>
+            )}
+            {vet.offers_in_person && (
+              <div className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                In-Person
+              </div>
+            )}
           </div>
         </div>
       </CardContent>
       <CardFooter className="flex justify-between gap-2">
-        <Button variant="outline" className="border-primary-300 text-primary-600">
+        <Button variant="outline" className="border-primary-300 text-primary-600" disabled={!vet.phone}>
           <Phone className="h-4 w-4 mr-2" /> Call
         </Button>
-        <Button className="bg-primary hover:bg-primary-600">
+        <Button className="bg-primary hover:bg-primary-600" disabled={!vet.offers_video_calls}>
           <VideoIcon className="h-4 w-4 mr-2" /> Start Video
         </Button>
       </CardFooter>
@@ -214,7 +224,7 @@ const EmptyVetState = () => {
       </div>
       <h3 className="text-xl font-medium text-gray-700 mb-2">No Veterinarians Found</h3>
       <p className="text-gray-500 mb-4 text-center max-w-md">
-        You haven't saved any veterinarians yet. Find and save your preferred vets for quick access to their services.
+        You haven't booked any appointments yet. Once you book an appointment with a veterinarian, they will appear here for easy access.
       </p>
       <Button className="bg-primary hover:bg-primary-600">
         <Plus className="mr-2 h-4 w-4" /> Find a Veterinarian
