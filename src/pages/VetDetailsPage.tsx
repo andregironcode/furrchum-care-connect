@@ -417,33 +417,4 @@ const VetDetailsPage = () => {
   );
 };
 
-const fetchVetAvailability = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('vet_availability')
-      .select('*')
-      .eq('vet_id', vetId)
-      .eq('is_available', true)
-      .order('day_of_week', { ascending: true });
-
-    if (error) throw error;
-    setAvailability(data || []);
-  } catch (error) {
-    console.error('Error fetching vet availability:', error);
-  }
-};
-
-const handleBookNow = (id: string) => {
-  if (!user) {
-    toast.error("Please login to book a consultation", {
-      action: {
-        label: "Login",
-        onClick: () => navigate("/auth")
-      }
-    });
-    return;
-  }
-  navigate(`/booking/${id}`);
-};
-
 export default VetDetailsPage;
