@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -99,7 +98,7 @@ const VetDetailsPage = () => {
     }
   };
 
-  const handleBookNow = () => {
+  const handleBookNow = (id: string) => {
     if (!user) {
       toast.error("Please login to book a consultation", {
         action: {
@@ -109,7 +108,7 @@ const VetDetailsPage = () => {
       });
       return;
     }
-    navigate(`/booking/${vetId}`);
+    navigate(`/booking/${id}`);
   };
 
   if (loading) {
@@ -311,9 +310,9 @@ const VetDetailsPage = () => {
                 
                 <Button 
                   className="w-full bg-primary hover:bg-primary/90 text-white mt-4"
-                  onClick={handleBookNow}
+                  onClick={() => handleBookNow(vetId)}
                 >
-                  Book Appointment
+                  Book Now
                 </Button>
                 
                 <div className="text-center text-sm text-gray-500 mt-2">

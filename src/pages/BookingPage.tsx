@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format, addDays, parse } from 'date-fns';
@@ -96,16 +95,31 @@ const BookingPage = () => {
   
   const fetchUserPets = async () => {
     try {
+      setIsLoadingPets(true);
+      if (!user) return;
+
       const { data, error } = await supabase
         .from('pets')
-        .select('id, name, type as species, breed')
-        .eq('owner_id', user?.id);
-      
-      if (error) throw error;
-      setPets(data || []);
+        .select('*')
+        .eq('owner_id', user.id);
+
+      if (error) {
+        console.error('Error fetching pets:', error);
+        throw error;
+      }
+
+      // Make sure we're setting an array of pets that match the Pet type
+      if (data) {
+        setPets(data as Pet[]);
+      } else {
+        setPets([]);
+      }
     } catch (error) {
-      console.error("Error fetching pets:", error);
-      toast.error("Failed to load your pets");
+      console.error('Error fetching pets:', error);
+      toast.error('Failed to load your pets');
+      setPets([]); // Set to empty array instead of the error
+    } finally {
+      setIsLoadingPets(false);
     }
   };
   
