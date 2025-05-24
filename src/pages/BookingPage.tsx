@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { Clock, CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { Textarea } from '@/components/ui/textarea';
 
 interface VetDetails {
   id: string;
@@ -23,7 +24,7 @@ interface VetDetails {
 interface Pet {
   id: string;
   name: string;
-  type: string; // Change from species to type
+  type: string;
   breed: string;
 }
 
@@ -44,7 +45,7 @@ const BookingPage = () => {
   const [pet, setPet] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingPets, setIsLoading] = useState(false);
+  const [isLoadingPets, setIsLoadingPets] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Data states
@@ -94,7 +95,7 @@ const BookingPage = () => {
   
   const fetchUserPets = async () => {
     try {
-      setIsLoading(true);
+      setIsLoadingPets(true);
       if (!user) return;
 
       const { data, error } = await supabase
@@ -124,7 +125,7 @@ const BookingPage = () => {
       toast.error('Failed to load your pets');
       setPets([]);
     } finally {
-      setIsLoading(false);
+      setIsLoadingPets(false);
     }
   };
   
@@ -422,11 +423,11 @@ const BookingPage = () => {
               {/* Notes */}
               <div>
                 <h3 className="font-medium mb-3">Notes (Optional)</h3>
-                <textarea
-                  className="w-full h-24 p-3 border rounded-md"
+                <Textarea
                   placeholder="Any additional information about your pet's condition..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
+                  className="h-24"
                 />
               </div>
             </CardContent>
