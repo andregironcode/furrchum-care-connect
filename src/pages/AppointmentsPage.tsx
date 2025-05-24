@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -27,7 +26,7 @@ interface Booking {
   end_time: string;
   consultation_type: string;
   notes: string | null;
-  status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
+  status: string; // Changed from strict union type to string to match what comes from the database
 }
 
 interface Pet {
@@ -70,7 +69,7 @@ const AppointmentsPage = () => {
       
       if (data && data.length > 0) {
         setBookings(data as Booking[]);
-        await fetchPetsAndVets(data);
+        await fetchPetsAndVets(data as Booking[]);
       } else {
         setBookings([]);
       }
@@ -136,7 +135,7 @@ const AppointmentsPage = () => {
     }
   };
 
-  const getStatusBadgeVariant = (status: Booking['status']) => {
+  const getStatusBadgeVariant = (status: string) => {
     switch (status) {
       case 'confirmed': return "secondary";
       case 'completed': return "outline";

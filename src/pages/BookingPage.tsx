@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
@@ -45,7 +44,7 @@ const BookingPage = () => {
   const [pet, setPet] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingPets, setIsLoadingPets] = useState(false);
+  const [isLoadingPets, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Data states
@@ -95,7 +94,7 @@ const BookingPage = () => {
   
   const fetchUserPets = async () => {
     try {
-      setIsLoadingPets(true);
+      setIsLoading(true);
       if (!user) return;
 
       const { data, error } = await supabase
@@ -123,9 +122,9 @@ const BookingPage = () => {
     } catch (error) {
       console.error('Error fetching pets:', error);
       toast.error('Failed to load your pets');
-      setPets([]); // Set to empty array instead of the error
+      setPets([]);
     } finally {
-      setIsLoadingPets(false);
+      setIsLoading(false);
     }
   };
   
@@ -408,7 +407,7 @@ const BookingPage = () => {
                     <SelectContent>
                       {pets.map((pet) => (
                         <SelectItem key={pet.id} value={pet.id}>
-                          {pet.name} ({pet.breed || pet.species})
+                          {pet.name} ({pet.breed || pet.type})
                         </SelectItem>
                       ))}
                     </SelectContent>
