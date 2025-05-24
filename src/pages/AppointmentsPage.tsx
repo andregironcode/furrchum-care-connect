@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -326,10 +325,10 @@ const AppointmentsPage = () => {
                         )}
                         <div className="flex justify-between items-center pt-2">
                           <Button
-                            variant="outline"
+                            variant="secondary"
                             size="sm"
                             onClick={() => openAppointmentDetails(booking)}
-                            className="flex items-center gap-1"
+                            className="flex items-center gap-1 w-full"
                           >
                             <Eye className="h-4 w-4" /> View Details
                           </Button>
@@ -339,6 +338,7 @@ const AppointmentsPage = () => {
                               variant="destructive"
                               size="sm"
                               onClick={() => handleCancelAppointment(booking.id)}
+                              className="ml-2"
                             >
                               Cancel
                             </Button>

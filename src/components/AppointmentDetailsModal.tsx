@@ -188,7 +188,7 @@ const AppointmentDetailsModal = ({
           </div>
         </div>
 
-        <div className="flex flex-col sm:flex-row gap-2 sm:justify-between mt-4">
+        <div className="flex flex-col sm:flex-row gap-3 mt-4">
           {(appointment.status === 'pending' || appointment.status === 'confirmed') && (
             <Button
               variant="destructive"
@@ -196,11 +196,16 @@ const AppointmentDetailsModal = ({
                 onCancelAppointment(appointment.id);
                 onClose();
               }}
+              className="w-full sm:w-auto"
             >
               <X className="mr-2 h-4 w-4" /> Cancel Appointment
             </Button>
           )}
-          <Button variant="outline" onClick={onClose} className="sm:ml-auto">
+          <Button 
+            variant="outline" 
+            onClick={onClose} 
+            className="w-full sm:w-auto sm:ml-auto"
+          >
             Close
           </Button>
         </div>
