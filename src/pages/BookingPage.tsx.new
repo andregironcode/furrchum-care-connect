@@ -49,20 +49,6 @@ interface VetAvailability {
   end_time: string;
 }
 
-interface BookingData {
-  vet_id: string;
-  pet_owner_id: string;
-  pet_id: string;
-  booking_date: string;
-  start_time: string;
-  end_time: string;
-  consultation_type: 'in_person' | 'video_call';
-  notes: string;
-  meeting_id: string | null;
-  meeting_url: string | null;
-  host_meeting_url: string | null;
-}
-
 const BookingPage = () => {
   const { vetId } = useParams<{ vetId: string }>();
   const navigate = useNavigate();
@@ -178,23 +164,16 @@ const BookingPage = () => {
     }
   }, [vetId]);
 
-  // Calculate available time slots based on vet's availability
-  useEffect(() => {
-    if (!date || !availabilityByDay) return;
+  const generateTimeSlotsForDate = useCallback((selectedDate: Date) => {
+    if (!selectedDate || !availabilityByDay) return;
     
-    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const dayOfWeek = selectedDate.getDay();
     const availability = availabilityByDay[dayOfWeek];
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
     
     if (!availability) {
       setTimeSlots([]);
       return;
     }
-    
-    // Don't show past time slots for today
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
     
     const startTime = availability.start_time;
     const endTime = availability.end_time;
@@ -213,27 +192,20 @@ const BookingPage = () => {
     
     // Generate 30-minute slots
     const slots: string[] = [];
-    let currentHourSlot = startHour;
-    let currentMinuteSlot = startMinute;
+    let currentHour = startHour;
+    let currentMinute = startMinute;
     
-    while (currentHourSlot < endHour || (currentHourSlot === endHour && currentMinuteSlot < parseInt(endTimeParts[1], 10))) {
-      const formattedHour = currentHourSlot.toString().padStart(2, '0');
-      const formattedMinute = currentMinuteSlot.toString().padStart(2, '0');
-      
-      // Skip past time slots for today
-      if (isToday && (currentHourSlot < currentHour || (currentHourSlot === currentHour && currentMinuteSlot < currentMinute))) {
-        currentMinuteSlot = 30;
-        continue;
-      }
-      
+    while (currentHour < endHour || (currentHour === endHour && currentMinute < parseInt(endTimeParts[1], 10))) {
+      const formattedHour = currentHour.toString().padStart(2, '0');
+      const formattedMinute = currentMinute.toString().padStart(2, '0');
       slots.push(`${formattedHour}:${formattedMinute}`);
       
       // Advance 30 minutes
-      if (currentMinuteSlot === 30) {
-        currentHourSlot += 1;
-        currentMinuteSlot = 0;
+      if (currentMinute === 30) {
+        currentHour += 1;
+        currentMinute = 0;
       } else {
-        currentMinuteSlot = 30;
+        currentMinute = 30;
       }
     }
     
@@ -243,7 +215,7 @@ const BookingPage = () => {
     if (timeSlot && !slots.includes(timeSlot)) {
       setTimeSlot('');
     }
-  }, [date, availabilityByDay, timeSlot]);
+  }, [availabilityByDay, timeSlot]);
 
   useEffect(() => {
     if (!user) {
@@ -259,6 +231,12 @@ const BookingPage = () => {
     }
   }, [vetId, user, navigate, fetchVetDetails, fetchUserPets, fetchVetAvailability]);
 
+  useEffect(() => {
+    if (date && availabilityByDay) {
+      generateTimeSlotsForDate(date);
+    }
+  }, [date, availabilityByDay, generateTimeSlotsForDate]);
+
   const formatTime = (time: string) => {
     const [hours, minutes] = time.split(':');
     const hour = parseInt(hours, 10);
@@ -267,104 +245,115 @@ const BookingPage = () => {
     return `${formattedHour}:${minutes} ${ampm}`;
   };
 
-  const validateBookingDetails = () => {
-    if (!date) throw new Error("Please select a date for your appointment");
-    if (!timeSlot) throw new Error("Please select a time slot");
-    if (!pet) throw new Error("Please select a pet for the consultation");
-    if (!user) throw new Error("You must be logged in to book an appointment");
-    if (!vet) throw new Error("Veterinarian information is missing");
+  const handleProceedToConfirmation = async () => {
+    // Validation
+    if (!date) {
+      toast.error("Please select a date for your appointment");
+      return;
+    }
     
-    // Validate consultation type availability
+    if (!timeSlot) {
+      toast.error("Please select a time slot");
+      return;
+    }
+    
+    if (!pet) {
+      toast.error("Please select a pet for the consultation");
+      return;
+    }
+    
+    if (!user) {
+      toast.error("You must be logged in to book an appointment");
+      navigate("/auth");
+      return;
+    }
+    
+    if (!vet) {
+      toast.error("Veterinarian information is missing");
+      return;
+    }
+    
+    // Check if the selected consultation type is available
     if (consultationType === 'video_call' && !vet.offers_video_calls) {
-      throw new Error("This veterinarian does not offer video call consultations");
+      toast.error("This veterinarian does not offer video call consultations");
+      return;
     }
     
     if (consultationType === 'in_person' && !vet.offers_in_person) {
-      throw new Error("This veterinarian does not offer in-person consultations");
+      toast.error("This veterinarian does not offer in-person consultations");
+      return;
     }
-  };
-
-  const createVideoMeeting = async (appointmentDate: Date) => {
-    try {
-      const endDate = new Date(appointmentDate);
-      endDate.setMinutes(endDate.getMinutes() + 30);
-      
-      return await createMeeting({
-        endDate: endDate.toISOString(),
-        roomNamePrefix: `vet-consult-${vetId}-${Date.now()}`,
-        isLocked: true
-      });
-    } catch (error) {
-      console.error("Error creating video meeting:", error);
-      throw new Error("Failed to create video meeting. Please try again or select in-person consultation.");
-    }
-  };
-
-  const saveBookingToDatabase = async (bookingData: Omit<BookingData, 'id'>) => {
-    const { data, error } = await supabase
-      .from('bookings')
-      .insert([bookingData])
-      .select();
     
-    if (error) throw error;
-    return data;
-  };
-
-  const handleProceedToConfirmation = async () => {
+    setIsSubmitting(true);
+    
     try {
-      // Validate all required fields
-      validateBookingDetails();
-      
-      // Parse and validate the selected time
-      const [hours, minutes] = timeSlot.split(':').map(Number);
-      const appointmentDate = new Date(date!);
-      appointmentDate.setHours(hours, minutes, 0, 0);
-      
-      if (appointmentDate <= new Date()) {
-        throw new Error("Please select a future time for your appointment");
-      }
-
       // Calculate end time (30 minutes after start)
-      const endDate = new Date(appointmentDate);
-      endDate.setMinutes(endDate.getMinutes() + 30);
-
-      // Format times for database
-      const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
-      const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}:00`;
-      const formattedDate = format(date!, 'yyyy-MM-dd');
-
-      setIsSubmitting(true);
+      const [hours, minutes] = timeSlot.split(':');
+      const startTime = `${hours}:${minutes}:00`;
       
-      // Create video meeting if needed
+      // Parse the start time to calculate end time
+      const startHour = parseInt(hours, 10);
+      const startMinute = parseInt(minutes, 10);
+      
+      // Add 30 minutes
+      let endHour = startHour;
+      const endMinute = (startMinute + 30) % 60;
+      
+      // Handle hour overflow
+      if (startMinute + 30 >= 60) {
+        endHour += 1;
+      }
+      
+      const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`;
+      
+      // Format the date for PostgreSQL
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      
+      // Create meeting if it's a video call
       let meetingData = null;
       if (consultationType === 'video_call') {
-        meetingData = await createVideoMeeting(appointmentDate);
+        try {
+          const meeting = await createMeeting({
+            endDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+            roomNamePrefix: `vet-consult-${vetId}-${Date.now()}`,
+            roomMode: 'normal',
+            fields: ['hostRoomUrl', 'viewerRoomUrl']
+          });
+          meetingData = meeting;
+        } catch (error) {
+          console.error("Error creating video meeting:", error);
+          toast.error("Failed to create video meeting. Please try again or select in-person consultation.");
+          return;
+        }
       }
       
-      // Prepare booking data
-      const bookingData = {
-        vet_id: vetId,
-        pet_owner_id: user!.id,
-        pet_id: pet,
-        booking_date: formattedDate,
-        start_time: startTime,
-        end_time: endTime,
-        consultation_type: consultationType,
-        notes: notes,
-        meeting_id: meetingData?.roomUrl?.split('/').pop() || null,
-        meeting_url: meetingData?.viewerRoomUrl || null,
-        host_meeting_url: meetingData?.hostRoomUrl || null,
-      };
+      // Insert booking into database
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert([
+          {
+            vet_id: vetId,
+            pet_owner_id: user.id,
+            pet_id: pet,
+            booking_date: formattedDate,
+            start_time: startTime,
+            end_time: endTime,
+            consultation_type: consultationType,
+            notes: notes,
+            meeting_id: meetingData?.roomUrl?.split('/').pop() || null,
+            meeting_url: meetingData?.viewerRoomUrl || null,
+            host_meeting_url: meetingData?.hostRoomUrl || null,
+          }
+        ])
+        .select();
       
-      // Save booking to database
-      await saveBookingToDatabase(bookingData);
+      if (error) throw error;
       
-      // Show success and navigate
       toast.success("Appointment booked successfully!");
       navigate("/appointments");
     } catch (error) {
       console.error("Error booking appointment:", error);
-      toast.error(error instanceof Error ? error.message : 'An error occurred while processing your booking');
+      toast.error("Failed to book appointment. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -532,7 +521,7 @@ const BookingPage = () => {
                 {/* Date Picker */}
                 <div>
                   <h3 className="font-medium mb-2">Select Date</h3>
-                  <div className="rounded-md border">
+                  <div className="rounded-md border
                     <Calendar
                       mode="single"
                       selected={date}
