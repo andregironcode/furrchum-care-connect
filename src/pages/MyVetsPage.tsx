@@ -1,15 +1,15 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, Plus, Star, Phone, VideoIcon } from 'lucide-react';
+import { Loader2, AlertCircle, Plus, Star, user, book } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
+import { toast } from 'sonner';
 
 interface Vet {
   id: string;
@@ -147,8 +147,26 @@ const MyVetsPage = () => {
 
 // Vet Card Component
 const VetCard = ({ vet }: { vet: Vet }) => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const name = `Dr. ${vet.first_name} ${vet.last_name}`;
-  const isAvailable = vet.offers_video_calls || vet.offers_in_person;
+  
+  const handleViewProfile = () => {
+    navigate(`/vet-details/${vet.id}`);
+  };
+
+  const handleBookAppointment = () => {
+    if (!user) {
+      toast.error("Please login to book a consultation", {
+        action: {
+          label: "Login",
+          onClick: () => navigate("/auth")
+        }
+      });
+      return;
+    }
+    navigate(`/booking/${vet.id}`);
+  };
   
   return (
     <Card className="hover:shadow-lg transition-shadow border-primary-300">
@@ -204,11 +222,18 @@ const VetCard = ({ vet }: { vet: Vet }) => {
         </div>
       </CardContent>
       <CardFooter className="flex justify-between gap-2">
-        <Button variant="outline" className="border-primary-300 text-primary-600" disabled={!vet.phone}>
-          <Phone className="h-4 w-4 mr-2" /> Call
+        <Button 
+          variant="outline" 
+          className="border-primary-300 text-primary-600 flex-1"
+          onClick={handleViewProfile}
+        >
+          <user className="h-4 w-4 mr-2" /> View Profile
         </Button>
-        <Button className="bg-primary hover:bg-primary-600" disabled={!vet.offers_video_calls}>
-          <VideoIcon className="h-4 w-4 mr-2" /> Start Video
+        <Button 
+          className="bg-primary hover:bg-primary-600 flex-1" 
+          onClick={handleBookAppointment}
+        >
+          <book className="h-4 w-4 mr-2" /> Book Appointment
         </Button>
       </CardFooter>
     </Card>
