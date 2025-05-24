@@ -9,6 +9,8 @@ import { Loader2, AlertCircle, Plus, Calendar, FileText, User, PawPrint, CreditC
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Download } from 'lucide-react';
+import { generatePrescriptionPDF } from '@/utils/pdfGenerator';
 
 interface Prescription {
   id: string;
@@ -290,9 +292,20 @@ const PetOwnerDashboard = () => {
                                   </CardDescription>
                                 </div>
                               </div>
-                              <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
-                                {prescription.status}
-                              </span>
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs bg-green-100 text-green-800 px-2 py-1 rounded-full">
+                                  {prescription.status}
+                                </span>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => generatePrescriptionPDF(prescription)}
+                                  className="flex items-center gap-1"
+                                >
+                                  <Download className="h-4 w-4" />
+                                  PDF
+                                </Button>
+                              </div>
                             </div>
                           </CardHeader>
                           <CardContent className="pt-0">
