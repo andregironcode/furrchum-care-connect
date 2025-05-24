@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
-import VetSidebar from '@/components/VetSidebar';
+import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Loader2 } from 'lucide-react';
 import { supabase } from "@/integrations/supabase/client";
@@ -30,9 +30,17 @@ interface Booking {
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
 }
 
-const VetAppointmentsPage = () => {
+interface Pet {
+  id: string;
+  name: string;
+  type: string;
+}
+
+const AppointmentsPage = () => {
   const { user, isLoading } = useAuth();
   const [bookings, setBookings] = useState<Booking[]>([]);
+  const [pets, setPets] = useState<Record<string, Pet>>({});
+  const [vets, setVets] = useState<Record<string, {first_name: string, last_name: string}>>({});
   const [loadingBookings, setLoadingBookings] = useState(true);
   const [date, setDate] = useState<Date | undefined>(new Date());
 
@@ -50,7 +58,7 @@ const VetAppointmentsPage = () => {
       let query = supabase
         .from('bookings')
         .select('*')
-        .eq('vet_id', user?.id);
+        .eq('pet_owner_id', user?.id);
 
       if (formattedDate) {
         query = query.eq('booking_date', formattedDate);
@@ -59,7 +67,13 @@ const VetAppointmentsPage = () => {
       const { data, error } = await query;
 
       if (error) throw error;
-      setBookings(data as Booking[] || []);
+      
+      if (data && data.length > 0) {
+        setBookings(data as Booking[]);
+        await fetchPetsAndVets(data);
+      } else {
+        setBookings([]);
+      }
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {
@@ -67,20 +81,67 @@ const VetAppointmentsPage = () => {
     }
   };
 
-  const handleUpdateStatus = async (bookingId: string, newStatus: Booking['status']) => {
+  const fetchPetsAndVets = async (bookings: Booking[]) => {
+    // Get unique pet IDs and vet IDs
+    const petIds = [...new Set(bookings.map(booking => booking.pet_id))];
+    const vetIds = [...new Set(bookings.map(booking => booking.vet_id))];
+    
+    // Fetch pets
+    if (petIds.length > 0) {
+      const { data: petsData } = await supabase
+        .from('pets')
+        .select('id, name, type')
+        .in('id', petIds);
+        
+      if (petsData) {
+        const petsRecord: Record<string, Pet> = {};
+        petsData.forEach(pet => {
+          petsRecord[pet.id] = pet;
+        });
+        setPets(petsRecord);
+      }
+    }
+    
+    // Fetch vets
+    if (vetIds.length > 0) {
+      const { data: vetsData } = await supabase
+        .from('vet_profiles')
+        .select('id, first_name, last_name')
+        .in('id', vetIds);
+        
+      if (vetsData) {
+        const vetsRecord: Record<string, {first_name: string, last_name: string}> = {};
+        vetsData.forEach(vet => {
+          vetsRecord[vet.id] = { first_name: vet.first_name, last_name: vet.last_name };
+        });
+        setVets(vetsRecord);
+      }
+    }
+  };
+
+  const handleCancelAppointment = async (bookingId: string) => {
     try {
       setLoadingBookings(true);
       const { error } = await supabase
         .from('bookings')
-        .update({ status: newStatus })
+        .update({ status: 'cancelled' })
         .eq('id', bookingId);
 
       if (error) throw error;
-      fetchBookings(); // Refresh bookings after status update
+      fetchBookings(); // Refresh bookings after cancellation
     } catch (error) {
-      console.error('Error updating booking status:', error);
+      console.error('Error cancelling booking:', error);
     } finally {
       setLoadingBookings(false);
+    }
+  };
+
+  const getStatusBadgeVariant = (status: Booking['status']) => {
+    switch (status) {
+      case 'confirmed': return "secondary";
+      case 'completed': return "outline";
+      case 'cancelled': return "destructive";
+      default: return "default";
     }
   };
 
@@ -98,20 +159,20 @@ const VetAppointmentsPage = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen flex bg-background">
-        <VetSidebar />
-        <SidebarInset className="lg:pl-0">
-          <div className="flex flex-col h-full">
+      <div className="min-h-screen flex bg-background w-full">
+        <PetOwnerSidebar />
+        <SidebarInset className="lg:pl-0 w-full">
+          <div className="flex flex-col h-full w-full">
             <header className="sticky top-0 z-10 bg-background border-b">
               <div className="container flex h-16 items-center justify-between">
                 <div className="flex items-center gap-2">
                   <SidebarTrigger />
-                  <h1 className="text-2xl font-bold">Your Appointments</h1>
+                  <h1 className="text-2xl font-bold">My Appointments</h1>
                 </div>
               </div>
             </header>
             
-            <main className="flex-1 container mx-auto px-4 py-8">
+            <main className="flex-1 container mx-auto px-4 py-8 w-full">
               <div className="mb-4">
                 <Popover>
                   <PopoverTrigger asChild>
@@ -131,9 +192,6 @@ const VetAppointmentsPage = () => {
                       mode="single"
                       selected={date}
                       onSelect={setDate}
-                      disabled={(date) =>
-                        date > new Date()
-                      }
                       initialFocus
                     />
                   </PopoverContent>
@@ -151,61 +209,54 @@ const VetAppointmentsPage = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   {bookings.map((booking) => (
-                    <Card key={booking.id}>
+                    <Card key={booking.id} className="h-full">
                       <CardHeader>
-                        <CardTitle>Appointment Details</CardTitle>
-                        <CardDescription>Details for appointment on {booking.booking_date} at {booking.start_time}</CardDescription>
+                        <div className="flex justify-between items-start">
+                          <div>
+                            <CardTitle>
+                              {pets[booking.pet_id]?.name || "Pet"} - {pets[booking.pet_id]?.type || "Unknown"}
+                            </CardTitle>
+                            <CardDescription>
+                              With Dr. {vets[booking.vet_id]?.first_name || ""} {vets[booking.vet_id]?.last_name || ""}
+                            </CardDescription>
+                          </div>
+                          <Badge variant={getStatusBadgeVariant(booking.status)}>{booking.status}</Badge>
+                        </div>
                       </CardHeader>
                       <CardContent className="space-y-4">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-2 gap-4">
                           <div>
                             <h3 className="text-sm font-medium">Date</h3>
                             <p className="text-lg">{booking.booking_date}</p>
                           </div>
                           <div>
                             <h3 className="text-sm font-medium">Time</h3>
-                            <p className="text-lg">{booking.start_time}</p>
+                            <p className="text-lg">{booking.start_time.slice(0, 5)}</p>
                           </div>
                         </div>
                         <div>
-                          <h3 className="text-sm font-medium">Reason</h3>
-                          <p className="text-base">{booking.notes || 'No reason provided'}</p>
+                          <h3 className="text-sm font-medium">Type</h3>
+                          <p className="text-base capitalize">{booking.consultation_type}</p>
                         </div>
-                        <div>
-                          <h3 className="text-sm font-medium">Status</h3>
-                          <Badge variant="secondary">{booking.status}</Badge>
-                        </div>
-                        <div className="flex justify-end gap-2">
-                          {booking.status === 'pending' && (
-                            <>
-                              <Button
-                                variant="secondary"
-                                size="sm"
-                                onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
-                              >
-                                Confirm
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                size="sm"
-                                onClick={() => handleUpdateStatus(booking.id, 'cancelled')}
-                              >
-                                Cancel
-                              </Button>
-                            </>
-                          )}
-                          {booking.status === 'confirmed' && (
+                        {booking.notes && (
+                          <div>
+                            <h3 className="text-sm font-medium">Notes</h3>
+                            <p className="text-base">{booking.notes}</p>
+                          </div>
+                        )}
+                        {booking.status === 'pending' || booking.status === 'confirmed' ? (
+                          <div className="flex justify-end pt-2">
                             <Button
-                              variant="secondary"
+                              variant="destructive"
                               size="sm"
-                              onClick={() => handleUpdateStatus(booking.id, 'completed')}
+                              onClick={() => handleCancelAppointment(booking.id)}
                             >
-                              Mark Completed
+                              Cancel Appointment
                             </Button>
-                          )}
-                        </div>
+                          </div>
+                        ) : null}
                       </CardContent>
                     </Card>
                   ))}
@@ -219,4 +270,4 @@ const VetAppointmentsPage = () => {
   );
 };
 
-export default VetAppointmentsPage;
+export default AppointmentsPage;
