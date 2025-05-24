@@ -23,6 +23,7 @@ const ProfilePage = () => {
   const [formData, setFormData] = useState({
     full_name: '',
     email: '',
+    old_password: '',
     password: '',
     confirm_password: ''
   });
@@ -67,6 +68,8 @@ const ProfilePage = () => {
   const updateProfile = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setError(null);
+    
     try {
       // Update profile name
       const { error: updateError } = await supabase
@@ -76,32 +79,62 @@ const ProfilePage = () => {
 
       if (updateError) throw updateError;
       
-      // If password fields are filled, update password
-      if (formData.password) {
-        if (formData.password !== formData.confirm_password) {
-          throw new Error("Passwords don't match");
-        }
-        
-        const { error: passwordError } = await supabase.auth.updateUser({
-          password: formData.password
-        });
-        
-        if (passwordError) throw passwordError;
-        
-        // Clear password fields after successful update
-        setFormData(prev => ({
-          ...prev,
-          password: '',
-          confirm_password: ''
-        }));
-      }
-
       // Success message or action could be added here
       alert("Profile updated successfully!");
       
     } catch (error: any) {
       console.error('Error updating profile:', error);
       setError(error.message || 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updatePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setSaving(true);
+    setError(null);
+    
+    try {
+      // Check if password fields are filled
+      if (!formData.old_password || !formData.password) {
+        throw new Error("Please fill in all password fields");
+      }
+      
+      if (formData.password !== formData.confirm_password) {
+        throw new Error("New passwords don't match");
+      }
+
+      // First verify the old password by attempting to sign in with it
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email: user?.email || '',
+        password: formData.old_password
+      });
+
+      if (signInError) {
+        throw new Error("Current password is incorrect");
+      }
+      
+      // If verification passes, update to new password
+      const { error: passwordError } = await supabase.auth.updateUser({
+        password: formData.password
+      });
+      
+      if (passwordError) throw passwordError;
+      
+      // Clear password fields after successful update
+      setFormData(prev => ({
+        ...prev,
+        old_password: '',
+        password: '',
+        confirm_password: ''
+      }));
+
+      alert("Password updated successfully!");
+      
+    } catch (error: any) {
+      console.error('Error updating password:', error);
+      setError(error.message || 'Failed to update password');
     } finally {
       setSaving(false);
     }
@@ -232,29 +265,42 @@ const ProfilePage = () => {
                           <CardTitle>Password & Security</CardTitle>
                         </CardHeader>
                         <CardContent>
-                          <form onSubmit={updateProfile} className="space-y-6">
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <form onSubmit={updatePassword} className="space-y-6">
+                            <div className="space-y-4">
                               <div className="space-y-2">
-                                <Label htmlFor="password">New Password</Label>
+                                <Label htmlFor="old_password">Current Password</Label>
                                 <Input 
-                                  id="password" 
-                                  name="password"
+                                  id="old_password" 
+                                  name="old_password"
                                   type="password"
-                                  placeholder="••••••••"
-                                  value={formData.password}
+                                  placeholder="Enter current password"
+                                  value={formData.old_password}
                                   onChange={handleInputChange}
                                 />
                               </div>
-                              <div className="space-y-2">
-                                <Label htmlFor="confirm_password">Confirm Password</Label>
-                                <Input 
-                                  id="confirm_password" 
-                                  name="confirm_password"
-                                  type="password"
-                                  placeholder="••••••••"
-                                  value={formData.confirm_password}
-                                  onChange={handleInputChange}
-                                />
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="space-y-2">
+                                  <Label htmlFor="password">New Password</Label>
+                                  <Input 
+                                    id="password" 
+                                    name="password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={handleInputChange}
+                                  />
+                                </div>
+                                <div className="space-y-2">
+                                  <Label htmlFor="confirm_password">Confirm New Password</Label>
+                                  <Input 
+                                    id="confirm_password" 
+                                    name="confirm_password"
+                                    type="password"
+                                    placeholder="••••••••"
+                                    value={formData.confirm_password}
+                                    onChange={handleInputChange}
+                                  />
+                                </div>
                               </div>
                             </div>
                             
