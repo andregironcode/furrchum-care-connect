@@ -313,16 +313,18 @@ const VetAppointmentDetailsModal = ({
                   >
                     <Edit className="mr-2 h-4 w-4" /> Reschedule
                   </Button>
-                  <Button
-                    variant="secondary"
-                    onClick={() => {
-                      onStatusUpdate(appointment.id, 'confirmed');
-                      onClose();
-                    }}
-                    className="w-full sm:w-auto"
-                  >
-                    <Check className="mr-2 h-4 w-4" /> Confirm
-                  </Button>
+                  {appointment.status === 'pending' && (
+                    <Button
+                      variant="secondary"
+                      onClick={() => {
+                        onStatusUpdate(appointment.id, 'confirmed');
+                        onClose();
+                      }}
+                      className="w-full sm:w-auto"
+                    >
+                      <Check className="mr-2 h-4 w-4" /> Confirm
+                    </Button>
+                  )}
                   <Button
                     variant="destructive"
                     onClick={() => {
