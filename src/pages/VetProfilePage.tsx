@@ -1,4 +1,3 @@
-
 import { useEffect, useState, ChangeEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -6,7 +5,7 @@ import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/s
 import VetSidebar from '@/components/VetSidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, Save, Edit2, Upload, Camera } from 'lucide-react';
+import { Loader2, Save, Edit2, Upload, Camera, FileText, MapPin, Video, User, Trash2 } from 'lucide-react';
 import VetAvailabilityForm from './VetProfile/VetAvailabilityForm';
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from '@/components/ui/input';
@@ -18,6 +17,7 @@ import { useForm } from 'react-hook-form';
 import { Textarea } from '@/components/ui/textarea';
 import { v4 as uuidv4 } from 'uuid';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
+import { Checkbox } from '@/components/ui/checkbox';
 
 interface VetProfile {
   id: string;
@@ -32,6 +32,11 @@ interface VetProfile {
   gender?: string;
   languages?: string[];
   zip_code?: string;
+  license_url?: string;
+  clinic_images?: string[];
+  clinic_location?: string;
+  offers_video_calls?: boolean;
+  offers_in_person?: boolean;
 }
 
 const VetProfilePage = () => {
@@ -41,8 +46,13 @@ const VetProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [uploadingLicense, setUploadingLicense] = useState(false);
+  const [uploadingClinicImages, setUploadingClinicImages] = useState(false);
   const [selectedImage, setSelectedImage] = useState<File | null>(null);
+  const [selectedLicense, setSelectedLicense] = useState<File | null>(null);
+  const [selectedClinicImages, setSelectedClinicImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [clinicImagePreviews, setClinicImagePreviews] = useState<string[]>([]);
 
   const form = useForm<VetProfile>({
     defaultValues: {
@@ -54,7 +64,10 @@ const VetProfilePage = () => {
       years_experience: 0,
       phone: '',
       gender: '',
-      zip_code: ''
+      zip_code: '',
+      clinic_location: '',
+      offers_video_calls: false,
+      offers_in_person: false
     }
   });
 
@@ -70,12 +83,19 @@ const VetProfilePage = () => {
       form.reset({
         ...profile,
         consultation_fee: profile.consultation_fee || 0,
-        years_experience: profile.years_experience || 0
+        years_experience: profile.years_experience || 0,
+        offers_video_calls: profile.offers_video_calls || false,
+        offers_in_person: profile.offers_in_person || false
       });
       
       // Set image preview if exists
       if (profile.image_url) {
         setImagePreview(profile.image_url);
+      }
+
+      // Set clinic image previews if exist
+      if (profile.clinic_images) {
+        setClinicImagePreviews(profile.clinic_images);
       }
     }
   }, [profile, form]);
@@ -123,31 +143,105 @@ const VetProfilePage = () => {
     reader.readAsDataURL(file);
   };
 
+  const handleLicenseChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Check file size and type
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('License file size should be less than 10MB');
+      return;
+    }
+
+    if (file.type !== 'application/pdf') {
+      toast.error('Please upload a PDF file');
+      return;
+    }
+
+    setSelectedLicense(file);
+    toast.success('License file selected');
+  };
+
+  const handleClinicImagesChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    // Check if total images (existing + new) exceed 5
+    const totalImages = (profile?.clinic_images?.length || 0) + files.length;
+    if (totalImages > 5) {
+      toast.error('Maximum 5 clinic images allowed');
+      return;
+    }
+
+    // Validate each file
+    for (const file of files) {
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('Each image should be less than 5MB');
+        return;
+      }
+
+      if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
+        toast.error('Please upload JPG or PNG images only');
+        return;
+      }
+    }
+
+    setSelectedClinicImages(files);
+
+    // Create previews
+    const previews: string[] = [];
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        previews.push(reader.result as string);
+        if (previews.length === files.length) {
+          setClinicImagePreviews([...clinicImagePreviews, ...previews]);
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const removeClinicImage = (index: number) => {
+    const newPreviews = clinicImagePreviews.filter((_, i) => i !== index);
+    setClinicImagePreviews(newPreviews);
+    
+    // If removing from existing images, update profile state
+    if (profile?.clinic_images && index < profile.clinic_images.length) {
+      const newClinicImages = profile.clinic_images.filter((_, i) => i !== index);
+      setProfile(prev => prev ? { ...prev, clinic_images: newClinicImages } : null);
+    }
+  };
+
+  const uploadFile = async (file: File, bucket: string, folder: string) => {
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${folder}/${user?.id}/${uuidv4()}.${fileExt}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from(bucket)
+        .upload(fileName, file);
+        
+      if (uploadError) throw uploadError;
+      
+      const { data } = supabase.storage
+        .from(bucket)
+        .getPublicUrl(fileName);
+        
+      return data.publicUrl;
+    } catch (error) {
+      console.error('Error uploading file:', error);
+      throw error;
+    }
+  };
+
   const uploadProfileImage = async (userId: string) => {
     if (!selectedImage) return null;
     
     try {
       setUploadingImage(true);
-      
-      // Create a unique file name
-      const fileExt = selectedImage.name.split('.').pop();
-      const fileName = `${userId}/${uuidv4()}.${fileExt}`;
-      
-      // Upload to Storage
-      const { error: uploadError } = await supabase.storage
-        .from('vet_profiles')
-        .upload(fileName, selectedImage);
-        
-      if (uploadError) throw uploadError;
-      
-      // Get the public URL
-      const { data } = supabase.storage
-        .from('vet_profiles')
-        .getPublicUrl(fileName);
-        
-      return data.publicUrl;
+      return await uploadFile(selectedImage, 'vet_profiles', 'profile_images');
     } catch (error) {
-      console.error('Error uploading image:', error);
       toast.error('Failed to upload profile image');
       return null;
     } finally {
@@ -155,17 +249,63 @@ const VetProfilePage = () => {
     }
   };
 
+  const uploadLicense = async (userId: string) => {
+    if (!selectedLicense) return null;
+    
+    try {
+      setUploadingLicense(true);
+      return await uploadFile(selectedLicense, 'vet_profiles', 'licenses');
+    } catch (error) {
+      toast.error('Failed to upload license');
+      return null;
+    } finally {
+      setUploadingLicense(false);
+    }
+  };
+
+  const uploadClinicImages = async (userId: string) => {
+    if (selectedClinicImages.length === 0) return [];
+    
+    try {
+      setUploadingClinicImages(true);
+      const uploadPromises = selectedClinicImages.map(file => 
+        uploadFile(file, 'vet_profiles', 'clinic_images')
+      );
+      return await Promise.all(uploadPromises);
+    } catch (error) {
+      toast.error('Failed to upload clinic images');
+      return [];
+    } finally {
+      setUploadingClinicImages(false);
+    }
+  };
+
   const saveProfile = async (values: VetProfile) => {
     try {
       setIsSaving(true);
       
-      // Handle image upload first if there's a new image
+      // Handle image uploads
       let imageUrl = profile?.image_url;
+      let licenseUrl = profile?.license_url;
+      let clinicImages = profile?.clinic_images || [];
+
       if (selectedImage) {
         const newImageUrl = await uploadProfileImage(user?.id as string);
         if (newImageUrl) {
           imageUrl = newImageUrl;
         }
+      }
+
+      if (selectedLicense) {
+        const newLicenseUrl = await uploadLicense(user?.id as string);
+        if (newLicenseUrl) {
+          licenseUrl = newLicenseUrl;
+        }
+      }
+
+      if (selectedClinicImages.length > 0) {
+        const newClinicImages = await uploadClinicImages(user?.id as string);
+        clinicImages = [...clinicImages, ...newClinicImages.filter(url => url)];
       }
       
       const { error } = await supabase
@@ -181,15 +321,28 @@ const VetProfilePage = () => {
           gender: values.gender,
           zip_code: values.zip_code,
           image_url: imageUrl,
+          license_url: licenseUrl,
+          clinic_images: clinicImages,
+          clinic_location: values.clinic_location,
+          offers_video_calls: values.offers_video_calls,
+          offers_in_person: values.offers_in_person,
         })
         .eq('id', user?.id);
 
       if (error) throw error;
       
       // Update local state with new values
-      setProfile(prev => prev ? { ...prev, ...values, image_url: imageUrl as string } : null);
+      setProfile(prev => prev ? { 
+        ...prev, 
+        ...values, 
+        image_url: imageUrl as string,
+        license_url: licenseUrl,
+        clinic_images: clinicImages,
+      } : null);
       setIsEditing(false);
       setSelectedImage(null);
+      setSelectedLicense(null);
+      setSelectedClinicImages([]);
       toast.success("Profile updated successfully");
     } catch (error) {
       console.error('Error updating vet profile:', error);
@@ -235,41 +388,66 @@ const VetProfilePage = () => {
                 
                 <TabsContent value="profile" className="w-full">
                   {!isEditing ? (
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 w-full">
-                      <Card className="md:col-span-1">
-                        <CardHeader className="flex flex-row items-center justify-between">
-                          <CardTitle>Profile Picture</CardTitle>
-                          <Button 
-                            variant="outline" 
-                            size="icon"
-                            onClick={() => setIsEditing(true)}
-                          >
-                            <Edit2 className="h-4 w-4" />
-                          </Button>
-                        </CardHeader>
-                        <CardContent className="flex flex-col items-center">
-                          <Avatar className="w-48 h-48 rounded-full">
-                            {profile?.image_url ? (
-                              <AvatarImage 
-                                src={profile.image_url} 
-                                alt={`${profile.first_name} ${profile.last_name}`}
-                              />
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full">
+                      <div className="lg:col-span-1 space-y-6">
+                        <Card>
+                          <CardHeader className="flex flex-row items-center justify-between">
+                            <CardTitle>Profile Picture</CardTitle>
+                            <Button 
+                              variant="outline" 
+                              size="icon"
+                              onClick={() => setIsEditing(true)}
+                            >
+                              <Edit2 className="h-4 w-4" />
+                            </Button>
+                          </CardHeader>
+                          <CardContent className="flex flex-col items-center">
+                            <Avatar className="w-48 h-48 rounded-full">
+                              {profile?.image_url ? (
+                                <AvatarImage 
+                                  src={profile.image_url} 
+                                  alt={`${profile.first_name} ${profile.last_name}`}
+                                />
+                              ) : (
+                                <AvatarFallback className="text-4xl">
+                                  {profile?.first_name?.charAt(0) || ''}
+                                  {profile?.last_name?.charAt(0) || ''}
+                                </AvatarFallback>
+                              )}
+                            </Avatar>
+                          </CardContent>
+                        </Card>
+
+                        <Card>
+                          <CardHeader>
+                            <CardTitle className="flex items-center gap-2">
+                              <FileText className="h-5 w-5" />
+                              License
+                            </CardTitle>
+                          </CardHeader>
+                          <CardContent>
+                            {profile?.license_url ? (
+                              <div className="space-y-2">
+                                <p className="text-sm text-green-600">License uploaded</p>
+                                <Button variant="outline" size="sm" asChild>
+                                  <a href={profile.license_url} target="_blank" rel="noopener noreferrer">
+                                    View License
+                                  </a>
+                                </Button>
+                              </div>
                             ) : (
-                              <AvatarFallback className="text-4xl">
-                                {profile?.first_name?.charAt(0) || ''}
-                                {profile?.last_name?.charAt(0) || ''}
-                              </AvatarFallback>
+                              <p className="text-sm text-muted-foreground">No license uploaded</p>
                             )}
-                          </Avatar>
-                        </CardContent>
-                      </Card>
+                          </CardContent>
+                        </Card>
+                      </div>
                       
-                      <Card className="md:col-span-2">
+                      <Card className="lg:col-span-2">
                         <CardHeader>
-                          <CardTitle>Personal Information</CardTitle>
+                          <CardTitle>Professional Information</CardTitle>
                           <CardDescription>Your professional details visible to pet owners</CardDescription>
                         </CardHeader>
-                        <CardContent className="space-y-4">
+                        <CardContent className="space-y-6">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div>
                               <h3 className="text-sm font-medium">Full Name</h3>
@@ -284,6 +462,36 @@ const VetProfilePage = () => {
                           <div>
                             <h3 className="text-sm font-medium">About</h3>
                             <p className="text-base">{profile?.about || "No description provided"}</p>
+                          </div>
+
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <h3 className="text-sm font-medium">Consultation Types</h3>
+                              <div className="flex gap-2 mt-1">
+                                {profile?.offers_video_calls && (
+                                  <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
+                                    <Video className="h-3 w-3" />
+                                    Video Calls
+                                  </div>
+                                )}
+                                {profile?.offers_in_person && (
+                                  <div className="flex items-center gap-1 px-2 py-1 bg-green-100 text-green-800 rounded-full text-xs">
+                                    <User className="h-3 w-3" />
+                                    In-Person
+                                  </div>
+                                )}
+                                {!profile?.offers_video_calls && !profile?.offers_in_person && (
+                                  <p className="text-muted-foreground text-sm">Not specified</p>
+                                )}
+                              </div>
+                            </div>
+                            <div>
+                              <h3 className="text-sm font-medium">Clinic Location</h3>
+                              <div className="flex items-center gap-1">
+                                <MapPin className="h-4 w-4 text-muted-foreground" />
+                                <p className="text-lg">{profile?.clinic_location || "Not provided"}</p>
+                              </div>
+                            </div>
                           </div>
                           
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -311,6 +519,25 @@ const VetProfilePage = () => {
                           <div>
                             <h3 className="text-sm font-medium">Zip Code</h3>
                             <p className="text-lg">{profile?.zip_code || "Not provided"}</p>
+                          </div>
+
+                          <div>
+                            <h3 className="text-sm font-medium mb-3">Clinic Images</h3>
+                            {profile?.clinic_images && profile.clinic_images.length > 0 ? (
+                              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                {profile.clinic_images.map((imageUrl, index) => (
+                                  <div key={index} className="aspect-square rounded-lg overflow-hidden">
+                                    <img 
+                                      src={imageUrl} 
+                                      alt={`Clinic image ${index + 1}`}
+                                      className="w-full h-full object-cover"
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : (
+                              <p className="text-muted-foreground">No clinic images uploaded</p>
+                            )}
                           </div>
                         </CardContent>
                       </Card>
@@ -385,6 +612,7 @@ const VetProfilePage = () => {
                                 )}
                               />
                             </div>
+
                             <FormField
                               control={form.control}
                               name="specialization"
@@ -397,6 +625,7 @@ const VetProfilePage = () => {
                                 </FormItem>
                               )}
                             />
+
                             <FormField
                               control={form.control}
                               name="about"
@@ -413,6 +642,150 @@ const VetProfilePage = () => {
                                 </FormItem>
                               )}
                             />
+
+                            <div>
+                              <Label className="text-sm font-medium">Consultation Types</Label>
+                              <div className="flex flex-col gap-3 mt-2">
+                                <FormField
+                                  control={form.control}
+                                  name="offers_video_calls"
+                                  render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value}
+                                          onCheckedChange={field.onChange}
+                                        />
+                                      </FormControl>
+                                      <div className="space-y-1 leading-none">
+                                        <FormLabel>
+                                          Video Calls
+                                        </FormLabel>
+                                        <FormDescription>
+                                          I offer video consultations
+                                        </FormDescription>
+                                      </div>
+                                    </FormItem>
+                                  )}
+                                />
+                                <FormField
+                                  control={form.control}
+                                  name="offers_in_person"
+                                  render={({ field }) => (
+                                    <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                                      <FormControl>
+                                        <Checkbox
+                                          checked={field.value}
+                                          onCheckedChange={field.onChange}
+                                        />
+                                      </FormControl>
+                                      <div className="space-y-1 leading-none">
+                                        <FormLabel>
+                                          In-Person Visits
+                                        </FormLabel>
+                                        <FormDescription>
+                                          I offer in-person consultations at my clinic
+                                        </FormDescription>
+                                      </div>
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                            </div>
+
+                            <FormField
+                              control={form.control}
+                              name="clinic_location"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Clinic Location</FormLabel>
+                                  <FormControl>
+                                    <Input {...field} placeholder="123 Main St, City, State" />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Full address of your clinic
+                                  </FormDescription>
+                                </FormItem>
+                              )}
+                            />
+
+                            <div>
+                              <Label className="text-sm font-medium">Veterinary License (PDF)</Label>
+                              <div className="mt-2">
+                                <div className="flex items-center gap-4">
+                                  <Label
+                                    htmlFor="license-file"
+                                    className="flex items-center gap-2 px-4 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
+                                  >
+                                    <FileText className="h-5 w-5" />
+                                    Upload License
+                                  </Label>
+                                  <Input 
+                                    id="license-file" 
+                                    type="file" 
+                                    onChange={handleLicenseChange}
+                                    accept="application/pdf"
+                                    className="hidden"
+                                  />
+                                  {profile?.license_url && (
+                                    <Button variant="outline" size="sm" asChild>
+                                      <a href={profile.license_url} target="_blank" rel="noopener noreferrer">
+                                        View Current
+                                      </a>
+                                    </Button>
+                                  )}
+                                </div>
+                                {selectedLicense && (
+                                  <p className="text-sm text-muted-foreground mt-2">{selectedLicense.name}</p>
+                                )}
+                              </div>
+                            </div>
+
+                            <div>
+                              <Label className="text-sm font-medium">Clinic Images (Max 5)</Label>
+                              <div className="mt-2">
+                                <div className="flex items-center gap-4 mb-4">
+                                  <Label
+                                    htmlFor="clinic-images"
+                                    className="flex items-center gap-2 px-4 py-2 border border-dashed border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50"
+                                  >
+                                    <Upload className="h-5 w-5" />
+                                    Upload Images
+                                  </Label>
+                                  <Input 
+                                    id="clinic-images" 
+                                    type="file" 
+                                    onChange={handleClinicImagesChange}
+                                    accept="image/png, image/jpeg, image/jpg"
+                                    multiple
+                                    className="hidden"
+                                  />
+                                </div>
+                                {clinicImagePreviews.length > 0 && (
+                                  <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                                    {clinicImagePreviews.map((imageUrl, index) => (
+                                      <div key={index} className="relative aspect-square rounded-lg overflow-hidden">
+                                        <img 
+                                          src={imageUrl} 
+                                          alt={`Clinic preview ${index + 1}`}
+                                          className="w-full h-full object-cover"
+                                        />
+                                        <Button
+                                          variant="destructive"
+                                          size="sm"
+                                          className="absolute top-2 right-2 h-8 w-8 p-0"
+                                          onClick={() => removeClinicImage(index)}
+                                          type="button"
+                                        >
+                                          <Trash2 className="h-4 w-4" />
+                                        </Button>
+                                      </div>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                            
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <FormField
                                 control={form.control}
@@ -447,6 +820,7 @@ const VetProfilePage = () => {
                                 )}
                               />
                             </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                               <FormField
                                 control={form.control}
@@ -473,6 +847,7 @@ const VetProfilePage = () => {
                                 )}
                               />
                             </div>
+
                             <FormField
                               control={form.control}
                               name="zip_code"
@@ -485,6 +860,7 @@ const VetProfilePage = () => {
                                 </FormItem>
                               )}
                             />
+
                             <div className="flex justify-end space-x-4">
                               <Button
                                 type="button" 
@@ -492,17 +868,20 @@ const VetProfilePage = () => {
                                 onClick={() => {
                                   setIsEditing(false);
                                   setSelectedImage(null);
+                                  setSelectedLicense(null);
+                                  setSelectedClinicImages([]);
                                   setImagePreview(profile?.image_url || null);
+                                  setClinicImagePreviews(profile?.clinic_images || []);
                                 }}
                               >
                                 Cancel
                               </Button>
                               <Button 
                                 type="submit"
-                                disabled={isSaving || uploadingImage}
+                                disabled={isSaving || uploadingImage || uploadingLicense || uploadingClinicImages}
                                 className="flex items-center gap-2"
                               >
-                                {(isSaving || uploadingImage) ? (
+                                {(isSaving || uploadingImage || uploadingLicense || uploadingClinicImages) ? (
                                   <Loader2 className="h-4 w-4 animate-spin" /> 
                                 ) : (
                                   <Save className="h-4 w-4" />
