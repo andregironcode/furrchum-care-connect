@@ -86,6 +86,8 @@ const VetAppointmentsPage = () => {
   const fetchAppointments = async () => {
     try {
       setLoadingAppointments(true);
+      console.log('Fetching appointments for vet:', user?.id);
+      
       const { data: bookingsData, error } = await supabase
         .from('bookings')
         .select('*')
@@ -94,14 +96,18 @@ const VetAppointmentsPage = () => {
 
       if (error) {
         console.error('Error fetching appointments:', error);
-        throw error;
+        toast.error('Failed to load appointments');
+        return;
       }
+      
+      console.log('Fetched bookings:', bookingsData);
       
       if (bookingsData && bookingsData.length > 0) {
         setAppointments(bookingsData);
         await fetchPetsAndOwners(bookingsData);
       } else {
         setAppointments([]);
+        console.log('No appointments found for this vet');
       }
     } catch (error) {
       console.error('Error fetching appointments:', error);
@@ -112,26 +118,26 @@ const VetAppointmentsPage = () => {
   };
 
   const fetchPetsAndOwners = async (bookings: Booking[]) => {
-    // Get unique pet IDs and owner IDs
     const petIds = [...new Set(bookings.map(booking => booking.pet_id))];
     const ownerIds = [...new Set(bookings.map(booking => booking.pet_owner_id))];
+    
+    console.log('Fetching pets for IDs:', petIds);
+    console.log('Fetching owners for IDs:', ownerIds);
     
     // Fetch pets
     if (petIds.length > 0) {
       try {
-        const { data: petsData, error } = await supabase
+        const { data: petsData, error: petsError } = await supabase
           .from('pets')
           .select('*')
           .in('id', petIds);
           
-        if (error) {
-          console.error('Error fetching pets:', error);
-          throw error;
-        }
-          
-        if (petsData) {
+        if (petsError) {
+          console.error('Error fetching pets:', petsError);
+        } else {
+          console.log('Fetched pets:', petsData);
           const petsRecord: Record<string, Pet> = {};
-          petsData.forEach(pet => {
+          petsData?.forEach(pet => {
             petsRecord[pet.id] = pet;
           });
           setPets(petsRecord);
@@ -144,19 +150,17 @@ const VetAppointmentsPage = () => {
     // Fetch pet owners
     if (ownerIds.length > 0) {
       try {
-        const { data: ownersData, error } = await supabase
+        const { data: ownersData, error: ownersError } = await supabase
           .from('profiles')
           .select('id, full_name')
           .in('id', ownerIds);
           
-        if (error) {
-          console.error('Error fetching pet owners:', error);
-          throw error;
-        }
-          
-        if (ownersData) {
+        if (ownersError) {
+          console.error('Error fetching pet owners:', ownersError);
+        } else {
+          console.log('Fetched owners:', ownersData);
           const ownersRecord: Record<string, PetOwner> = {};
-          ownersData.forEach(owner => {
+          ownersData?.forEach(owner => {
             ownersRecord[owner.id] = owner;
           });
           setPetOwners(ownersRecord);
@@ -168,12 +172,21 @@ const VetAppointmentsPage = () => {
   };
 
   const openAppointmentDetails = (appointment: Booking) => {
+    console.log('Opening appointment details for:', appointment.id);
     setSelectedAppointment(appointment);
     setIsDetailsModalOpen(true);
   };
 
+  const closeAppointmentDetails = () => {
+    console.log('Closing appointment details modal');
+    setSelectedAppointment(null);
+    setIsDetailsModalOpen(false);
+  };
+
   const handleRescheduleAppointment = async (appointmentId: string, newDate: string, newStartTime: string, newEndTime: string) => {
     try {
+      console.log('Rescheduling appointment:', appointmentId, newDate, newStartTime, newEndTime);
+      
       const { error } = await supabase
         .from('bookings')
         .update({ 
@@ -185,11 +198,12 @@ const VetAppointmentsPage = () => {
 
       if (error) {
         console.error('Error rescheduling appointment:', error);
-        throw error;
+        toast.error('Failed to reschedule appointment');
+        return;
       }
       
       toast.success('Appointment rescheduled successfully');
-      fetchAppointments(); // Refresh appointments after rescheduling
+      fetchAppointments();
     } catch (error) {
       console.error('Error rescheduling appointment:', error);
       toast.error('Failed to reschedule appointment');
@@ -198,6 +212,8 @@ const VetAppointmentsPage = () => {
 
   const handleStatusUpdate = async (appointmentId: string, newStatus: string) => {
     try {
+      console.log('Updating appointment status:', appointmentId, newStatus);
+      
       const { error } = await supabase
         .from('bookings')
         .update({ status: newStatus })
@@ -205,18 +221,18 @@ const VetAppointmentsPage = () => {
 
       if (error) {
         console.error('Error updating appointment status:', error);
-        throw error;
+        toast.error('Failed to update appointment status');
+        return;
       }
       
       toast.success('Appointment status updated successfully');
-      fetchAppointments(); // Refresh appointments after status update
+      fetchAppointments();
     } catch (error) {
       console.error('Error updating appointment status:', error);
       toast.error('Failed to update appointment status');
     }
   };
 
-  // Function to render status badge with appropriate color
   const renderStatusBadge = (status: string) => {
     switch (status.toLowerCase()) {
       case 'pending':
@@ -232,14 +248,14 @@ const VetAppointmentsPage = () => {
     }
   };
 
-  // Function to filter appointments based on search query and status filter
   const filteredAppointments = appointments.filter(appointment => {
     const pet = pets[appointment.pet_id];
     const owner = petOwners[appointment.pet_owner_id];
     
-    const matchesSearch = (pet?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+    const matchesSearch = searchQuery === "" || 
+                          pet?.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           appointment.notes?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          owner?.full_name?.toLowerCase().includes(searchQuery.toLowerCase())) ?? false;
+                          owner?.full_name?.toLowerCase().includes(searchQuery.toLowerCase());
     
     const matchesStatus = filterStatus === "all" || 
                           appointment.status.toLowerCase() === filterStatus.toLowerCase();
@@ -363,8 +379,8 @@ const VetAppointmentsPage = () => {
                             </TableCell>
                             <TableCell>
                               <div>
-                                <div className="font-medium">{pets[appointment.pet_id]?.name || 'Unknown Pet'}</div>
-                                <div className="text-sm text-gray-500">{petOwners[appointment.pet_owner_id]?.full_name || 'Unknown Owner'}</div>
+                                <div className="font-medium">{pets[appointment.pet_id]?.name || 'Loading...'}</div>
+                                <div className="text-sm text-gray-500">{petOwners[appointment.pet_owner_id]?.full_name || 'Loading...'}</div>
                               </div>
                             </TableCell>
                             <TableCell>
@@ -408,7 +424,7 @@ const VetAppointmentsPage = () => {
                       ) : (
                         <TableRow>
                           <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                            No appointments found matching your filters.
+                            {loadingAppointments ? 'Loading appointments...' : 'No appointments found matching your filters.'}
                           </TableCell>
                         </TableRow>
                       )}
@@ -428,17 +444,15 @@ const VetAppointmentsPage = () => {
       </div>
 
       {/* Appointment Details Modal */}
-      {selectedAppointment && (
-        <VetAppointmentDetailsModal
-          isOpen={isDetailsModalOpen}
-          onClose={() => setIsDetailsModalOpen(false)}
-          appointment={selectedAppointment}
-          pet={pets[selectedAppointment.pet_id]}
-          petOwner={petOwners[selectedAppointment.pet_owner_id]}
-          onReschedule={handleRescheduleAppointment}
-          onStatusUpdate={handleStatusUpdate}
-        />
-      )}
+      <VetAppointmentDetailsModal
+        isOpen={isDetailsModalOpen}
+        onClose={closeAppointmentDetails}
+        appointment={selectedAppointment}
+        pet={selectedAppointment ? pets[selectedAppointment.pet_id] : null}
+        petOwner={selectedAppointment ? petOwners[selectedAppointment.pet_owner_id] : null}
+        onReschedule={handleRescheduleAppointment}
+        onStatusUpdate={handleStatusUpdate}
+      />
     </SidebarProvider>
   );
 };
