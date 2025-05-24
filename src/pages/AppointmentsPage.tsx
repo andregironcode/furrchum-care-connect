@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -17,11 +18,15 @@ import { format } from "date-fns"
 interface Booking {
   id: string;
   created_at: string;
+  updated_at: string;
   vet_id: string;
   pet_id: string;
-  date: string;
-  time: string;
-  reason: string;
+  pet_owner_id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  consultation_type: string;
+  notes: string | null;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
 }
 
@@ -48,13 +53,13 @@ const VetAppointmentsPage = () => {
         .eq('vet_id', user?.id);
 
       if (formattedDate) {
-        query = query.eq('date', formattedDate);
+        query = query.eq('booking_date', formattedDate);
       }
 
       const { data, error } = await query;
 
       if (error) throw error;
-      setBookings(data || []);
+      setBookings(data as Booking[] || []);
     } catch (error) {
       console.error('Error fetching bookings:', error);
     } finally {
@@ -151,22 +156,22 @@ const VetAppointmentsPage = () => {
                     <Card key={booking.id}>
                       <CardHeader>
                         <CardTitle>Appointment Details</CardTitle>
-                        <CardDescription>Details for appointment on {booking.date} at {booking.time}</CardDescription>
+                        <CardDescription>Details for appointment on {booking.booking_date} at {booking.start_time}</CardDescription>
                       </CardHeader>
                       <CardContent className="space-y-4">
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div>
                             <h3 className="text-sm font-medium">Date</h3>
-                            <p className="text-lg">{booking.date}</p>
+                            <p className="text-lg">{booking.booking_date}</p>
                           </div>
                           <div>
                             <h3 className="text-sm font-medium">Time</h3>
-                            <p className="text-lg">{booking.time}</p>
+                            <p className="text-lg">{booking.start_time}</p>
                           </div>
                         </div>
                         <div>
                           <h3 className="text-sm font-medium">Reason</h3>
-                          <p className="text-base">{booking.reason}</p>
+                          <p className="text-base">{booking.notes || 'No reason provided'}</p>
                         </div>
                         <div>
                           <h3 className="text-sm font-medium">Status</h3>
@@ -176,7 +181,7 @@ const VetAppointmentsPage = () => {
                           {booking.status === 'pending' && (
                             <>
                               <Button
-                                variant="secondary" // Changed from "success"
+                                variant="secondary"
                                 size="sm"
                                 onClick={() => handleUpdateStatus(booking.id, 'confirmed')}
                               >
@@ -193,7 +198,7 @@ const VetAppointmentsPage = () => {
                           )}
                           {booking.status === 'confirmed' && (
                             <Button
-                              variant="secondary" // Changed from "success"
+                              variant="secondary"
                               size="sm"
                               onClick={() => handleUpdateStatus(booking.id, 'completed')}
                             >

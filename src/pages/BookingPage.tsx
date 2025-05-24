@@ -1,14 +1,13 @@
+
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { format, addDays, parse } from 'date-fns';
+import { format, addDays } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
-import { AlertCircle, CalendarIcon, Clock, Video, MessageSquare } from 'lucide-react';
+import { Clock, CalendarIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -25,7 +24,7 @@ interface VetDetails {
 interface Pet {
   id: string;
   name: string;
-  species: string;
+  type: string; // Change from species to type
   breed: string;
 }
 
@@ -46,6 +45,7 @@ const BookingPage = () => {
   const [pet, setPet] = useState<string>('');
   const [notes, setNotes] = useState<string>('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingPets, setIsLoadingPets] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   // Data states
@@ -108,9 +108,15 @@ const BookingPage = () => {
         throw error;
       }
 
-      // Make sure we're setting an array of pets that match the Pet type
+      // Convert the data to match our Pet interface
       if (data) {
-        setPets(data as Pet[]);
+        const formattedPets = data.map(pet => ({
+          id: pet.id,
+          name: pet.name,
+          type: pet.type,
+          breed: pet.breed || ''
+        }));
+        setPets(formattedPets);
       } else {
         setPets([]);
       }

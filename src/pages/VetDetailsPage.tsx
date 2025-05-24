@@ -186,8 +186,8 @@ const VetDetailsPage = () => {
                         <span className="ml-1 text-gray-700">{vet.rating}</span>
                       </div>
                       
-                      <Badge variant={vet.availability === 'Available Now' ? 'success' : 
-                              vet.availability === 'Available Soon' ? 'warning' : 'default'}>
+                      <Badge variant={vet.availability === 'Available Now' ? 'secondary' : 
+                              vet.availability === 'Available Soon' ? 'outline' : 'default'}>
                         {vet.availability || "Scheduled Only"}
                       </Badge>
                     </div>
