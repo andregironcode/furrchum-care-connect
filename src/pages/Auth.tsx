@@ -12,6 +12,7 @@ import Footer from '@/components/Footer';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const Auth = () => {
   const { user, isLoading } = useAuth();
@@ -51,6 +52,7 @@ const AuthTabs = () => {
     password: '',
     fullName: '',
     userType: 'pet_owner' as 'pet_owner' | 'vet',
+    agreeToTerms: false,
   });
 
   const handleSignIn = async (e: React.FormEvent) => {
@@ -73,6 +75,12 @@ const AuthTabs = () => {
     e.preventDefault();
     setIsSubmitting(true);
     setError(null);
+    
+    if (!signUpData.agreeToTerms) {
+      setError('You must agree to the terms and conditions to create an account');
+      setIsSubmitting(false);
+      return;
+    }
     
     try {
       await signUp(
@@ -216,10 +224,29 @@ const AuthTabs = () => {
                 </Select>
               </div>
 
+              <div className="flex items-center space-x-2">
+                <Checkbox 
+                  id="terms" 
+                  checked={signUpData.agreeToTerms}
+                  onCheckedChange={(checked) => setSignUpData({...signUpData, agreeToTerms: checked as boolean})}
+                  required
+                />
+                <Label htmlFor="terms" className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
+                  I agree to the{' '}
+                  <button 
+                    type="button" 
+                    className="text-primary hover:underline"
+                    onClick={() => {/* Will link to terms doc when provided */}}
+                  >
+                    terms and conditions
+                  </button>
+                </Label>
+              </div>
+
               <Button 
                 type="submit" 
                 className="w-full bg-primary hover:bg-primary/90"
-                disabled={isSubmitting}
+                disabled={isSubmitting || !signUpData.agreeToTerms}
               >
                 {isSubmitting ? (
                   <>
