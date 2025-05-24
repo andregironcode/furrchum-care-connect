@@ -89,28 +89,52 @@ export interface Meeting {
   };
 }
 
+// Environment variable validation
+if (!WHEREBY_API_KEY) {
+  console.error('Missing VITE_WHEREBY_API_KEY environment variable');
+  toast.error('Video call service is not properly configured');
+  throw new Error('Video call service is not properly configured');
+}
+
 export async function createMeeting(options: CreateMeetingOptions = {}): Promise<Meeting> {
   if (!options.endDate) {
     throw new Error('endDate is required for creating a meeting');
   }
 
-  // Ensure the meeting end date is in the future
   const meetingEndDate = new Date(options.endDate);
-  if (meetingEndDate <= new Date()) {
+  const now = new Date();
+  
+  // Ensure the meeting end date is in the future
+  if (meetingEndDate <= now) {
     throw new Error('Meeting end date must be in the future');
   }
-
-  // Set maximum meeting duration (24 hours)
-  const maxDuration = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-  if ((meetingEndDate.getTime() - Date.now()) > maxDuration) {
-    throw new Error('Meeting duration cannot exceed 24 hours');
+  
+  // Validate meeting duration (max 2 hours per meeting)
+  const meetingDuration = meetingEndDate.getTime() - new Date(options.startDate || now).getTime();
+  const maxDuration = 2 * 60 * 60 * 1000; // 2 hours in milliseconds
+  if (meetingDuration > maxDuration) {
+    throw new Error('Meeting duration cannot exceed 2 hours');
   }
+  
+  // Ensure we have the API key configured
+  if (!WHEREBY_API_KEY) {
+    console.error('Missing Whereby API key configuration');
+    throw new Error('Video service is not properly configured. Please contact support.');
+  }
+  
+  // Log the meeting creation attempt
+  console.log('Creating Whereby meeting with options:', {
+    startDate: options.startDate || 'now',
+    endDate: options.endDate,
+    roomNamePrefix: options.roomNamePrefix || 'FurrChum',
+    isLocked: options.isLocked || false
+  });
 
   const body = {
     endDate: meetingEndDate.toISOString(),
-    roomNamePrefix: options.roomNamePrefix || 'furrchum-',
+    roomNamePrefix: (options.roomNamePrefix || 'furrchum-').substring(0, 30), // Ensure it's not too long
     roomMode: options.roomMode || 'normal',
-    fields: options.fields || ['hostRoomUrl', 'viewRecordingUrl'],
+    fields: options.fields || ['hostRoomUrl', 'viewerRoomUrl'],
     isLocked: options.isLocked ?? true, // Locked by default for security
     roomModeProps: {
       isAudioEnabled: true,
@@ -132,35 +156,69 @@ export async function createMeeting(options: CreateMeetingOptions = {}): Promise
       isLocked: false,
       isRoomHidden: false,
       isWatermarkEnabled: true,
-      isWaitingRoomEnabled: false,
+      isWaitingRoomEnabled: true,
       isChatAvailable: true,
       isPeopleInCallAvailable: true,
       isReactionsAvailable: true,
       isBreakoutRoomsAvailable: false,
       isWhiteboardAvailable: true,
       isHandToolAvailable: true,
-      ...options.roomModeProps,
+      ...(options.roomModeProps || {})
     },
     ...(options.roomName && { roomName: options.roomName }),
     ...(options.startDate && { startDate: options.startDate }),
   };
 
   try {
-    const response = await fetch(`${WHEREBY_API_URL}/meetings`, {
+    console.log('Sending meeting creation request to API...');
+    
+    const response = await fetch('/api/whereby/meetings', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${WHEREBY_API_KEY}`,
+        // The Authorization header is now handled by the proxy
       },
       body: JSON.stringify(body),
     });
 
-    if (!response.ok) {
-      const error = await response.json();
-      throw new Error(error.message || 'Failed to create meeting');
+    // Parse the response
+    let responseData;
+    try {
+      responseData = await response.json();
+    } catch (e) {
+      console.error('Failed to parse response:', e);
+      throw new Error('Received an invalid response from the video service.');
     }
 
-    return await response.json();
+    // Handle non-OK responses
+    if (!response.ok) {
+      console.error('Video API Error:', {
+        status: response.status,
+        statusText: response.statusText,
+        error: responseData,
+        requestBody: body
+      });
+      
+      // Provide user-friendly error messages based on status code
+      if (response.status === 401) {
+        throw new Error('Authentication with video service failed. Please contact support.');
+      } else if (response.status === 400) {
+        throw new Error('Invalid meeting parameters. Please try again.');
+      } else if (response.status >= 500) {
+        throw new Error('Video service is currently unavailable. Please try again later.');
+      }
+      
+      // Default error message
+      throw new Error(responseData.message || 'Failed to create video meeting. Please try again.');
+    }
+    
+    // Log successful meeting creation
+    console.log('Successfully created meeting:', {
+      meetingId: responseData.meetingId,
+      roomUrl: responseData.roomUrl
+    });
+
+    return responseData;
   } catch (error) {
     console.error('Error creating meeting:', error);
     toast.error('Failed to create video meeting. Please try again.');

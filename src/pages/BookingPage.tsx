@@ -299,26 +299,114 @@ const BookingPage = () => {
   };
 
   const createVideoMeeting = async (appointmentDate: Date) => {
+    console.log('Starting video meeting creation process...');
+    
     try {
       // Create a new date object for the meeting end time based on selected duration
       const endDate = new Date(appointmentDate);
       endDate.setMinutes(endDate.getMinutes() + duration);
       
-      return await createMeeting({
+      // Log meeting details for debugging
+      const meetingDetails = {
+        start: appointmentDate.toISOString(),
+        end: endDate.toISOString(),
+        duration: `${duration} minutes`,
+        vetId,
+        consultationType
+      };
+      
+      console.log('Creating meeting with details:', meetingDetails);
+      
+      // Validate meeting time
+      const now = new Date();
+      const maxMeetingDate = new Date();
+      maxMeetingDate.setMonth(now.getMonth() + 1); // 1 month in the future max
+      
+      if (appointmentDate < now) {
+        throw new Error("Cannot create a meeting in the past");
+      }
+      
+      if (appointmentDate > maxMeetingDate) {
+        throw new Error("Cannot schedule meetings more than 1 month in advance");
+      }
+      
+      // Create the meeting with detailed options
+      const meetingOptions = {
         startDate: appointmentDate.toISOString(),
         endDate: endDate.toISOString(),
-        roomNamePrefix: `vet-consult-${vetId}-${Date.now()}`,
+        roomNamePrefix: `vet-${vetId}-`,
         isLocked: true,
         fields: ['hostRoomUrl', 'viewerRoomUrl'],
         roomModeProps: {
           isWaitingRoomEnabled: true,
           isLocked: true,
-          isRecordingEnabled: false
+          isRecordingEnabled: false,
+          isAudioEnabled: true,
+          isVideoEnabled: true,
+          isChatEnabled: true,
+          isScreenSharingEnabled: true,
+          isHandRaiseEnabled: true
         }
+      };
+      
+      console.log('Calling createMeeting with options:', meetingOptions);
+      
+      // Create the meeting
+      const meeting = await createMeeting(meetingOptions);
+      
+      if (!meeting || !meeting.roomUrl) {
+        throw new Error('Failed to create meeting: Invalid response from server');
+      }
+      
+      console.log('Successfully created meeting:', {
+        meetingId: meeting.meetingId,
+        roomUrl: meeting.roomUrl,
+        hostRoomUrl: 'hostRoomUrl' in meeting ? 'available' : 'not available',
+        viewerRoomUrl: 'viewerRoomUrl' in meeting ? 'available' : 'not available'
       });
+      
+      return meeting;
     } catch (error) {
-      console.error("Error creating video meeting:", error);
-      throw new Error("Failed to create video meeting. Please try again or select in-person consultation.");
+      // Log detailed error information
+      const errorInfo = {
+        name: error.name,
+        message: error.message,
+        stack: error.stack,
+        timestamp: new Date().toISOString(),
+        environment: import.meta.env.MODE,
+        vetId,
+        appointmentTime: appointmentDate?.toISOString(),
+        duration
+      };
+      
+      console.error('Error creating video meeting:', errorInfo);
+      
+      // Determine user-friendly error message
+      let userFriendlyMessage = 'Failed to create video meeting. ';
+      
+      if (error.message.includes('401')) {
+        userFriendlyMessage += 'Authentication failed. Please contact support.';
+      } else if (error.message.includes('network') || error.message.includes('NetworkError')) {
+        userFriendlyMessage += 'Network error. Please check your internet connection.';
+      } else if (error.message.includes('CORS')) {
+        userFriendlyMessage += 'Connection error. Please try again or contact support.';
+      } else if (error.message.includes('Failed to fetch')) {
+        userFriendlyMessage += 'Could not connect to the video service. Please try again.';
+      } else if (error.message.includes('timeout') || error.message.includes('timed out')) {
+        userFriendlyMessage += 'Request timed out. Please try again.';
+      } else {
+        userFriendlyMessage += 'An unexpected error occurred. Please try again or select in-person consultation.';
+      }
+      
+      // Log to error tracking service if available
+      if (typeof window !== 'undefined' && window.Sentry) {
+        window.Sentry.captureException(error, {
+          tags: { component: 'createVideoMeeting' },
+          extra: errorInfo
+        });
+      }
+      
+      throw new Error(userFriendlyMessage);
     }
   };
 
@@ -333,6 +421,8 @@ const BookingPage = () => {
   };
 
   const handleProceedToConfirmation = async () => {
+    if (isSubmitting) return; // Prevent double submission
+    
     try {
       // Validate all required fields
       validateBookingDetails();
@@ -342,13 +432,14 @@ const BookingPage = () => {
       const appointmentDate = new Date(date!);
       appointmentDate.setHours(hours, minutes, 0, 0);
       
-      if (appointmentDate <= new Date()) {
+      const now = new Date();
+      if (appointmentDate <= now) {
         throw new Error("Please select a future time for your appointment");
       }
 
-      // Calculate end time (30 minutes after start)
+      // Calculate end time based on duration
       const endDate = new Date(appointmentDate);
-      endDate.setMinutes(endDate.getMinutes() + 30);
+      endDate.setMinutes(endDate.getMinutes() + duration);
 
       // Format times for database
       const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
@@ -360,7 +451,21 @@ const BookingPage = () => {
       // Create video meeting if needed
       let meetingData = null;
       if (consultationType === 'video_call') {
-        meetingData = await createVideoMeeting(appointmentDate);
+        try {
+          meetingData = await createVideoMeeting(appointmentDate);
+          if (!meetingData?.roomUrl) {
+            throw new Error('Failed to create video meeting: No room URL received');
+          }
+        } catch (error) {
+          console.error('Error in video meeting creation:', error);
+          // Clean up any partial meeting if needed
+          if (meetingData?.meetingId) {
+            // TODO: Implement meeting cleanup if supported by the API
+            console.warn('Partial meeting created, may need cleanup:', meetingData.meetingId);
+          }
+          // Re-throw with a user-friendly message
+          throw new Error(`Video meeting setup failed: ${error.message}`);
+        }
       }
       
       // Prepare booking data
@@ -381,12 +486,60 @@ const BookingPage = () => {
       // Save booking to database
       await saveBookingToDatabase(bookingData);
       
-      // Show success and navigate
-      toast.success("Appointment booked successfully!");
-      navigate("/appointments");
+      // Show success message with appropriate details
+      const successMessage = consultationType === 'video_call' 
+        ? 'Appointment booked! A video meeting link has been created.'
+        : 'Appointment booked successfully!';
+      
+      toast.success(successMessage, {
+        duration: 5000,
+        position: 'top-center',
+      });
+      
+      // Navigate to appointments page after a short delay
+      setTimeout(() => {
+        navigate("/appointments");
+      }, 2000);
     } catch (error) {
       console.error("Error booking appointment:", error);
-      toast.error(error instanceof Error ? error.message : 'An error occurred while processing your booking');
+      
+      // Handle different error types with appropriate user feedback
+      let errorMessage = 'An error occurred while processing your booking';
+      
+      if (error instanceof Error) {
+        // Handle specific error cases
+        if (error.message.includes('video meeting') || error.message.includes('meeting setup')) {
+          errorMessage = 'Failed to set up video meeting. ';
+          if (error.message.includes('401')) {
+            errorMessage += 'Authentication error. Please try again or contact support.';
+          } else if (error.message.includes('network') || error.message.includes('NetworkError')) {
+            errorMessage += 'Network error. Please check your internet connection and try again.';
+          } else if (error.message.includes('timeout') || error.message.includes('timed out')) {
+            errorMessage += 'The request timed out. Please try again.';
+          } else {
+            errorMessage += 'Please try again or select in-person consultation.';
+          }
+        } else {
+          errorMessage = error.message;
+        }
+      }
+      
+      // Show error toast with the appropriate message
+      toast.error(errorMessage, {
+        duration: 5000,
+        position: 'top-center',
+      });
+      
+      // If we have a meeting ID but failed to save the booking, attempt to clean up
+      interface MeetingError extends Error {
+        meetingId?: string;
+      }
+      
+      const meetingError = error as MeetingError;
+      if (meetingError?.meetingId) {
+        console.warn('Attempting to clean up orphaned meeting:', meetingError.meetingId);
+        // TODO: Implement meeting cleanup if supported by the API
+      }
     } finally {
       setIsSubmitting(false);
     }
