@@ -82,8 +82,8 @@ const AboutPage = () => {
             </div>
             <div className="relative">
               <img 
-                src="https://images.unsplash.com/photo-1582562124811-c09040d0a901?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80" 
-                alt="Happy pet with owner" 
+                src="/lovable-uploads/42e2d7bd-3440-457d-8a1e-fcd08a2d4014.png" 
+                alt="Veterinarian examining a husky with pet owner" 
                 className="rounded-2xl shadow-2xl w-full h-96 object-cover"
               />
             </div>
@@ -134,8 +134,8 @@ const AboutPage = () => {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative order-2 lg:order-1">
               <img 
-                src="https://images.unsplash.com/photo-1721322800607-8c38375eef04?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80" 
-                alt="Veterinarian caring for pet" 
+                src="/lovable-uploads/d90a72b9-e0fd-4086-9692-b3c0a15463a7.png" 
+                alt="Professional veterinary team members" 
                 className="rounded-2xl shadow-2xl w-full h-96 object-cover"
               />
             </div>
