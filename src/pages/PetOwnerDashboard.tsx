@@ -134,17 +134,44 @@ const PetOwnerDashboard = () => {
   }, []);
 
   // Data fetching functions with proper error handling and typing
+  // Define type for pet record from database
+  interface PetRecord {
+    id: string;
+    name: string;
+    species: string;
+    breed: string | null;
+    owner_id: string;
+    date_of_birth: string | null;
+    weight: number | null;
+    image_url: string | null;
+    color: string | null;
+    gender: string | null;
+    chip_number: string | null;
+    notes: string | null;
+    created_at: string;
+    updated_at: string;
+  }
+
   const fetchPets = useCallback(async (userId: string): Promise<Pet[]> => {
     try {
+      console.log('Fetching pets for user:', userId);
       const { data, error } = await supabase
         .from('pets')
         .select('*')
         .eq('owner_id', userId);
 
-      if (error) throw error;
-      if (!data) return [];
+      if (error) {
+        console.error('Error fetching pets:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log('No pets found for user');
+        return [];
+      }
 
-      return data.map((pet: any): Pet => ({
+      console.log('Found', data.length, 'pets for user');
+      return (data as PetRecord[]).map((pet): Pet => ({
         id: pet.id,
         name: pet.name || 'Unnamed Pet',
         species: pet.species || 'Unknown',
@@ -168,45 +195,53 @@ const PetOwnerDashboard = () => {
     }
   }, [calculateAge]);
 
+  // Define types for Supabase responses to avoid 'any'
+  interface BookingRecord {
+    id: string;
+    pet_owner_id: string;
+    vet_id: string;
+    pet_id: string | null;
+    booking_date: string;
+    start_time: string;
+    end_time: string;
+    status: string;
+    notes: string | null;
+    consultation_type: string;
+    created_at: string;
+    updated_at: string;
+    meeting_url?: string;
+  }
+
+  interface VetProfile {
+    id: string;
+    full_name: string | null;
+  }
+
   const fetchAppointments = useCallback(async (userId: string): Promise<Appointment[]> => {
     try {
       setIsLoadingAppointments(true);
-      console.log('Fetching appointments for user:', userId);
+      console.log('Fetching bookings for user:', userId);
       
-      // First try 'bookings' table (new name)
-      let { data, error } = await supabase
+      const { data: bookingsData, error } = await supabase
         .from('bookings')
         .select('*')
         .eq('pet_owner_id', userId)
         .order('booking_date', { ascending: true });
 
-      // If error, try 'appointments' table (old name) as fallback
       if (error) {
-        console.log('Error fetching from bookings table, trying appointments table:', error);
-        const result = await supabase
-          .from('appointments')
-          .select('*')
-          .eq('pet_owner_id', userId)
-          .order('booking_date', { ascending: true });
-        
-        data = result.data;
-        error = result.error;
-      }
-
-      if (error) {
-        console.error('Error fetching from both bookings and appointments tables:', error);
-        throw error;
+        console.log('Error fetching from bookings table:', error);
+        return [];
       }
       
-      if (!data || data.length === 0) {
-        console.log('No appointment data found');
+      if (!bookingsData || bookingsData.length === 0) {
+        console.log('No booking data found');
         return [];
       }
 
-      console.log('Appointment data found:', data.length, 'appointments');
+      console.log('Appointment data found:', bookingsData.length, 'appointments');
 
       // Get vet names
-      const vetIds = [...new Set(data.map(b => b.vet_id))];
+      const vetIds = [...new Set(bookingsData.map((b: BookingRecord) => b.vet_id))];
       console.log('Fetching vet profiles for', vetIds.length, 'vets');
       
       const { data: vetData, error: vetError } = await supabase
@@ -219,10 +254,12 @@ const PetOwnerDashboard = () => {
         // Continue with unknown vet names
       }
 
-      const vetMap = new Map(vetData?.map((v: any) => [v.id, v.full_name || 'Unknown Vet']) || []);
+      const vetMap = new Map(
+        (vetData as VetProfile[] | null)?.map(v => [v.id, v.full_name || 'Unknown Vet']) || []
+      );
 
       // Transform and validate data
-      return data.map((booking: any): Appointment => {
+      return (bookingsData as BookingRecord[]).map((booking): Appointment => {
         // Debug the booking data
         console.log('Processing booking:', booking.id, 'for pet:', booking.pet_id);
         
@@ -253,36 +290,103 @@ const PetOwnerDashboard = () => {
     }
   }, [getPetNameById]);
 
+  // Define types for prescription data
+  interface PrescriptionRecord {
+    id: string;
+    pet_id: string;
+    vet_id: string;
+    pet_owner_id: string;
+    medication?: string;
+    medication_name?: string; // Some records might use this field instead
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions: string | null;
+    diagnosis: string | null;
+    prescribed_date: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+  }
+
+  interface PetNameRecord {
+    id: string;
+    name: string;
+  }
+
   const fetchPrescriptions = useCallback(async (userId: string): Promise<Prescription[]> => {
     try {
       setIsLoadingPrescriptions(true);
+      console.log('Fetching prescriptions for user:', userId);
+      
       const { data, error } = await supabase
         .from('prescriptions')
         .select('*')
         .eq('pet_owner_id', userId)
         .order('prescribed_date', { ascending: false });
 
-      if (error) throw error;
-      if (!data) return [];
+      if (error) {
+        console.error('Error fetching prescriptions:', error);
+        throw error;
+      }
+      
+      if (!data || data.length === 0) {
+        console.log('No prescriptions found');
+        return [];
+      }
 
-      // Get pet and vet names in separate queries
-      const petIds = [...new Set(data.map(p => p.pet_id))];
-      const vetIds = [...new Set(data.map(p => p.vet_id))];
+      console.log('Found', data.length, 'prescriptions');
 
-      const [{ data: petData }, { data: vetData }] = await Promise.all([
-        supabase.from('pets').select('id, name').in('id', petIds),
-        supabase.from('profiles').select('id, full_name').in('id', vetIds)
-      ]);
+      // Get pet and vet names in separate queries - using type assertion to avoid TypeScript errors
+      const typedData = data as Array<{pet_id: string, vet_id: string}>;
+      const petIds = [...new Set(typedData.map(p => p.pet_id))];
+      const vetIds = [...new Set(typedData.map(p => p.vet_id))];
 
-      const petMap = new Map(petData?.map((p: any) => [p.id, p.name]) || []);
-      const vetMap = new Map(vetData?.map((v: any) => [v.id, v.full_name || 'Unknown Vet']) || []);
+      console.log('Fetching pet and vet names for', petIds.length, 'pets and', vetIds.length, 'vets');
+      
+      // Handle each query separately to better handle errors
+      let petMap = new Map<string, string>();
+      let vetMap = new Map<string, string>();
+      
+      try {
+        const { data: petData, error: petError } = await supabase
+          .from('pets')
+          .select('id, name')
+          .in('id', petIds);
+          
+        if (petError) {
+          console.error('Error fetching pet names:', petError);
+        } else if (petData) {
+          petMap = new Map((petData as PetNameRecord[]).map(p => [p.id, p.name]));
+          console.log('Pet names fetched successfully');
+        }
+      } catch (petQueryError) {
+        console.error('Exception fetching pet names:', petQueryError);
+      }
+      
+      try {
+        const { data: vetData, error: vetError } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', vetIds);
+          
+        if (vetError) {
+          console.error('Error fetching vet names:', vetError);
+        } else if (vetData) {
+          vetMap = new Map((vetData as VetProfile[]).map(v => [v.id, v.full_name || 'Unknown Vet']));
+          console.log('Vet names fetched successfully');
+        }
+      } catch (vetQueryError) {
+        console.error('Exception fetching vet names:', vetQueryError);
+      }
 
-      return data.map((prescription: any): Prescription => ({
+      // Use type assertion with a more specific type to avoid TypeScript errors
+      return (data as Array<{id: string, pet_id: string, vet_id: string, pet_owner_id: string, medication?: string, medication_name?: string, dosage: string, frequency: string, duration: string, instructions: string | null, diagnosis: string | null, prescribed_date: string, status: string, created_at: string, updated_at: string}>).map((prescription): Prescription => ({
         id: prescription.id,
         pet_id: prescription.pet_id,
         vet_id: prescription.vet_id,
         pet_owner_id: prescription.pet_owner_id,
-        medication: prescription.medication || 'Unspecified Medication',
+        medication: prescription.medication || prescription.medication_name || 'Unspecified Medication',
         dosage: prescription.dosage || '',
         frequency: prescription.frequency || '',
         duration: prescription.duration || '',
@@ -303,6 +407,19 @@ const PetOwnerDashboard = () => {
       setIsLoadingPrescriptions(false);
     }
   }, []);
+
+  // Define profile data type from Supabase
+  interface ProfileData {
+    id: string;
+    full_name: string | null;
+    user_type: string;
+    phone?: string | null;
+    address?: string | null;
+    avatar_url?: string | null;
+    bio?: string | null;
+    created_at: string;
+    updated_at: string;
+  }
 
   // Main data loading function
   const loadData = useCallback(async () => {
@@ -336,18 +453,21 @@ const PetOwnerDashboard = () => {
 
       console.log('Profile data fetched successfully:', profileData);
 
+      // Cast the profile data to the correct type and set default values
+      const typedProfileData = profileData as unknown as ProfileData;
+      
       // Set profile with proper typing
       setProfile({
         id: user.id,
         email: user.email || '',
-        user_type: (profileData.user_type as UserType) || 'pet_owner',
-        full_name: profileData.full_name || null,
-        phone: profileData.phone || null,
-        address: profileData.address || null,
-        avatar_url: profileData.avatar_url || null,
-        bio: profileData.bio || null,
-        created_at: profileData.created_at || new Date().toISOString(),
-        updated_at: profileData.updated_at || new Date().toISOString()
+        user_type: (typedProfileData.user_type as UserType) || 'pet_owner',
+        full_name: typedProfileData.full_name || null,
+        phone: typedProfileData.phone || null,
+        address: typedProfileData.address || null,
+        avatar_url: typedProfileData.avatar_url || null,
+        bio: typedProfileData.bio || null,
+        created_at: typedProfileData.created_at || new Date().toISOString(),
+        updated_at: typedProfileData.updated_at || new Date().toISOString()
       });
 
       // Fetch all data in parallel with individual error handling
