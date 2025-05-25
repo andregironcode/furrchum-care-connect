@@ -1,33 +1,46 @@
 // Vercel serverless function for Whereby API
-const fetch = require('node-fetch');
 
 // This format is required for Vercel serverless functions
 module.exports = async (req, res) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Credentials', true);
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
-  );
-
-  // Handle OPTIONS request for CORS preflight
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-  
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ 
-      error: 'Method not allowed, use POST' 
-    });
-  }
-
   try {
+    // Import fetch dynamically to avoid issues with older Node.js versions in Vercel
+    const fetch = await import('node-fetch').then(mod => mod.default);
+    
+    // Enable better debugging
+    console.log('API endpoint hit:', req.method);
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    );
+
+    // Handle OPTIONS request for CORS preflight
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+    
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+      return res.status(405).json({ 
+        error: 'Method not allowed, use POST' 
+      });
+    }
+
     const body = req.body;
-    const WHEREBY_API_KEY = process.env.VITE_WHEREBY_API_KEY;
-    const WHEREBY_API_URL = process.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
+    // Log available environment variables to help debug (redacted for security)
+    console.log('Available env vars:', Object.keys(process.env));
+    
+    // In Vercel serverless functions, environment variables might not retain the VITE_ prefix
+    // Try both with and without the prefix
+    const WHEREBY_API_KEY = process.env.WHEREBY_API_KEY || process.env.VITE_WHEREBY_API_KEY;
+    const WHEREBY_API_URL = process.env.WHEREBY_API_URL || process.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
+    
+    // Log API configuration (partially redacted for security)
+    console.log('API URL:', WHEREBY_API_URL);
+    console.log('API Key available:', !!WHEREBY_API_KEY);
 
     if (!WHEREBY_API_KEY) {
       return res.status(500).json({ 
@@ -35,7 +48,7 @@ module.exports = async (req, res) => {
       });
     }
 
-    // Log request for debugging
+    // Log request body
     console.log('Creating meeting with body:', JSON.stringify(body, null, 2));
 
     // Make sure the roomNamePrefix is not too long (Whereby limitation)
@@ -43,6 +56,9 @@ module.exports = async (req, res) => {
       body.roomNamePrefix = body.roomNamePrefix.substring(0, 16);
     }
 
+    // Log the request we're about to make (redact sensitive info)
+    console.log(`Making request to ${WHEREBY_API_URL}/meetings with body:`, JSON.stringify(body));
+    
     // Call Whereby API to create meeting
     const response = await fetch(`${WHEREBY_API_URL}/meetings`, {
       method: 'POST',
@@ -52,9 +68,26 @@ module.exports = async (req, res) => {
       },
       body: JSON.stringify(body),
     });
-
-    // Parse response
-    const data = await response.json();
+    
+    // Debug the raw response
+    console.log('Response status:', response.status);
+    console.log('Response headers:', JSON.stringify([...response.headers.entries()]));
+    
+    // Get response text first to debug any parsing issues
+    const responseText = await response.text();
+    console.log('Response text:', responseText.substring(0, 200) + '...');
+    
+    // Try to parse as JSON
+    let data;
+    try {
+      data = JSON.parse(responseText);
+    } catch (parseError) {
+      console.error('Failed to parse response as JSON:', parseError);
+      return res.status(502).json({
+        error: 'Invalid JSON response from Whereby API',
+        responseText: responseText.substring(0, 100) + '...' // Include first part of response for debugging
+      });
+    }
 
     // Handle error responses from Whereby API
     if (!response.ok) {
