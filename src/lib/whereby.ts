@@ -59,10 +59,16 @@ export async function createMeeting(options: CreateMeetingOptions): Promise<Crea
 
   try {
     // Prepare the request body
+    // Ensure roomNamePrefix is not too long - Whereby API has a limit
+    // Truncate to a maximum of 16 characters to be safe
+    const truncatedRoomPrefix = roomNamePrefix.length > 16 
+      ? roomNamePrefix.substring(0, 16) 
+      : roomNamePrefix;
+    
     const body: Record<string, unknown> = {
       endDate: typeof endDate === 'string' ? endDate : endDate.toISOString(),
       fields,
-      roomNamePrefix,
+      roomNamePrefix: truncatedRoomPrefix,
       roomMode,
     };
 

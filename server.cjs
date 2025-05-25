@@ -9,8 +9,20 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-app.use(cors());
+app.use(cors({
+  origin: ['http://localhost:8081', 'http://localhost:8080'],
+  credentials: true
+}));
 app.use(bodyParser.json());
+
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Server error:', err);
+  res.status(500).json({
+    error: 'Internal server error',
+    message: err.message
+  });
+});
 
 // Whereby API proxy endpoint
 app.post('/api/whereby/meetings', async (req, res) => {
@@ -105,7 +117,9 @@ app.use((req, res, next) => {
   }
   
   // For all other requests, proxy to the Vite dev server
-  res.redirect(`http://localhost:8080${req.path}`);
+  // Use a dynamic port based on environment variable or default to 8081
+  const VITE_PORT = process.env.VITE_PORT || 8081;
+  res.redirect(`http://localhost:${VITE_PORT}${req.path}`);
 });
 
 app.listen(PORT, () => {

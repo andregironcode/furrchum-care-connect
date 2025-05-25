@@ -61,9 +61,7 @@ interface BookingData {
   end_time: string;
   consultation_type: 'in_person' | 'video_call';
   notes: string;
-  meeting_id: string | null;
-  meeting_url: string | null;
-  host_meeting_url: string | null;
+  // Video meeting details will be stored in localStorage instead of database
   status: 'confirmed';
 }
 
@@ -316,8 +314,11 @@ const BookingPage = () => {
     endDate.setMinutes(endDate.getMinutes() + duration);
 
     try {
+      // Use a shorter room prefix - take just the first 8 characters of the vet ID
+      // to avoid the 'roomNamePrefix is too long' error from Whereby API
+      const shortVetId = vet.id.split('-')[0] || vet.id.substring(0, 8);
       const meeting = await createMeeting({
-        roomNamePrefix: `vet-${vet.id}`,
+        roomNamePrefix: `vet-${shortVetId}`,
         roomMode: 'group',
         startDate: appointmentDate.toISOString(),
         endDate: endDate.toISOString(),
@@ -378,7 +379,7 @@ const BookingPage = () => {
     setError(null);
     
     try {
-      // Create booking data
+      // Create booking data - only including fields that exist in the database schema
       const bookingData = {
         vet_id: vetId,
         pet_owner_id: user.id,
@@ -388,9 +389,6 @@ const BookingPage = () => {
         end_time: format(new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000), 'HH:mm'),
         consultation_type: consultationType,
         notes: notes,
-        meeting_id: null as string | null,
-        meeting_url: null as string | null,
-        host_meeting_url: null as string | null,
         status: 'confirmed' as const
       };
       
@@ -409,12 +407,26 @@ const BookingPage = () => {
             throw new Error('Failed to create video meeting: Invalid response from Whereby');
           }
           
-          bookingData.meeting_id = meeting.meetingId || null;
-          bookingData.meeting_url = meeting.roomUrl;
-          bookingData.host_meeting_url = meeting.hostRoomUrl || null;
-        } catch (error: any) {
+          // Store meeting details in localStorage since we can't store them in the database
+          // We'll use the booking_id (which will be created after insert) and date as a composite key
+          const meetingKey = `meeting-${format(date, 'yyyy-MM-dd')}-${timeSlot.replace(':', '')}-${vetId}`;
+          localStorage.setItem(meetingKey, JSON.stringify({
+            meetingId: meeting.meetingId,
+            roomUrl: meeting.roomUrl,
+            hostRoomUrl: meeting.hostRoomUrl || null,
+            createdAt: new Date().toISOString()
+          }));
+          
+          // We'll also store the most recent meeting for immediate access after booking
+          localStorage.setItem('last-created-meeting', meetingKey);
+          
+        } catch (error: unknown) {
           console.error('Error creating video meeting:', error);
-          toast.error(error.message || 'Failed to create video meeting. Please try again.');
+          toast.error(
+            error instanceof Error 
+              ? error.message 
+              : 'Failed to create video meeting. Please try again.'
+          );
           setIsSubmitting(false);
           return;
         }
@@ -422,7 +434,7 @@ const BookingPage = () => {
       
       // Save booking to database
       const { data: booking, error: bookingError } = await supabase
-        .from('appointments')
+        .from('bookings')
         .insert([bookingData])
         .select()
         .single();
@@ -435,8 +447,27 @@ const BookingPage = () => {
         throw new Error('No booking data returned from server');
       }
       
-      // Show success message
-      toast.success('Appointment booked successfully!');
+      // Show success message - include video meeting info if applicable
+      if (consultationType === 'video_call') {
+        const lastMeetingKey = localStorage.getItem('last-created-meeting');
+        if (lastMeetingKey) {
+          try {
+            const meetingData = JSON.parse(localStorage.getItem(lastMeetingKey) || '{}');
+            toast.success(
+              <div>
+                <p>Video appointment booked successfully!</p>
+                <p className="text-sm mt-1">Your meeting link will be available in your appointments.</p>
+              </div>
+            );
+          } catch (e) {
+            toast.success('Video appointment booked successfully!');
+          }
+        } else {
+          toast.success('Video appointment booked successfully!');
+        }
+      } else {
+        toast.success('Appointment booked successfully!');
+      }
       
       // Redirect to appointments page after a short delay
       setTimeout(() => {

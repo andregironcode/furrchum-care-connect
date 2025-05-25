@@ -286,10 +286,10 @@ const AppointmentsPage = () => {
                         <div className="flex justify-between items-start">
                           <div>
                             <CardTitle>
-                              {pets[booking.pet_id]?.name || "Pet"} - {pets[booking.pet_id]?.type || "Unknown"}
+                              {pets[booking.pet_id] ? `${pets[booking.pet_id].name} - ${pets[booking.pet_id].type}` : "Unknown Pet"}
                             </CardTitle>
                             <CardDescription>
-                              With Dr. {vets[booking.vet_id]?.first_name || ""} {vets[booking.vet_id]?.last_name || ""}
+                              With Dr. {vets[booking.vet_id] ? `${vets[booking.vet_id].first_name} ${vets[booking.vet_id].last_name}` : "Unknown Vet"}
                             </CardDescription>
                           </div>
                           <Badge variant={getStatusBadgeVariant(booking.status)}>{booking.status}</Badge>
