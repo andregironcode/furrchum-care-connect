@@ -434,6 +434,17 @@ const BookingPage = () => {
             endDate: meeting.endDate,
             createdAt: new Date().toISOString(),
             bookingDate: formattedDate,
+            startTime: timeSlot,
+            endTime: endTimeString
+          }));
+          
+          // Store reference for lookup after booking is created
+          localStorage.setItem('last-created-meeting', meetingKey);
+        } catch (error) {
+          console.error('Error creating video meeting:', error);
+          toast.error(
+            error instanceof Error 
+              ? error.message 
               : 'Failed to create video meeting. Please try again.'
           );
           setIsSubmitting(false);
