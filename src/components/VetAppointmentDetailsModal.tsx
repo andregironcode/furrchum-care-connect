@@ -1,10 +1,9 @@
-
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, MapPin, Phone, Mail, User, Stethoscope, FileText, X, Edit, Check } from "lucide-react";
+import { Calendar, Clock, MapPin, Phone, Mail, User, Stethoscope, FileText, X, Edit, Check, Video } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -20,6 +19,8 @@ interface Appointment {
   pet_id: string;
   vet_id: string;
   pet_owner_id: string;
+  meeting_url?: string;
+  host_meeting_url?: string;
 }
 
 interface Pet {
@@ -74,7 +75,69 @@ const VetAppointmentDetailsModal = ({
   const [newDate, setNewDate] = useState('');
   const [newStartTime, setNewStartTime] = useState('');
   const [newEndTime, setNewEndTime] = useState('');
+  // Define state for meeting details
+  const [meetingDetails, setMeetingDetails] = useState<{
+    roomUrl?: string;
+    hostRoomUrl?: string;
+    meetingId?: string;
+    startDate?: string;
+    endDate?: string;
+  } | null>(null);
 
+  // Load meeting details from localStorage
+  useEffect(() => {
+    if (appointment?.consultation_type === 'video_call' || appointment?.consultation_type === 'video') {
+      console.log('🔍 DEBUG - Looking for video meeting data for appointment (vet view):', {
+        id: appointment.id,
+        date: appointment.booking_date,
+        startTime: appointment.start_time,
+        vetId: appointment.vet_id,
+        type: appointment.consultation_type
+      });
+      
+      // First try to look up by booking ID
+      const meetingKey = `meeting-${appointment.id}`;
+      let meetingData = localStorage.getItem(meetingKey);
+      console.log('🔍 DEBUG - Checking by ID:', { key: meetingKey, found: !!meetingData });
+      
+      // If not found, try looking up by date-time-vet combination
+      if (!meetingData) {
+        const dateTimeKey = `meeting-${appointment.booking_date}-${appointment.start_time.replace(':', '')}-${appointment.vet_id}`;
+        meetingData = localStorage.getItem(dateTimeKey);
+        console.log('🔍 DEBUG - Checking by date-time-vet:', { key: dateTimeKey, found: !!meetingData });
+      }
+      
+      // If still not found, try ALL localStorage keys - this is a fallback to help debug
+      if (!meetingData) {
+        console.log('🔍 DEBUG - Checking all localStorage keys:');
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('meeting-')) {
+            console.log(`  Key: ${key}`);
+            try {
+              const data = JSON.parse(localStorage.getItem(key) || '{}');
+              console.log(`  Data:`, data);
+            } catch (e) {
+              console.log(`  Data: [Error parsing]`);
+            }
+          }
+        });
+      }
+      
+      // Parse and store meeting data if found
+      if (meetingData) {
+        try {
+          const parsedData = JSON.parse(meetingData);
+          console.log('✅ DEBUG - Found meeting data for appointment (vet view):', parsedData);
+          setMeetingDetails(parsedData);
+        } catch (e) {
+          console.error('❌ DEBUG - Error parsing meeting data:', e);
+        }
+      } else {
+        console.log('❌ DEBUG - No meeting data found for appointment ID:', appointment.id);
+      }
+    }
+  }, [appointment]);
+  
   if (!appointment || !pet || !petOwner) return null;
 
   const handleReschedule = () => {
@@ -284,6 +347,98 @@ const VetAppointmentDetailsModal = ({
               </div>
             </div>
           </div>
+
+          <Separator className="my-4" />
+          {(appointment.consultation_type === 'video_call' || appointment.consultation_type === 'video') && (
+            <div>
+              <h3 className="text-lg font-semibold mb-3">Video Consultation</h3>
+              <div className="space-y-4">
+                {(() => {
+                  const now = new Date();
+                  const appointmentDate = new Date(`${appointment.booking_date}T${appointment.start_time}`);
+                  const endTime = new Date(`${appointment.booking_date}T${appointment.end_time}`);
+                  
+                  // Calculate time boundaries for joining
+                  const earliestJoinTime = new Date(appointmentDate);
+                  earliestJoinTime.setMinutes(appointmentDate.getMinutes() - 15); // 15 minutes before appointment
+                  
+                  // Check if current time is AFTER the end time
+                  const hasEnded = now > endTime;
+                  
+                  // Check if current time is BEFORE the earliest join time (15 min before start)
+                  const isTooEarly = now < earliestJoinTime;
+                  
+                  console.log('Video call access times (vet view):', {
+                    now: now.toISOString(),
+                    appointmentTime: appointmentDate.toISOString(),
+                    endTime: endTime.toISOString(),
+                    earliestJoinTime: earliestJoinTime.toISOString(),
+                    hasEnded,
+                    isTooEarly
+                  });
+
+                  if (hasEnded) {
+                    return (
+                      <div className="text-sm text-muted-foreground">
+                        This consultation has ended.
+                      </div>
+                    );
+                  }
+
+                  if (isTooEarly) {
+                    return (
+                      <div className="text-sm text-muted-foreground">
+                        The video call link will be available 15 minutes before the appointment.
+                      </div>
+                    );
+                  }
+
+                  // Check if we have a meeting URL from localStorage or from appointment
+                  const meetingUrl = meetingDetails?.roomUrl || appointment.meeting_url;
+                  const hostMeetingUrl = meetingDetails?.hostRoomUrl || appointment.host_meeting_url;
+                  
+                  console.log('Meeting URLs for appointment (vet view):', {
+                    fromAppointment: appointment.meeting_url,
+                    fromLocalStorage: meetingDetails?.roomUrl,
+                    useUrl: meetingUrl,
+                    hostUrl: hostMeetingUrl
+                  });
+                  
+                  if (!meetingUrl && !hostMeetingUrl) {
+                    return (
+                      <div className="text-sm text-muted-foreground">
+                        Video call link is not available. Please contact support.
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      {hostMeetingUrl ? (
+                        <Button
+                          variant="default"
+                          onClick={() => window.open(hostMeetingUrl, '_blank')}
+                          className="w-full sm:w-auto"
+                        >
+                          <Video className="mr-2 h-4 w-4" />
+                          Join as Host
+                        </Button>
+                      ) : meetingUrl ? (
+                        <Button
+                          variant="default"
+                          onClick={() => window.open(meetingUrl, '_blank')}
+                          className="w-full sm:w-auto"
+                        >
+                          <Video className="mr-2 h-4 w-4" />
+                          Join Video Call
+                        </Button>
+                      ) : null}
+                    </div>
+                  );
+                })()}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
