@@ -4,10 +4,11 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import DashboardButton from "./DashboardButton";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
+import { Profile } from "@/types/supabase";
 
 const WelcomeUser = () => {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<Profile | null>(null);
   
   useEffect(() => {
     const fetchProfile = async () => {
