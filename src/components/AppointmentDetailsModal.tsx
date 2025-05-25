@@ -1,4 +1,3 @@
-
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -192,7 +191,7 @@ const AppointmentDetailsModal = ({
         </div>
 
         {/* Video Call Section */}
-        {appointment.consultation_type === 'video_call' && appointment.meeting_url && (
+        {appointment.consultation_type === 'video_call' && (
           <>
             <Separator />
             <div>
@@ -218,6 +217,15 @@ const AppointmentDetailsModal = ({
                     return (
                       <div className="text-sm text-muted-foreground">
                         The video call link will be available 15 minutes before the appointment.
+                      </div>
+                    );
+                  }
+
+                  // Check if we have a meeting URL before showing the button
+                  if (!appointment.meeting_url) {
+                    return (
+                      <div className="text-sm text-muted-foreground">
+                        Video call link is not available. Please contact support.
                       </div>
                     );
                   }

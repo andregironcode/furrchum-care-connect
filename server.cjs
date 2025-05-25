@@ -20,13 +20,13 @@ app.post('/api/whereby/meetings', async (req, res) => {
     const WHEREBY_API_URL = process.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
 
     if (!WHEREBY_API_KEY) {
+      console.error('Missing Whereby API key in environment variables');
       return res.status(500).json({ 
         error: 'Server misconfiguration: Missing Whereby API key' 
       });
     }
 
-    console.log('Creating meeting with body:', JSON.stringify(body, null, 2));
-    console.log('Using API key:', WHEREBY_API_KEY.substring(0, 5) + '...');
+    console.log('Creating Whereby meeting with request body:', JSON.stringify(body, null, 2));
 
     const response = await fetch(`${WHEREBY_API_URL}/meetings`, {
       method: 'POST',
@@ -47,7 +47,15 @@ app.post('/api/whereby/meetings', async (req, res) => {
       });
       
       return res.status(response.status).json({ 
-        error: data.message || 'Failed to create meeting' 
+        error: data.error || data.message || 'Failed to create meeting' 
+      });
+    }
+
+    // Validate expected fields in response
+    if (!data.meetingId || !data.roomUrl) {
+      console.error('Invalid response from Whereby API:', data);
+      return res.status(502).json({
+        error: 'Invalid response from Whereby API: Missing required fields'
       });
     }
 
@@ -55,13 +63,39 @@ app.post('/api/whereby/meetings', async (req, res) => {
     return res.json(data);
   } catch (error) {
     console.error('Error in create meeting API:', error);
-    return res.status(500).json({ error: 'Internal server error' });
+    return res.status(500).json({ error: 'Internal server error: ' + (error.message || 'Unknown error') });
   }
 });
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok' });
+  try {
+    const WHEREBY_API_KEY = process.env.VITE_WHEREBY_API_KEY;
+    const WHEREBY_API_URL = process.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
+    
+    if (!WHEREBY_API_KEY) {
+      return res.status(500).json({ 
+        status: 'error',
+        message: 'Whereby API key is missing',
+        configured: false
+      });
+    }
+    
+    return res.json({ 
+      status: 'ok',
+      serverTime: new Date().toISOString(),
+      configured: true,
+      api: {
+        name: 'Whereby',
+        url: WHEREBY_API_URL
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ 
+      status: 'error',
+      message: error.message || 'Internal server error'
+    });
+  }
 });
 
 // For development, proxy requests to Vite dev server

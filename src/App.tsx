@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -27,6 +26,7 @@ import BookingPage from "./pages/BookingPage";
 import PaymentPage from "./pages/PaymentPage";
 import VetDetailsPage from "./pages/VetDetailsPage";
 import WherebyTest from "./components/WherebyTest";
+import WherebyTestEnhanced from '@/components/WherebyTest.enhanced';
 
 const App = () => {
   // Move queryClient inside the component
@@ -131,6 +131,12 @@ const App = () => {
               <Route path="/vet-billing" element={
                 <RouteGuard>
                   <VetBillingPage />
+                </RouteGuard>
+              } />
+              
+              <Route path="/test/whereby" element={
+                <RouteGuard>
+                  <WherebyTestEnhanced />
                 </RouteGuard>
               } />
               

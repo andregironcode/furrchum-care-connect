@@ -317,11 +317,11 @@ const BookingPage = () => {
 
     try {
       const meeting = await createMeeting({
-        roomNamePrefix: `vet-${vet.id}-`,
+        roomNamePrefix: `vet-${vet.id}`,
+        roomMode: 'group',
         startDate: appointmentDate.toISOString(),
         endDate: endDate.toISOString(),
         fields: ['hostRoomUrl'],
-        roomMode: 'group',
         roomModeProps: {
           isWaitingRoomEnabled: true,
           isLocked: true,
@@ -398,9 +398,10 @@ const BookingPage = () => {
       if (consultationType === 'video_call') {
         try {
           const meeting = await createMeeting({
-            roomName: `Vet-Consultation-${vetId}-${Date.now()}`,
-            startDate: new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`),
-            endDate: new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000),
+            roomNamePrefix: `vet-${vetId}`,
+            roomMode: 'group',
+            startDate: new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).toISOString(),
+            endDate: new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000).toISOString(),
             fields: ['hostRoomUrl']
           });
           

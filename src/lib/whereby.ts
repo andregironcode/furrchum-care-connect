@@ -31,12 +31,20 @@ export interface CreateMeetingResponse {
 
 export interface CreateMeetingOptions {
   roomNamePrefix?: string;
-  roomMode?: 'normal' | 'group' | 'webinar';
-  roomModeProps?: Record<string, unknown>;
+  roomMode?: 'normal' | 'group';
+  roomModeProps?: {
+    isWaitingRoomEnabled?: boolean;
+    isLocked?: boolean;
+    isRecordingEnabled?: boolean;
+    isAudioEnabled?: boolean;
+    isVideoEnabled?: boolean;
+    isChatEnabled?: boolean;
+    isScreenSharingEnabled?: boolean;
+    isHandRaiseEnabled?: boolean;
+  };
   startDate?: Date | string;
   endDate: Date | string;
   fields?: string[];
-  roomName?: string;
 }
 
 export async function createMeeting(options: CreateMeetingOptions): Promise<CreateMeetingResponse> {
@@ -79,9 +87,15 @@ export async function createMeeting(options: CreateMeetingOptions): Promise<Crea
     });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error('Error creating meeting:', errorData);
-      throw new Error(errorData.message || 'Failed to create meeting');
+      let errorMessage = 'Failed to create meeting';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+        console.error('Error creating meeting:', errorData);
+      } catch (parseError) {
+        console.error('Error parsing error response:', parseError);
+      }
+      throw new Error(errorMessage);
     }
 
     // Parse the response
@@ -89,6 +103,11 @@ export async function createMeeting(options: CreateMeetingOptions): Promise<Crea
     
     // Log the response for debugging
     console.log('Meeting created successfully:', responseData);
+
+    // Validate the response data
+    if (!responseData.meetingId || !responseData.roomUrl) {
+      throw new Error('Invalid response from Whereby API: Missing required fields');
+    }
 
     // Map the response to our CreateMeetingResponse interface
     const meeting: CreateMeetingResponse = {
