@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -62,7 +63,53 @@ const AppointmentDetailsModal = ({
   vet,
   onCancelAppointment 
 }: AppointmentDetailsModalProps) => {
+  // Define state for meeting details - hooks must be called unconditionally at the top level
+  const [meetingDetails, setMeetingDetails] = useState<{
+    roomUrl?: string;
+    hostRoomUrl?: string;
+    meetingId?: string;
+    startDate?: string;
+    endDate?: string;
+  } | null>(null);
+  
+  // Early return must come after hooks are defined
   if (!appointment || !pet || !vet) return null;
+  
+  // Load meeting details from localStorage
+  useEffect(() => {
+    if (appointment?.consultation_type === 'video_call') {
+      // First try to look up by booking ID
+      const meetingKey = `meeting-${appointment.id}`;
+      let meetingData = localStorage.getItem(meetingKey);
+      
+      // If not found, try looking up by date-time-vet combination
+      if (!meetingData) {
+        const dateTimeKey = `meeting-${appointment.booking_date}-${appointment.start_time.replace(':', '')}-${appointment.vet_id}`;
+        meetingData = localStorage.getItem(dateTimeKey);
+      }
+      
+      // If still not found, try the lookup table
+      if (!meetingData) {
+        const lookupTable = JSON.parse(localStorage.getItem('video-meetings-lookup') || '{}');
+        if (lookupTable[appointment.id]) {
+          meetingData = JSON.stringify(lookupTable[appointment.id]);
+        }
+      }
+      
+      // Parse and store meeting data if found
+      if (meetingData) {
+        try {
+          const parsedData = JSON.parse(meetingData);
+          console.log('Found meeting data for appointment:', parsedData);
+          setMeetingDetails(parsedData);
+        } catch (e) {
+          console.error('Error parsing meeting data:', e);
+        }
+      } else {
+        console.log('No meeting data found for appointment ID:', appointment.id);
+      }
+    }
+  }, [appointment]);
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -237,8 +284,17 @@ const AppointmentDetailsModal = ({
                     );
                   }
 
-                  // Check if we have a meeting URL before showing the button
-                  if (!appointment.meeting_url) {
+                  // Check if we have a meeting URL from localStorage or from appointment
+                  const meetingUrl = meetingDetails?.roomUrl || appointment.meeting_url;
+                  const hostMeetingUrl = meetingDetails?.hostRoomUrl || appointment.host_meeting_url;
+                  
+                  console.log('Meeting URLs for appointment:', {
+                    fromAppointment: appointment.meeting_url,
+                    fromLocalStorage: meetingDetails?.roomUrl,
+                    useUrl: meetingUrl
+                  });
+                  
+                  if (!meetingUrl) {
                     return (
                       <div className="text-sm text-muted-foreground">
                         Video call link is not available. Please contact support.
@@ -247,13 +303,29 @@ const AppointmentDetailsModal = ({
                   }
 
                   return (
-                    <Button
-                      variant="default"
-                      onClick={() => window.open(appointment.meeting_url!, '_blank')}
-                      className="w-full sm:w-auto"
-                    >
-                      Join Video Call
-                    </Button>
+                    <div className="space-y-3">
+                      <Button
+                        variant="default"
+                        onClick={() => window.open(meetingUrl, '_blank')}
+                        className="w-full sm:w-auto"
+                      >
+                        Join Video Call
+                      </Button>
+                      
+                      {hostMeetingUrl && (
+                        <div className="mt-2">
+                          <p className="text-sm text-muted-foreground mb-1">For veterinarians only:</p>
+                          <Button
+                            variant="outline"
+                            onClick={() => window.open(hostMeetingUrl, '_blank')}
+                            className="w-full sm:w-auto"
+                            size="sm"
+                          >
+                            Join as Host
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   );
                 })()}
               </div>
