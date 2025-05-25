@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -46,6 +45,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
           console.error('Error fetching vet profile:', vetError);
         } else {
           setVetProfile(vetData);
+          console.log('Vet profile data:', vetData); // Debug log
         }
       }
 
@@ -154,14 +154,29 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
           </DialogTitle>
           <DialogDescription>
             User ID: {user.id} • Joined: {new Date(user.created_at).toLocaleDateString()}
+            {user.user_type === 'vet' && (
+              <span className="ml-2 text-blue-600 font-medium">
+                • Veterinarian Account
+              </span>
+            )}
           </DialogDescription>
         </DialogHeader>
 
         <Tabs defaultValue="profile" className="mt-4">
-          <TabsList>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Profile</TabsTrigger>
-            {user.user_type === 'vet' && <TabsTrigger value="documents">Documents</TabsTrigger>}
-            {user.user_type === 'pet_owner' && <TabsTrigger value="pets">Pets</TabsTrigger>}
+            <TabsTrigger 
+              value="documents" 
+              className={user.user_type === 'vet' ? '' : 'hidden'}
+            >
+              Documents
+            </TabsTrigger>
+            <TabsTrigger 
+              value="pets"
+              className={user.user_type === 'pet_owner' ? '' : 'hidden'}
+            >
+              Pets
+            </TabsTrigger>
             <TabsTrigger value="appointments">Appointments</TabsTrigger>
           </TabsList>
 
@@ -249,66 +264,158 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                     Veterinarian Documents
                   </CardTitle>
                   <CardDescription>
-                    Review uploaded licenses and certifications
+                    Review uploaded licenses and certifications for approval
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {vetProfile?.license_url ? (
-                    <div className="space-y-4">
-                      <div className="border rounded-lg p-4">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium">Veterinary License</h4>
-                            <p className="text-sm text-muted-foreground">
-                              Professional veterinary license document
-                            </p>
-                          </div>
-                          <div className="flex gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => openDocument(vetProfile.license_url)}
-                            >
-                              <Eye className="w-4 h-4 mr-1" />
-                              View
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => {
-                                const link = document.createElement('a');
-                                link.href = vetProfile.license_url;
-                                link.download = 'veterinary_license.pdf';
-                                link.click();
-                              }}
-                            >
-                              <Download className="w-4 h-4 mr-1" />
-                              Download
-                            </Button>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                      <span className="ml-2">Loading documents...</span>
+                    </div>
+                  ) : vetProfile ? (
+                    <div className="space-y-6">
+                      {/* License Document */}
+                      {vetProfile.license_url ? (
+                        <div className="border rounded-lg p-4 bg-blue-50">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="p-2 bg-blue-100 rounded-lg">
+                                <FileText className="w-5 h-5 text-blue-600" />
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-lg">Veterinary License</h4>
+                                <p className="text-sm text-muted-foreground">
+                                  Professional veterinary license document
+                                </p>
+                                <p className="text-xs text-green-600 mt-1">
+                                  ✓ Document uploaded
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => openDocument(vetProfile.license_url)}
+                                className="bg-white"
+                              >
+                                <Eye className="w-4 h-4 mr-1" />
+                                View License
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  const link = document.createElement('a');
+                                  link.href = vetProfile.license_url;
+                                  link.download = `${vetProfile.first_name}_${vetProfile.last_name}_license.pdf`;
+                                  link.click();
+                                }}
+                                className="bg-white"
+                              >
+                                <Download className="w-4 h-4 mr-1" />
+                                Download
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="border rounded-lg p-4 bg-red-50">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-red-100 rounded-lg">
+                              <XCircle className="w-5 h-5 text-red-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-lg text-red-800">No License Uploaded</h4>
+                              <p className="text-sm text-red-600">
+                                Veterinary license document is required for approval
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
 
-                      {vetProfile.clinic_images && vetProfile.clinic_images.length > 0 && (
+                      {/* Clinic Images */}
+                      {vetProfile.clinic_images && vetProfile.clinic_images.length > 0 ? (
                         <div className="border rounded-lg p-4">
-                          <h4 className="font-medium mb-3">Clinic Images</h4>
+                          <h4 className="font-medium mb-3 flex items-center gap-2">
+                            <Eye className="w-4 h-4" />
+                            Clinic Images ({vetProfile.clinic_images.length})
+                          </h4>
                           <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                             {vetProfile.clinic_images.map((imageUrl: string, index: number) => (
-                              <div key={index} className="relative">
+                              <div key={index} className="relative group">
                                 <img
                                   src={imageUrl}
                                   alt={`Clinic image ${index + 1}`}
-                                  className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80"
+                                  className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity border"
                                   onClick={() => openDocument(imageUrl)}
                                 />
+                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
+                                  <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                                </div>
                               </div>
                             ))}
                           </div>
                         </div>
+                      ) : (
+                        <div className="border rounded-lg p-4 bg-gray-50">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 bg-gray-100 rounded-lg">
+                              <FileText className="w-5 h-5 text-gray-600" />
+                            </div>
+                            <div>
+                              <h4 className="font-medium text-gray-800">No Clinic Images</h4>
+                              <p className="text-sm text-gray-600">
+                                No clinic images have been uploaded yet
+                              </p>
+                            </div>
+                          </div>
+                        </div>
                       )}
+
+                      {/* Approval Status and Actions */}
+                      <div className="border rounded-lg p-4 bg-yellow-50">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-medium text-lg">Approval Status</h4>
+                            <div className="flex items-center gap-2 mt-2">
+                              <span className="text-sm">Current Status:</span>
+                              {getStatusBadge(vetProfile.approval_status)}
+                            </div>
+                            {vetProfile.approved_at && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Approved on {new Date(vetProfile.approved_at).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                          {vetProfile.approval_status === 'pending' && (
+                            <div className="flex gap-2">
+                              <Button
+                                onClick={() => handleVetApproval('approved')}
+                                className="bg-green-600 hover:bg-green-700"
+                              >
+                                <CheckCircle className="w-4 h-4 mr-1" />
+                                Approve Vet
+                              </Button>
+                              <Button
+                                variant="destructive"
+                                onClick={() => handleVetApproval('rejected')}
+                              >
+                                <XCircle className="w-4 h-4 mr-1" />
+                                Reject
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
                   ) : (
-                    <p className="text-muted-foreground">No documents uploaded yet.</p>
+                    <div className="text-center py-8">
+                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-muted-foreground">No vet profile found for this user.</p>
+                    </div>
                   )}
                 </CardContent>
               </Card>
