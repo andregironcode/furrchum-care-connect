@@ -1,3 +1,4 @@
+
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -7,6 +8,7 @@ import VetDirectory from "./pages/VetDirectory";
 import HealthRecords from "./pages/HealthRecords";
 import Auth from "./pages/Auth";
 import NotFound from "./pages/NotFound";
+import AboutPage from "./pages/AboutPage";
 import { AuthProvider } from "./context/AuthContext";
 import PetOwnerDashboard from "./pages/PetOwnerDashboard";
 import VetDashboard from "./pages/VetDashboard";
@@ -45,6 +47,7 @@ const App = () => {
               <Route path="/" element={<Navigate to="/vets" replace />} />
               <Route path="/vets" element={<VetDirectory />} />
               <Route path="/records" element={<HealthRecords />} />
+              <Route path="/about" element={<AboutPage />} />
               <Route path="/auth" element={<Auth />} />
               <Route path="/test-whereby" element={<WherebyTest />} />
               <Route path="/vet-details/:vetId" element={<VetDetailsPage />} />
