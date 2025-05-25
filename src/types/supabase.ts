@@ -66,11 +66,16 @@ export interface Booking {
   booking_date: string;
   start_time: string;
   end_time: string;
-  consultation_type: 'in_person' | 'video' | 'chat';
+  consultation_type: 'in_person' | 'video_call' | 'video' | 'chat';
   notes?: string;
   status: 'pending' | 'confirmed' | 'completed' | 'cancelled';
   payment_status?: 'pending' | 'paid' | 'refunded';
   payment_id?: string;
+  
+  // Virtual fields for video meetings - not stored in database
+  meeting_url?: string;
+  host_meeting_url?: string;
+  meeting_id?: string;
 }
 
 export interface MedicalRecord {

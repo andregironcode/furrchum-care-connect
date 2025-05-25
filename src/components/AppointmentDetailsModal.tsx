@@ -78,35 +78,53 @@ const AppointmentDetailsModal = ({
   // Load meeting details from localStorage
   useEffect(() => {
     if (appointment?.consultation_type === 'video_call') {
+      console.log('🔍 DEBUG - Looking for video meeting data for appointment:', {
+        id: appointment.id,
+        date: appointment.booking_date,
+        startTime: appointment.start_time,
+        vetId: appointment.vet_id,
+        type: appointment.consultation_type
+      });
+      
       // First try to look up by booking ID
       const meetingKey = `meeting-${appointment.id}`;
       let meetingData = localStorage.getItem(meetingKey);
+      console.log('🔍 DEBUG - Checking by ID:', { key: meetingKey, found: !!meetingData });
       
       // If not found, try looking up by date-time-vet combination
       if (!meetingData) {
         const dateTimeKey = `meeting-${appointment.booking_date}-${appointment.start_time.replace(':', '')}-${appointment.vet_id}`;
         meetingData = localStorage.getItem(dateTimeKey);
+        console.log('🔍 DEBUG - Checking by date-time-vet:', { key: dateTimeKey, found: !!meetingData });
       }
       
-      // If still not found, try the lookup table
+      // If still not found, try ALL localStorage keys - this is a fallback to help debug
       if (!meetingData) {
-        const lookupTable = JSON.parse(localStorage.getItem('video-meetings-lookup') || '{}');
-        if (lookupTable[appointment.id]) {
-          meetingData = JSON.stringify(lookupTable[appointment.id]);
-        }
+        console.log('🔍 DEBUG - Checking all localStorage keys:');
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('meeting-')) {
+            console.log(`  Key: ${key}`);
+            try {
+              const data = JSON.parse(localStorage.getItem(key) || '{}');
+              console.log(`  Data:`, data);
+            } catch (e) {
+              console.log(`  Data: [Error parsing]`);
+            }
+          }
+        });
       }
       
       // Parse and store meeting data if found
       if (meetingData) {
         try {
           const parsedData = JSON.parse(meetingData);
-          console.log('Found meeting data for appointment:', parsedData);
+          console.log('✅ DEBUG - Found meeting data for appointment:', parsedData);
           setMeetingDetails(parsedData);
         } catch (e) {
-          console.error('Error parsing meeting data:', e);
+          console.error('❌ DEBUG - Error parsing meeting data:', e);
         }
       } else {
-        console.log('No meeting data found for appointment ID:', appointment.id);
+        console.log('❌ DEBUG - No meeting data found for appointment ID:', appointment.id);
       }
     }
   }, [appointment]);

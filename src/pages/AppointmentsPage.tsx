@@ -173,6 +173,68 @@ const AppointmentsPage = () => {
   }, [fetchBookings]);
 
   const openAppointmentDetails = useCallback((booking: Booking) => {
+    // For video calls, try to attach meeting info from localStorage before opening modal
+    if (booking.consultation_type === 'video_call') {
+      // Enhanced meeting lookup strategy - try multiple formats
+      let meetingData: string | null = null;
+      let meetingKeyUsed = '';
+      
+      // 1. Try by ID first
+      const meetingKeyById = `meeting-${booking.id}`;
+      meetingData = localStorage.getItem(meetingKeyById);
+      if (meetingData) meetingKeyUsed = meetingKeyById;
+      
+      // 2. Try by date-time-vet combination
+      if (!meetingData) {
+        const dateTimeKey = `meeting-${booking.booking_date}-${booking.start_time.replace(':', '')}-${booking.vet_id}`;
+        meetingData = localStorage.getItem(dateTimeKey);
+        if (meetingData) meetingKeyUsed = dateTimeKey;
+      }
+      
+      // 3. Try searching all meeting keys for any matches
+      if (!meetingData) {
+        // Look for any keys that might be relevant to this booking
+        Object.keys(localStorage).forEach(key => {
+          if (key.startsWith('meeting-') && !meetingData) {
+            try {
+              const data = JSON.parse(localStorage.getItem(key) || '{}');
+              // Check if the data matches our booking (by date and time)
+              if (data.bookingDate === booking.booking_date && 
+                  data.startTime === booking.start_time) {
+                console.log('Found meeting by date and time match:', key);
+                meetingData = localStorage.getItem(key);
+                if (meetingData) meetingKeyUsed = key;
+              }
+            } catch (e) {
+              // Ignore parsing errors
+            }
+          }
+        });
+      }
+      
+      console.log('Looking for meeting data for booking:', {
+        id: booking.id,
+        key: meetingKeyUsed,
+        found: !!meetingData
+      });
+      
+      if (meetingData) {
+        try {
+          const parsedData = JSON.parse(meetingData);
+          // Attach meeting info directly to the booking object
+          booking.meeting_url = parsedData.roomUrl;
+          booking.host_meeting_url = parsedData.hostRoomUrl;
+          booking.meeting_id = parsedData.meetingId;
+          console.log('Attached meeting data to booking:', {
+            meetingUrl: booking.meeting_url,
+            hostUrl: booking.host_meeting_url
+          });
+        } catch (e) {
+          console.error('Error parsing meeting data:', e);
+        }
+      }
+    }
+    
     setSelectedAppointment(booking);
     setIsDetailsModalOpen(true);
   }, []);
