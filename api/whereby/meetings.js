@@ -1,7 +1,25 @@
 // Vercel API endpoint for Whereby meetings
-import fetch from 'node-fetch';
+const fetch = require('node-fetch');
 
-export default async function handler(req, res) {
+/**
+ * @param {import('next').NextApiRequest} req
+ * @param {import('next').NextApiResponse} res
+ */
+module.exports = async (req, res) => {
+  // Set CORS headers to allow cross-origin requests
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  // Handle OPTIONS request for CORS preflight
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end();
+  }
+  
   // Only allow POST requests
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed, use POST' });
@@ -19,7 +37,6 @@ export default async function handler(req, res) {
     }
 
     console.log('Creating meeting with body:', JSON.stringify(body, null, 2));
-    console.log('Using API key:', WHEREBY_API_KEY.substring(0, 5) + '...');
 
     const response = await fetch(`${WHEREBY_API_URL}/meetings`, {
       method: 'POST',
@@ -53,7 +70,7 @@ export default async function handler(req, res) {
     }
 
     console.log('Meeting created successfully:', JSON.stringify(data, null, 2));
-    return res.json(data);
+    return res.status(200).json(data);
   } catch (error) {
     console.error('Error in create meeting API:', error);
     return res.status(500).json({ error: 'Internal server error: ' + (error.message || 'Unknown error') });
