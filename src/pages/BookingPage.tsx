@@ -310,24 +310,35 @@ const BookingPage = () => {
       throw new Error('Vet information is not available');
     }
 
+    // Create a start date 15 minutes before the appointment time
+    // This allows users to join the meeting 15 minutes early
+    const startDate = new Date(appointmentDate);
+    startDate.setMinutes(startDate.getMinutes() - 15);
+    
+    // Set the end date based on appointment duration
     const endDate = new Date(appointmentDate);
     endDate.setMinutes(endDate.getMinutes() + duration);
 
     try {
       // Use a shorter room prefix - take just the first 8 characters of the vet ID
       // to avoid the 'roomNamePrefix is too long' error from Whereby API
-      const shortVetId = vet.id.split('-')[0] || vet.id.substring(0, 8);
+      const shortVetId = vet.id.substring(0, 8);
+      const roomPrefix = `vet-${shortVetId}`;
+      
+      // Log the times for debugging
+      console.log('Creating meeting with times:', {
+        startDate: startDate.toISOString(),
+        appointmentTime: appointmentDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+      
       const meeting = await createMeeting({
-        roomNamePrefix: `vet-${shortVetId}`,
-        roomMode: 'group',
-        startDate: appointmentDate.toISOString(),
-        endDate: endDate.toISOString(),
+        roomNamePrefix: roomPrefix,
+        startDate, // Pass the start date set to 15 minutes before appointment time
+        endDate,
         fields: ['hostRoomUrl'],
+        roomMode: 'group',
         roomModeProps: {
-          isWaitingRoomEnabled: true,
-          isLocked: true,
-          isRecordingEnabled: false,
-          isAudioEnabled: true,
           isVideoEnabled: true,
           isChatEnabled: true,
           isScreenSharingEnabled: true,
