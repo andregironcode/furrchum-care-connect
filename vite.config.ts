@@ -1,54 +1,29 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react-swc';
+import dotenv from 'dotenv';
 import path from 'path';
-import { componentTagger } from 'lovable-tagger';
 
-// https://vitejs.dev/config/
-export default defineConfig(({ mode }) => ({
+// Load environment variables from .env file
+dotenv.config({ path: path.resolve(__dirname, '.env') });
+
+export default defineConfig({
   server: {
-    host: "::",
+    host: "0.0.0.0",
     port: 8080,
     proxy: {
-      // Proxy API requests to Whereby API
-      '/api/whereby': {
-        target: 'https://api.whereby.dev',
+      // Proxy API requests to our Next.js API route
+      '/api': {
+        target: 'http://localhost:3000',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api\/whereby/, '/v1'),
-        headers: {
-          'Authorization': `Bearer ${process.env.VITE_WHEREBY_API_KEY || ''}`,
-          'Content-Type': 'application/json',
-        },
-        configure: (proxy) => {
-          // Log proxy errors
-          proxy.on('error', (err) => {
-            console.error('Proxy error:', err);
-          });
-          
-          // Log outgoing requests
-          proxy.on('proxyReq', (proxyReq) => {
-            console.log('Sending request to Whereby:', {
-              method: proxyReq.method,
-              path: proxyReq.path,
-              headers: proxyReq.getHeaders()
-            });
-          });
-          
-          // Log response status
-          proxy.on('proxyRes', (proxyRes) => {
-            console.log(`Received ${proxyRes.statusCode} from Whereby`);
-          });
-        }
-      }
+        rewrite: (path) => path,
+      },
     },
   },
-  plugins: [
-    react(),
-    ...(mode === 'development' ? [componentTagger()] : []),
-  ].filter(Boolean),
+  plugins: [react()],
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src"),
+      '@': path.resolve(__dirname, './src'),
     },
   },
-}));
+});

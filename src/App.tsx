@@ -26,6 +26,7 @@ import ProfilePage from "./pages/ProfilePage";
 import BookingPage from "./pages/BookingPage";
 import PaymentPage from "./pages/PaymentPage";
 import VetDetailsPage from "./pages/VetDetailsPage";
+import WherebyTest from "./components/WherebyTest";
 
 const App = () => {
   // Move queryClient inside the component
@@ -44,6 +45,7 @@ const App = () => {
               <Route path="/vets" element={<VetDirectory />} />
               <Route path="/records" element={<HealthRecords />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/test-whereby" element={<WherebyTest />} />
               <Route path="/vet-details/:vetId" element={<VetDetailsPage />} />
               
               {/* Pet Owner Routes */}

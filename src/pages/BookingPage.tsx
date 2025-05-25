@@ -11,28 +11,31 @@ import { toast } from 'sonner';
 import { Clock, CalendarIcon, MapPin, Phone, Star, CheckCircle, Badge as BadgeIcon, Loader2, Video as VideoIcon, Users as UsersIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
+import { createClient } from '@supabase/supabase-js';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { createMeeting } from '@/lib/whereby';
 
+type CreateMeetingResponse = Awaited<ReturnType<typeof createMeeting>>;
+
 interface VetDetails {
   id: string;
   first_name: string;
   last_name: string;
-  specialization: string;
-  consultation_fee: number;
-  image_url: string;
-  availability: string;
-  about: string;
-  years_experience: number;
-  languages: string[];
-  rating: number;
-  zip_code: string;
-  phone: string;
-  clinic_location: string;
-  offers_video_calls: boolean;
-  offers_in_person: boolean;
+  specialization: string | null;
+  consultation_fee: number | null;
+  image_url: string | null;
+  availability: string | null;
+  about: string | null;
+  years_experience: number | null;
+  languages: string[] | null;
+  rating: number | null;
+  zip_code: string | null;
+  phone: string | null;
+  clinic_location: string | null;
+  offers_video_calls: boolean | null;
+  offers_in_person: boolean | null;
 }
 
 interface Pet {
@@ -61,6 +64,7 @@ interface BookingData {
   meeting_id: string | null;
   meeting_url: string | null;
   host_meeting_url: string | null;
+  status: 'confirmed';
 }
 
 const BookingPage = () => {
@@ -70,17 +74,17 @@ const BookingPage = () => {
   
   const [vet, setVet] = useState<VetDetails | null>(null);
   const [pets, setPets] = useState<Pet[]>([]);
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [selectedPetId, setSelectedPetId] = useState<string>('');
+  const [isLoadingPets, setIsLoadingPets] = useState(true);
+  const [date, setDate] = useState<Date | null>(null);
   const [timeSlot, setTimeSlot] = useState<string>('');
-  const [pet, setPet] = useState<string>('');
-  const [notes, setNotes] = useState<string>('');
+  const [notes, setNotes] = useState('');
   const [consultationType, setConsultationType] = useState<'in_person' | 'video_call'>('in_person');
-  const [duration, setDuration] = useState<number>(30); // Default to 30 minutes
+  const [duration, setDuration] = useState(30); // Default 30 minutes
   const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingPets, setIsLoadingPets] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [availabilityByDay, setAvailabilityByDay] = useState<Record<number, VetAvailability>>({});
+  const [error, setError] = useState<string | null>(null);
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
 
   const fetchVetDetails = useCallback(async () => {
     if (!vetId) return;
@@ -144,7 +148,7 @@ const BookingPage = () => {
       
       // Auto-select the first pet if available
       if (formattedPets.length > 0) {
-        setPet(formattedPets[0].id);
+        setSelectedPetId(formattedPets[0].id);
       }
     } catch (error) {
       console.error('Error fetching pets:', error);
@@ -155,188 +159,33 @@ const BookingPage = () => {
     }
   }, [user]);
 
-  const fetchVetAvailability = useCallback(async () => {
-    if (!vetId) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('vet_availability')
-        .select('*')
-        .eq('vet_id', vetId);
-      
-      if (error) throw error;
-      
-      // Convert array to object with day_of_week as key
-      const availabilityMap: Record<number, VetAvailability> = {};
-      data?.forEach(avail => {
-        availabilityMap[avail.day_of_week] = avail;
-      });
-      
-      setAvailabilityByDay(availabilityMap);
-    } catch (error) {
-      console.error('Error fetching vet availability:', error);
-      toast.error('Failed to load availability');
-    }
-  }, [vetId]);
-
-  // Calculate available time slots based on vet's availability
-  useEffect(() => {
-    if (!date || !availabilityByDay) return;
-    
-    const dayOfWeek = date.getDay(); // 0 = Sunday, 1 = Monday, etc.
-    const availability = availabilityByDay[dayOfWeek];
-    const now = new Date();
-    const isToday = date.toDateString() === now.toDateString();
-    
-    if (!availability) {
-      setTimeSlots([]);
-      return;
-    }
-    
-    // Don't show past time slots for today
-    const currentHour = now.getHours();
-    const currentMinute = now.getMinutes();
-    
-    const startTime = availability.start_time;
-    const endTime = availability.end_time;
-    
-    if (!startTime || !endTime) {
-      setTimeSlots([]);
-      return;
-    }
-    
-    const startTimeParts = startTime.split(':');
-    const endTimeParts = endTime.split(':');
-    
-    const startHour = parseInt(startTimeParts[0], 10);
-    const startMinute = parseInt(startTimeParts[1], 10);
-    const endHour = parseInt(endTimeParts[0], 10);
-    const endMinute = parseInt(endTimeParts[1], 10);
-    
-    // Generate time slots based on selected duration
-    const slots: string[] = [];
-    let currentHourSlot = startHour;
-    let currentMinuteSlot = startMinute;
-    
-    while (currentHourSlot < endHour || (currentHourSlot === endHour && currentMinuteSlot < endMinute)) {
-      // Calculate slot end time
-      const slotEndHour = currentMinuteSlot + duration > 59 ? currentHourSlot + 1 : currentHourSlot;
-      const slotEndMinute = (currentMinuteSlot + duration) % 60;
-      
-      // Check if the slot fits before the end of the vet's availability
-      if (slotEndHour > endHour || (slotEndHour === endHour && slotEndMinute > endMinute)) {
-        break;
-      }
-      
-      const formattedHour = currentHourSlot.toString().padStart(2, '0');
-      const formattedMinute = currentMinuteSlot.toString().padStart(2, '0');
-      
-      // Skip past time slots for today
-      if (isToday) {
-        const slotTime = new Date();
-        slotTime.setHours(currentHourSlot, currentMinuteSlot, 0, 0);
-        if (slotTime >= now) {
-          slots.push(`${formattedHour}:${formattedMinute}`);
-        }
-      } else {
-        slots.push(`${formattedHour}:${formattedMinute}`);
-      }
-      
-      // Move to next slot (30-minute intervals for better UX)
-      if (currentMinuteSlot + 30 > 59) {
-        currentHourSlot += 1;
-        currentMinuteSlot = 0;
-      } else {
-        currentMinuteSlot += 30;
-      }
-    }
-    
-    setTimeSlots(slots);
-    
-    // Reset selected time slot if the current one is not available in the new day
-    if (timeSlot && !slots.includes(timeSlot)) {
-      setTimeSlot('');
-    }
-  }, [date, availabilityByDay, timeSlot, duration]);
-
-  useEffect(() => {
-    if (!user) {
-      toast.error("Please login to book a consultation");
-      navigate("/auth");
-      return;
-    }
-    
-    if (vetId) {
-      fetchVetDetails();
-      fetchUserPets();
-      fetchVetAvailability();
-    }
-  }, [vetId, user, navigate, fetchVetDetails, fetchUserPets, fetchVetAvailability]);
-
-  const formatTime = (time: string) => {
-    const [hours, minutes] = time.split(':');
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const formattedHour = hour % 12 || 12;
-    return `${formattedHour}:${minutes} ${ampm}`;
-  };
-
   const validateBookingDetails = () => {
-    if (!date) throw new Error("Please select a date for your appointment");
-    if (!timeSlot) throw new Error("Please select a time slot");
-    if (!pet) throw new Error("Please select a pet for the consultation");
-    if (!user) throw new Error("You must be logged in to book an appointment");
-    if (!vet) throw new Error("Veterinarian information is missing");
-    
-    // Validate consultation type availability
-    if (consultationType === 'video_call' && !vet.offers_video_calls) {
-      throw new Error("This veterinarian does not offer video call consultations");
+    if (!selectedPetId) {
+      throw new Error('Please select a pet');
     }
-    
-    if (consultationType === 'in_person' && !vet.offers_in_person) {
-      throw new Error("This veterinarian does not offer in-person consultations");
+    if (!date) {
+      throw new Error('Please select a date');
+    }
+    if (!timeSlot) {
+      throw new Error('Please select a time slot');
     }
   };
 
-  const createVideoMeeting = async (appointmentDate: Date) => {
-    console.log('Starting video meeting creation process...');
-    
+  const createVideoMeeting = async (appointmentDate: Date): Promise<CreateMeetingResponse> => {
+    if (!vet) {
+      throw new Error('Vet information is not available');
+    }
+
+    const endDate = new Date(appointmentDate);
+    endDate.setMinutes(endDate.getMinutes() + duration);
+
     try {
-      // Create a new date object for the meeting end time based on selected duration
-      const endDate = new Date(appointmentDate);
-      endDate.setMinutes(endDate.getMinutes() + duration);
-      
-      // Log meeting details for debugging
-      const meetingDetails = {
-        start: appointmentDate.toISOString(),
-        end: endDate.toISOString(),
-        duration: `${duration} minutes`,
-        vetId,
-        consultationType
-      };
-      
-      console.log('Creating meeting with details:', meetingDetails);
-      
-      // Validate meeting time
-      const now = new Date();
-      const maxMeetingDate = new Date();
-      maxMeetingDate.setMonth(now.getMonth() + 1); // 1 month in the future max
-      
-      if (appointmentDate < now) {
-        throw new Error("Cannot create a meeting in the past");
-      }
-      
-      if (appointmentDate > maxMeetingDate) {
-        throw new Error("Cannot schedule meetings more than 1 month in advance");
-      }
-      
-      // Create the meeting with detailed options
-      const meetingOptions = {
+      const meeting = await createMeeting({
+        roomNamePrefix: `vet-${vet.id}-`,
         startDate: appointmentDate.toISOString(),
         endDate: endDate.toISOString(),
-        roomNamePrefix: `vet-${vetId}-`,
-        isLocked: true,
-        fields: ['hostRoomUrl', 'viewerRoomUrl'],
+        fields: ['hostRoomUrl'],
+        roomMode: 'group',
         roomModeProps: {
           isWaitingRoomEnabled: true,
           isLocked: true,
@@ -347,198 +196,115 @@ const BookingPage = () => {
           isScreenSharingEnabled: true,
           isHandRaiseEnabled: true
         }
-      };
-      
-      console.log('Calling createMeeting with options:', meetingOptions);
-      
-      // Create the meeting
-      const meeting = await createMeeting(meetingOptions);
-      
+      });
+
       if (!meeting || !meeting.roomUrl) {
         throw new Error('Failed to create meeting: Invalid response from server');
       }
-      
-      console.log('Successfully created meeting:', {
-        meetingId: meeting.meetingId,
-        roomUrl: meeting.roomUrl,
-        hostRoomUrl: 'hostRoomUrl' in meeting ? 'available' : 'not available',
-        viewerRoomUrl: 'viewerRoomUrl' in meeting ? 'available' : 'not available'
-      });
-      
+
       return meeting;
     } catch (error) {
-      // Log detailed error information
-      const errorInfo = {
-        name: error.name,
-        message: error.message,
-        stack: error.stack,
-        timestamp: new Date().toISOString(),
-        environment: import.meta.env.MODE,
-        vetId,
-        appointmentTime: appointmentDate?.toISOString(),
-        duration
-      };
-      
-      console.error('Error creating video meeting:', errorInfo);
-      
-      // Determine user-friendly error message
-      let userFriendlyMessage = 'Failed to create video meeting. ';
-      
-      if (error.message.includes('401')) {
-        userFriendlyMessage += 'Authentication failed. Please contact support.';
-      } else if (error.message.includes('network') || error.message.includes('NetworkError')) {
-        userFriendlyMessage += 'Network error. Please check your internet connection.';
-      } else if (error.message.includes('CORS')) {
-        userFriendlyMessage += 'Connection error. Please try again or contact support.';
-      } else if (error.message.includes('Failed to fetch')) {
-        userFriendlyMessage += 'Could not connect to the video service. Please try again.';
-      } else if (error.message.includes('timeout') || error.message.includes('timed out')) {
-        userFriendlyMessage += 'Request timed out. Please try again.';
-      } else {
-        userFriendlyMessage += 'An unexpected error occurred. Please try again or select in-person consultation.';
-      }
-      
-      // Log to error tracking service if available
-      if (typeof window !== 'undefined' && window.Sentry) {
-        window.Sentry.captureException(error, {
-          tags: { component: 'createVideoMeeting' },
-          extra: errorInfo
-        });
-      }
-      
-      throw new Error(userFriendlyMessage);
+      console.error('Error creating video meeting:', error);
+      throw new Error('Failed to create video meeting. Please try again or select in-person consultation.');
     }
   };
 
-  const saveBookingToDatabase = async (bookingData: Omit<BookingData, 'id'>) => {
-    const { data, error } = await supabase
-      .from('bookings')
-      .insert([bookingData])
-      .select();
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    if (error) throw error;
-    return data;
-  };
-
-  const handleProceedToConfirmation = async () => {
-    if (isSubmitting) return; // Prevent double submission
+    if (isSubmitting) return;
     
     try {
-      // Validate all required fields
+      setIsSubmitting(true);
+      setError(null);
       validateBookingDetails();
       
-      // Parse and validate the selected time
-      const [hours, minutes] = timeSlot.split(':').map(Number);
-      const appointmentDate = new Date(date!);
-      appointmentDate.setHours(hours, minutes, 0, 0);
-      
-      const now = new Date();
-      if (appointmentDate <= now) {
-        throw new Error("Please select a future time for your appointment");
+      if (!date || !timeSlot || !selectedPetId || !user || !vet) {
+        throw new Error('Missing required booking information');
       }
-
-      // Calculate end time based on duration
+      
+      // Create booking data object
+      const [hours, minutes] = timeSlot.split(':');
+      const appointmentDate = new Date(date);
+      appointmentDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
+      
       const endDate = new Date(appointmentDate);
       endDate.setMinutes(endDate.getMinutes() + duration);
 
       // Format times for database
       const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
       const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}:00`;
-      const formattedDate = format(date!, 'yyyy-MM-dd');
+      const formattedDate = format(date, 'yyyy-MM-dd');
 
-      setIsSubmitting(true);
-      
-      // Create video meeting if needed
-      let meetingData = null;
-      if (consultationType === 'video_call') {
-        try {
-          meetingData = await createVideoMeeting(appointmentDate);
-          if (!meetingData?.roomUrl) {
-            throw new Error('Failed to create video meeting: No room URL received');
-          }
-        } catch (error) {
-          console.error('Error in video meeting creation:', error);
-          // Clean up any partial meeting if needed
-          if (meetingData?.meetingId) {
-            // TODO: Implement meeting cleanup if supported by the API
-            console.warn('Partial meeting created, may need cleanup:', meetingData.meetingId);
-          }
-          // Re-throw with a user-friendly message
-          throw new Error(`Video meeting setup failed: ${error.message}`);
-        }
-      }
-      
-      // Prepare booking data
-      const bookingData = {
-        vet_id: vetId,
-        pet_owner_id: user!.id,
-        pet_id: pet,
+      const bookingData: BookingData = {
+        vet_id: vet.id,
+        pet_owner_id: user.id,
+        pet_id: selectedPetId,
         booking_date: formattedDate,
         start_time: startTime,
         end_time: endTime,
         consultation_type: consultationType,
         notes: notes,
-        meeting_id: meetingData?.roomUrl?.split('/').pop() || null,
-        meeting_url: meetingData?.viewerRoomUrl || null,
-        host_meeting_url: meetingData?.hostRoomUrl || null,
+        meeting_id: null,
+        meeting_url: null,
+        host_meeting_url: null,
+        status: 'confirmed' as const
       };
       
-      // Save booking to database
-      await saveBookingToDatabase(bookingData);
-      
-      // Show success message with appropriate details
-      const successMessage = consultationType === 'video_call' 
-        ? 'Appointment booked! A video meeting link has been created.'
-        : 'Appointment booked successfully!';
-      
-      toast.success(successMessage, {
-        duration: 5000,
-        position: 'top-center',
-      });
-      
-      // Navigate to appointments page after a short delay
-      setTimeout(() => {
-        navigate("/appointments");
-      }, 2000);
-    } catch (error) {
-      console.error("Error booking appointment:", error);
-      
-      // Handle different error types with appropriate user feedback
-      let errorMessage = 'An error occurred while processing your booking';
-      
-      if (error instanceof Error) {
-        // Handle specific error cases
-        if (error.message.includes('video meeting') || error.message.includes('meeting setup')) {
-          errorMessage = 'Failed to set up video meeting. ';
-          if (error.message.includes('401')) {
-            errorMessage += 'Authentication error. Please try again or contact support.';
-          } else if (error.message.includes('network') || error.message.includes('NetworkError')) {
-            errorMessage += 'Network error. Please check your internet connection and try again.';
-          } else if (error.message.includes('timeout') || error.message.includes('timed out')) {
-            errorMessage += 'The request timed out. Please try again.';
-          } else {
-            errorMessage += 'Please try again or select in-person consultation.';
-          }
-        } else {
-          errorMessage = error.message;
+      // If it's a video call, create a meeting first
+      if (consultationType === 'video_call') {
+        try {
+          const meeting = await createVideoMeeting(appointmentDate);
+          bookingData.meeting_id = meeting.meetingId;
+          bookingData.meeting_url = meeting.roomUrl;
+          bookingData.host_meeting_url = meeting.hostRoomUrl || null;
+        } catch (err) {
+          console.error('Error creating video meeting:', err);
+          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
+          setError(`Failed to create video meeting: ${errorMessage}`);
+          toast.error(`Failed to create video meeting: ${errorMessage}`);
+          return;
         }
       }
       
-      // Show error toast with the appropriate message
-      toast.error(errorMessage, {
-        duration: 5000,
-        position: 'top-center',
-      });
-      
-      // If we have a meeting ID but failed to save the booking, attempt to clean up
-      interface MeetingError extends Error {
-        meetingId?: string;
+      // Save booking to database
+      const { data, error: dbError } = await supabase
+        .from('bookings')
+        .insert([bookingData])
+        .select();
+        
+      if (dbError) {
+        console.error('Database error:', dbError);
+        throw new Error(`Failed to save booking: ${dbError.message}`);
       }
       
-      const meetingError = error as MeetingError;
-      if (meetingError?.meetingId) {
-        console.warn('Attempting to clean up orphaned meeting:', meetingError.meetingId);
+      // Show success message
+      const successMessage = consultationType === 'video_call'
+        ? 'Appointment booked! Video meeting link has been created.'
+        : 'Appointment booked successfully!';
+      
+      toast.success(successMessage);
+      
+      // Redirect to appointments page after a short delay
+      setTimeout(() => {
+        navigate('/appointments');
+      }, 1500);
+      
+    } catch (err) {
+      console.error('Error booking appointment:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to book appointment. Please try again.';
+      setError(errorMessage);
+      toast.error(errorMessage, {
+        duration: 5000,
+        position: 'top-center' as const
+      });
+      
+      // Handle any meeting cleanup if needed
+      if (err && typeof err === 'object' && 'meetingId' in err) {
+        const meetingId = (err as { meetingId: string }).meetingId;
+        console.warn('Attempting to clean up orphaned meeting:', meetingId);
         // TODO: Implement meeting cleanup if supported by the API
+        // await deleteMeeting(meetingId);
       }
     } finally {
       setIsSubmitting(false);
@@ -548,18 +314,26 @@ const BookingPage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <Loader2 className="w-8 h-8 animate-spin" />
       </div>
     );
   }
 
   if (!vet) {
     return (
-      <div className="container mx-auto p-4">
-        <p className="text-center text-red-500">Veterinarian not found.</p>
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Veterinarian not found</p>
       </div>
     );
   }
+
+  const formatTime = (timeString: string) => {
+    const [hours, minutes] = timeString.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const displayHour = hour % 12 || 12;
+    return `${displayHour}:${minutes} ${ampm}`;
+  };
 
   return (
     <div className="container mx-auto p-4 max-w-6xl">
@@ -773,14 +547,18 @@ const BookingPage = () => {
                       <Loader2 className="h-6 w-6 animate-spin" />
                     </div>
                   ) : pets.length > 0 ? (
-                    <Select value={pet} onValueChange={setPet}>
+                    <Select 
+                      value={selectedPetId} 
+                      onValueChange={setSelectedPetId}
+                      disabled={isLoadingPets || pets.length === 0}
+                    >
                       <SelectTrigger>
                         <SelectValue placeholder="Select a pet" />
                       </SelectTrigger>
                       <SelectContent>
-                        {pets.map((pet) => (
-                          <SelectItem key={pet.id} value={pet.id}>
-                            {pet.name} ({pet.type})
+                        {pets.map((petItem) => (
+                          <SelectItem key={petItem.id} value={petItem.id}>
+                            {petItem.name} ({petItem.type})
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -830,7 +608,7 @@ const BookingPage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Pet:</span>
-                      <span>{pets.find(p => p.id === pet)?.name || 'Not selected'}</span>
+                      <span>{pets.find(p => p.id === selectedPetId)?.name || 'Not selected'}</span>
                     </div>
                     <Separator className="my-2" />
                     <div className="flex justify-between font-medium">
@@ -847,7 +625,7 @@ const BookingPage = () => {
                     isSubmitting || 
                     !date || 
                     !timeSlot || 
-                    !pet || 
+                    !selectedPet || 
                     (consultationType === 'in_person' && !vet.offers_in_person) ||
                     (consultationType === 'video_call' && !vet.offers_video_calls)
                   }
