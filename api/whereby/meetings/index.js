@@ -1,7 +1,7 @@
 // Vercel serverless function for Whereby API
 
-// This format is required for Vercel serverless functions
-module.exports = async (req, res) => {
+// Using ES module syntax as required by Vercel configuration
+export default async (req, res) => {
   try {
     // Import fetch dynamically to avoid issues with older Node.js versions in Vercel
     const fetch = await import('node-fetch').then(mod => mod.default);
