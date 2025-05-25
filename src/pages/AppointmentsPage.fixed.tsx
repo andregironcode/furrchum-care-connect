@@ -14,8 +14,7 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from 'sonner';
 import AppointmentDetailsModal from '@/components/AppointmentDetailsModal';
-
-import { Booking, Pet, VetProfile } from '@/types/supabase';
+import { Booking, Pet } from '@/types/supabase';
 
 // Local interface for Vet data with simplified structure
 interface Vet {
@@ -38,6 +37,7 @@ const AppointmentsPage = () => {
   const [selectedAppointment, setSelectedAppointment] = useState<Booking | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
+  // Define fetchPetsAndVets with useCallback first
   const fetchPetsAndVets = useCallback(async (bookings: Booking[]) => {
     // Get unique pet IDs and vet IDs
     const petIds = [...new Set(bookings.map(booking => booking.pet_id))];
@@ -98,6 +98,7 @@ const AppointmentsPage = () => {
     }
   }, []);
 
+  // Define fetchBookings with useCallback
   const fetchBookings = useCallback(async () => {
     try {
       setLoadingBookings(true);
@@ -106,7 +107,7 @@ const AppointmentsPage = () => {
       let query = supabase
         .from('bookings')
         .select('*')
-        .eq('pet_owner_id', user?.id);
+        .eq('pet_owner_id', user?.id || '');
 
       // Only filter by date if a date is selected
       if (formattedDate) {
@@ -134,65 +135,14 @@ const AppointmentsPage = () => {
     } finally {
       setLoadingBookings(false);
     }
-  };
+  }, [user, date, fetchPetsAndVets]);
 
-  const fetchPetsAndVets = async (bookings: Booking[]) => {
-    // Get unique pet IDs and vet IDs
-    const petIds = [...new Set(bookings.map(booking => booking.pet_id))];
-    const vetIds = [...new Set(bookings.map(booking => booking.vet_id))];
-    
-    // Fetch pets
-    if (petIds.length > 0) {
-      try {
-        const { data: petsData, error } = await supabase
-          .from('pets')
-          .select('id, name, type')
-          .in('id', petIds);
-          
-        if (error) {
-          console.error('Error fetching pets:', error);
-          throw error;
-        }
-          
-        if (petsData) {
-          const petsRecord: Record<string, Pet> = {};
-          petsData.forEach(pet => {
-            petsRecord[pet.id] = pet;
-          });
-          console.log('Fetched pets:', petsRecord);
-          setPets(petsRecord);
-        }
-      } catch (error) {
-        console.error('Error processing pets data:', error);
-      }
+  // Use useEffect with the proper dependencies
+  useEffect(() => {
+    if (user) {
+      fetchBookings();
     }
-    
-    // Fetch vets
-    if (vetIds.length > 0) {
-      try {
-        const { data: vetsData, error } = await supabase
-          .from('vet_profiles')
-          .select('id, first_name, last_name, specialization, phone, zip_code, about')
-          .in('id', vetIds);
-          
-        if (error) {
-          console.error('Error fetching vets:', error);
-          throw error;
-        }
-          
-        if (vetsData) {
-          const vetsRecord: Record<string, Vet> = {};
-          vetsData.forEach(vet => {
-            vetsRecord[vet.id] = vet;
-          });
-          console.log('Fetched vets:', vetsRecord);
-          setVets(vetsRecord);
-        }
-      } catch (error) {
-        console.error('Error processing vet data:', error);
-      }
-    }
-  };
+  }, [user, fetchBookings]);
 
   const handleCancelAppointment = useCallback(async (bookingId: string) => {
     try {
@@ -203,46 +153,49 @@ const AppointmentsPage = () => {
         .eq('id', bookingId);
 
       if (error) {
-        console.error('Error cancelling booking:', error);
+        console.error('Error cancelling appointment:', error);
+        toast.error('Failed to cancel appointment');
         throw error;
       }
-      
+
       toast.success('Appointment cancelled successfully');
-      fetchBookings(); // Refresh bookings after cancellation
+      
+      // Refresh bookings
+      fetchBookings();
     } catch (error) {
-      console.error('Error cancelling booking:', error);
+      console.error('Error cancelling appointment:', error);
       toast.error('Failed to cancel appointment');
     } finally {
       setLoadingBookings(false);
+      // Close modal if open
+      setIsDetailsModalOpen(false);
     }
-  };
+  }, [fetchBookings]);
 
-  const openAppointmentDetails = (booking: Booking) => {
+  const openAppointmentDetails = useCallback((booking: Booking) => {
     setSelectedAppointment(booking);
     setIsDetailsModalOpen(true);
-  };
+  }, []);
 
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusBadgeVariant = useCallback((status: string) => {
     switch (status) {
-      case 'confirmed': return "secondary";
-      case 'pending': return "default";
-      case 'completed': return "outline";
-      case 'cancelled': return "destructive";
-      default: return "default";
+      case 'confirmed': return 'success';
+      case 'pending': return 'warning';
+      case 'cancelled': return 'destructive';
+      case 'completed': return 'secondary';
+      default: return 'default';
     }
-  };
+  }, []);
 
-  const clearDateFilter = () => {
+  const clearDateFilter = useCallback(() => {
     setDate(undefined);
-  };
+  }, []);
 
-  if (isLoading || loadingBookings) {
+  if (isLoading) {
     return (
-      <SidebarProvider>
-        <div className="min-h-screen flex items-center justify-center bg-background w-full">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      </SidebarProvider>
+      <div className="flex items-center justify-center h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
     );
   }
 
@@ -252,47 +205,40 @@ const AppointmentsPage = () => {
 
   return (
     <SidebarProvider>
-      <div className="min-h-screen bg-background w-full">
-        <div className="flex h-full">
-          <PetOwnerSidebar />
-          <SidebarInset className="lg:pl-0">
-            <header className="sticky top-0 z-10 bg-background border-b">
-              <div className="container flex h-16 items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <SidebarTrigger />
-                  <h1 className="text-2xl font-bold">My Appointments</h1>
-                </div>
+      <div className="grid lg:grid-cols-[240px_1fr] h-screen">
+        <SidebarTrigger className="absolute left-4 top-4 z-40 lg:hidden">
+          <Button variant="outline" size="icon" className="rounded-full">
+            <span className="sr-only">Toggle Sidebar</span>
+          </Button>
+        </SidebarTrigger>
+
+        <PetOwnerSidebar />
+
+        <div className="flex-1 flex flex-col">
+          <SidebarInset className="p-4 md:p-6">
+            <header className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight">My Appointments</h1>
+                <p className="text-muted-foreground">
+                  View and manage your veterinary appointments
+                </p>
               </div>
-            </header>
-            
-            <main className="container mx-auto px-4 py-8">
-              <div className="flex justify-between mb-4 items-center">
-                <div className="flex items-center space-x-4">
-                  {date && (
-                    <Button 
-                      variant="outline" 
-                      onClick={clearDateFilter}
-                      className="text-sm"
-                    >
-                      Show all appointments
-                    </Button>
-                  )}
-                </div>
-                
+
+              <div className="flex items-center gap-2">
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
-                      variant={"outline"}
+                      variant="outline"
                       className={cn(
-                        "w-[250px] justify-start text-left font-normal",
+                        "justify-start text-left font-normal",
                         !date && "text-muted-foreground"
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : <span>Filter by date (optional)</span>}
+                      {date ? format(date, "PPP") : "Filter by date"}
                     </Button>
                   </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="end">
+                  <PopoverContent className="w-auto p-0">
                     <Calendar
                       mode="single"
                       selected={date}
@@ -301,20 +247,31 @@ const AppointmentsPage = () => {
                     />
                   </PopoverContent>
                 </Popover>
+                {date && (
+                  <Button variant="ghost" onClick={clearDateFilter} size="sm">
+                    Clear filter
+                  </Button>
+                )}
               </div>
+            </header>
 
-              {bookings.length === 0 ? (
+            <main>
+              {loadingBookings ? (
+                <div className="flex items-center justify-center h-64">
+                  <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                </div>
+              ) : bookings.length === 0 ? (
                 <Card>
                   <CardHeader>
-                    <CardTitle>No Appointments</CardTitle>
+                    <CardTitle>No appointments found</CardTitle>
                     <CardDescription>
                       {date 
-                        ? "You have no appointments scheduled for this date." 
-                        : "You have no appointments scheduled."}
+                        ? "You don't have any appointments on this date." 
+                        : "You don't have any upcoming appointments."}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
-                    <p>
+                    <p className="text-muted-foreground">
                       {date 
                         ? "Check back later or select a different date." 
                         : "Book an appointment with one of our veterinarians."}
