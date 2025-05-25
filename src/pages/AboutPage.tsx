@@ -2,39 +2,41 @@
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Card, CardContent } from '@/components/ui/card';
-import { Heart, Shield, Clock, Users, Award, CheckCircle } from 'lucide-react';
+import { Heart, Shield, Clock, Users, Award, CheckCircle, Eye, Target } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 const AboutPage = () => {
   const values = [
     {
       icon: Heart,
-      title: "Compassionate Care",
-      description: "We believe every pet deserves loving, professional veterinary care that puts their wellbeing first."
+      title: "Compassion",
+      description: "Pets are family. We build with heart, for every heartbeat."
     },
     {
       icon: Shield,
-      title: "Trust & Safety",
-      description: "Your pet's safety is our priority. All our veterinarians are licensed professionals with verified credentials."
+      title: "Trust",
+      description: "Only certified, vetted professionals. Zero compromise."
     },
     {
       icon: Clock,
-      title: "Convenient Access",
-      description: "Get quality veterinary care anytime, anywhere through our innovative telemedicine platform."
+      title: "Convenience",
+      description: "From bookings to health records, everything in one intuitive flow."
     },
     {
       icon: Users,
-      title: "Community Focused",
-      description: "We're building a community where pet owners and veterinarians connect to ensure the best care for every furry friend."
+      title: "Innovation",
+      description: "Technology that solves real-world problems, not just adds features."
+    },
+    {
+      icon: Users,
+      title: "Community",
+      description: "A growing network of pet lovers, professionals, and changemakers."
+    },
+    {
+      icon: Award,
+      title: "Ownership",
+      description: "Every pet. Every consult. Every life touched — we take it personally."
     }
-  ];
-
-  const achievements = [
-    "10,000+ Happy Pet Parents",
-    "500+ Licensed Veterinarians",
-    "24/7 Emergency Support",
-    "99.9% Platform Uptime",
-    "Average 5-minute Response Time",
-    "Serving 50+ States"
   ];
 
   return (
@@ -46,26 +48,36 @@ const AboutPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-5xl font-bold text-accent-600 mb-6">
-              About Furrchum
+              Furrchum is your pet's digital best friend.
             </h1>
-            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto leading-relaxed">
-              We're revolutionizing veterinary care by making it more accessible, convenient, and affordable for pet owners everywhere. Our mission is to ensure every pet receives the quality care they deserve.
+            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto leading-relaxed mb-8">
+              And your family's new peace of mind. Join the movement. Care better. Live happier.
             </p>
+            <Button className="bg-primary hover:bg-primary/90 text-white font-medium px-8 py-3 text-lg">
+              Book Now
+            </Button>
           </div>
         </div>
       </section>
 
-      {/* Mission Section */}
+      {/* Story Section */}
       <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Mission</h2>
+              <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Story</h2>
+              <h3 className="text-2xl font-semibold text-accent-600 mb-6">That moment sparked a mission</h3>
               <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                At Furrchum, we believe that distance shouldn't be a barrier to quality veterinary care. Our platform connects pet owners with licensed veterinarians through innovative telemedicine technology, making professional pet healthcare accessible 24/7.
+                Furrchum was born to bridge the gap between pet parents and professional care — instantly, intelligently, and with love.
+              </p>
+              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
+                In today's fast-paced world, appointments get delayed, clinics stay out of reach, and the people who spend the most time with pets — parents, homemakers, caregivers — often feel powerless in emergencies.
+              </p>
+              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
+                We're fixing that.
               </p>
               <p className="text-lg text-accent-600/80 leading-relaxed">
-                Whether it's a routine check-up, emergency consultation, or ongoing treatment management, we're here to support you and your furry family members every step of the way.
+                Furrchum puts licensed, nearby vets in your pocket — through seamless video consultations, smart scheduling, and digital records — so care never has to wait.
               </p>
             </div>
             <div className="relative">
@@ -79,17 +91,30 @@ const AboutPage = () => {
         </div>
       </section>
 
-      {/* Values Section */}
+      {/* Mission Section */}
       <section className="py-20 bg-gradient-to-br from-cream-50 to-tan-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Mission</h2>
+            <h3 className="text-2xl font-semibold text-accent-600 mb-6">World-Class Preventive, Prescriptive & Curative Medical Practices</h3>
+            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto">
+              At FurrChum, we believe every pet deserves compassionate care and every pet parent deserves peace of mind. Our mission is to make veterinary care more accessible, convenient, and stress-free—one appointment at a time.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Values Section */}
+      <section className="py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Values</h2>
             <p className="text-xl text-accent-600/80 max-w-3xl mx-auto">
-              Everything we do is guided by our core values that put pets and their families first.
+              We provide the world class services with the best Veterinary team!
             </p>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {values.map((value, index) => (
               <Card key={index} className="text-center p-6 hover:shadow-lg transition-shadow">
                 <CardContent className="pt-6">
@@ -103,8 +128,8 @@ const AboutPage = () => {
         </div>
       </section>
 
-      {/* Story Section */}
-      <section className="py-20">
+      {/* Vision Section */}
+      <section className="py-20 bg-gradient-to-br from-primary-50 to-accent-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative order-2 lg:order-1">
@@ -115,82 +140,25 @@ const AboutPage = () => {
               />
             </div>
             <div className="order-1 lg:order-2">
-              <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Story</h2>
+              <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Vision</h2>
               <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                Founded by a team of veterinarians and tech innovators who experienced firsthand the challenges of accessing quality pet care, Furrchum was born from a simple idea: every pet deserves excellent healthcare, regardless of location or time constraints.
+                To build India's most trusted digital pet care ecosystem — At FurrChum, we believe every pet deserves compassionate care and every pet parent deserves peace of mind. Our mission is to make veterinary care more accessible, convenient, and stress-free—one appointment at a time.
               </p>
               <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                After witnessing too many pets suffer from delayed care due to geographical barriers or busy schedules, our founders combined their expertise in veterinary medicine and technology to create a platform that brings professional pet healthcare directly to your home.
+                From cities to small towns, from first-time pet parents to multi-clinic vets. No pet suffers because help was too far or too late.
               </p>
-              <p className="text-lg text-accent-600/80 leading-relaxed">
-                Today, we're proud to serve thousands of pet families across the country, providing peace of mind and exceptional care when it matters most.
+              <ul className="text-lg text-accent-600/80 mb-6 leading-relaxed space-y-2">
+                <li>• A family in Lucknow can consult a vet in Delhi with a tap</li>
+                <li>• A vet in a Tier 2 town earns 10x visibility and income through us</li>
+                <li>• Every pet lives a longer, healthier, happier life — no matter where they live</li>
+              </ul>
+              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
+                Furrchum is not just a platform. It's a shift.
               </p>
+              <blockquote className="text-lg text-accent-600/80 italic border-l-4 border-primary pl-4">
+                "We are transforming a fragmented, outdated vet care system into a single, accessible, intelligent network — where every paw, every meow, and every wag matters."
+              </blockquote>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Achievements Section */}
-      <section className="py-20 bg-gradient-to-br from-primary-50 to-accent-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Impact</h2>
-            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto">
-              We're proud of the difference we've made in the lives of pets and their families.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {achievements.map((achievement, index) => (
-              <div key={index} className="flex items-center space-x-3 bg-white p-4 rounded-lg shadow-sm">
-                <CheckCircle className="w-6 h-6 text-primary flex-shrink-0" />
-                <span className="text-accent-600 font-medium">{achievement}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Team Section */}
-      <section className="py-20">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-accent-600 mb-6">Why Choose Furrchum?</h2>
-            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto">
-              We're not just another telemedicine platform. We're pet lovers, just like you.
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            <Card className="text-center p-8">
-              <CardContent className="pt-6">
-                <Award className="w-16 h-16 text-primary mx-auto mb-6" />
-                <h3 className="text-2xl font-semibold text-accent-600 mb-4">Expert Veterinarians</h3>
-                <p className="text-accent-600/70">
-                  All our veterinarians are licensed, experienced professionals who are passionate about animal care and committed to providing the best treatment for your pets.
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card className="text-center p-8">
-              <CardContent className="pt-6">
-                <Clock className="w-16 h-16 text-primary mx-auto mb-6" />
-                <h3 className="text-2xl font-semibold text-accent-600 mb-4">24/7 Availability</h3>
-                <p className="text-accent-600/70">
-                  Pet emergencies don't wait for business hours. Our platform provides round-the-clock access to veterinary care when your furry friend needs it most.
-                </p>
-              </CardContent>
-            </Card>
-            
-            <Card className="text-center p-8">
-              <CardContent className="pt-6">
-                <Heart className="w-16 h-16 text-primary mx-auto mb-6" />
-                <h3 className="text-2xl font-semibold text-accent-600 mb-4">Personalized Care</h3>
-                <p className="text-accent-600/70">
-                  Every pet is unique, and so is our approach to their care. We provide personalized treatment plans tailored to your pet's specific needs and health history.
-                </p>
-              </CardContent>
-            </Card>
           </div>
         </div>
       </section>
