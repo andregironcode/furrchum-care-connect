@@ -11,9 +11,31 @@ import { useNavigate } from 'react-router-dom';
 import { LogOut, Users, Calendar, CreditCard, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
+interface AppointmentWithDetails {
+  id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  consultation_type: string;
+  status: string;
+  notes?: string;
+  created_at: string;
+  vet_profiles?: {
+    first_name: string;
+    last_name: string;
+  };
+  pets?: {
+    name: string;
+    owner_id: string;
+  };
+  pet_owner?: {
+    full_name: string;
+  };
+}
+
 const SuperAdminDashboard = () => {
   const [vets, setVets] = useState<any[]>([]);
-  const [appointments, setAppointments] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,17 +58,53 @@ const SuperAdminDashboard = () => {
 
       if (vetsError) throw vetsError;
 
-      // Fetch all appointments with vet and pet owner details
+      // Fetch all appointments with detailed information
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('bookings')
         .select(`
-          *,
-          vet_profiles(first_name, last_name),
-          pets(name, owner_id)
+          id,
+          booking_date,
+          start_time,
+          end_time,
+          consultation_type,
+          status,
+          notes,
+          created_at,
+          vet_id,
+          pet_id,
+          pet_owner_id,
+          vet_profiles!inner(first_name, last_name),
+          pets!inner(name, owner_id)
         `)
         .order('created_at', { ascending: false });
 
-      if (appointmentsError) throw appointmentsError;
+      if (appointmentsError) {
+        console.error('Appointments error:', appointmentsError);
+        throw appointmentsError;
+      }
+
+      // Fetch pet owner details for appointments
+      let enhancedAppointments: AppointmentWithDetails[] = [];
+      if (appointmentsData && appointmentsData.length > 0) {
+        const ownerIds = [...new Set(appointmentsData.map(apt => apt.pet_owner_id))];
+        
+        const { data: ownersData, error: ownersError } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', ownerIds);
+
+        if (ownersError) {
+          console.error('Owners error:', ownersError);
+          throw ownersError;
+        }
+
+        const ownersMap = new Map(ownersData?.map(owner => [owner.id, owner]) || []);
+
+        enhancedAppointments = appointmentsData.map(apt => ({
+          ...apt,
+          pet_owner: ownersMap.get(apt.pet_owner_id)
+        }));
+      }
 
       // Fetch all transactions
       const { data: transactionsData, error: transactionsError } = await supabase
@@ -57,7 +115,7 @@ const SuperAdminDashboard = () => {
       if (transactionsError) throw transactionsError;
 
       setVets(vetsData || []);
-      setAppointments(appointmentsData || []);
+      setAppointments(enhancedAppointments);
       setTransactions(transactionsData || []);
     } catch (error: any) {
       console.error('Error fetching data:', error);
@@ -278,29 +336,41 @@ const SuperAdminDashboard = () => {
                     <TableRow>
                       <TableHead>Date</TableHead>
                       <TableHead>Time</TableHead>
-                      <TableHead>Vet</TableHead>
+                      <TableHead>Pet Owner</TableHead>
                       <TableHead>Pet</TableHead>
+                      <TableHead>Vet</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {appointments.map((appointment) => (
-                      <TableRow key={appointment.id}>
-                        <TableCell>
-                          {new Date(appointment.booking_date).toLocaleDateString()}
+                    {appointments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          No appointments found
                         </TableCell>
-                        <TableCell>
-                          {appointment.start_time} - {appointment.end_time}
-                        </TableCell>
-                        <TableCell>
-                          {appointment.vet_profiles?.first_name} {appointment.vet_profiles?.last_name}
-                        </TableCell>
-                        <TableCell>{appointment.pets?.name}</TableCell>
-                        <TableCell>{appointment.consultation_type}</TableCell>
-                        <TableCell>{getStatusBadge(appointment.status)}</TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      appointments.map((appointment) => (
+                        <TableRow key={appointment.id}>
+                          <TableCell>
+                            {new Date(appointment.booking_date).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            {appointment.start_time} - {appointment.end_time}
+                          </TableCell>
+                          <TableCell>
+                            {appointment.pet_owner?.full_name || 'Unknown Owner'}
+                          </TableCell>
+                          <TableCell>{appointment.pets?.name || 'Unknown Pet'}</TableCell>
+                          <TableCell>
+                            Dr. {appointment.vet_profiles?.first_name} {appointment.vet_profiles?.last_name}
+                          </TableCell>
+                          <TableCell className="capitalize">{appointment.consultation_type}</TableCell>
+                          <TableCell>{getStatusBadge(appointment.status)}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
@@ -328,20 +398,28 @@ const SuperAdminDashboard = () => {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {transactions.map((transaction) => (
-                      <TableRow key={transaction.id}>
-                        <TableCell>
-                          {new Date(transaction.created_at).toLocaleDateString()}
+                    {transactions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No transactions found
                         </TableCell>
-                        <TableCell>
-                          ${transaction.amount}
-                        </TableCell>
-                        <TableCell>{transaction.currency}</TableCell>
-                        <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                        <TableCell>{transaction.payment_method || '-'}</TableCell>
-                        <TableCell>{transaction.transaction_reference || '-'}</TableCell>
                       </TableRow>
-                    ))}
+                    ) : (
+                      transactions.map((transaction) => (
+                        <TableRow key={transaction.id}>
+                          <TableCell>
+                            {new Date(transaction.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            ${transaction.amount}
+                          </TableCell>
+                          <TableCell>{transaction.currency}</TableCell>
+                          <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                          <TableCell>{transaction.payment_method || '-'}</TableCell>
+                          <TableCell>{transaction.transaction_reference || '-'}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
                   </TableBody>
                 </Table>
               </CardContent>
