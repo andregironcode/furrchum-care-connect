@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Users, Calendar, CreditCard, CheckCircle, XCircle, Clock, Search, UserCheck, UserX } from 'lucide-react';
+import { LogOut, Users, Calendar, CreditCard, CheckCircle, XCircle, Clock, Search, UserCheck, UserX, FileText } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import UserDetailsModal from '@/components/UserDetailsModal';
 
@@ -227,6 +227,15 @@ const SuperAdminDashboard = () => {
     setIsUserModalOpen(true);
   };
 
+  const handleVetClick = (vet: any) => {
+    // Find the corresponding user profile for this vet
+    const vetUser = users.find(user => user.id === vet.id && user.user_type === 'vet');
+    if (vetUser) {
+      setSelectedUser(vetUser);
+      setIsUserModalOpen(true);
+    }
+  };
+
   const handleUserModalClose = () => {
     setIsUserModalOpen(false);
     setSelectedUser(null);
@@ -422,7 +431,7 @@ const SuperAdminDashboard = () => {
               <CardHeader>
                 <CardTitle>Veterinarian Approvals</CardTitle>
                 <CardDescription>
-                  Review and approve or reject veterinarian applications
+                  Review and approve or reject veterinarian applications. Click "View Documents" to review their credentials.
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -450,26 +459,37 @@ const SuperAdminDashboard = () => {
                           {new Date(vet.created_at).toLocaleDateString()}
                         </TableCell>
                         <TableCell>
-                          {vet.approval_status === 'pending' && (
-                            <div className="flex space-x-2">
-                              <Button
-                                size="sm"
-                                onClick={() => handleVetApproval(vet.id, 'approved')}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <CheckCircle className="w-4 h-4 mr-1" />
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="destructive"
-                                onClick={() => handleVetApproval(vet.id, 'rejected')}
-                              >
-                                <XCircle className="w-4 h-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex space-x-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleVetClick(vet)}
+                              className="text-blue-600 hover:text-blue-700"
+                            >
+                              <FileText className="w-4 h-4 mr-1" />
+                              View Documents
+                            </Button>
+                            {vet.approval_status === 'pending' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleVetApproval(vet.id, 'approved')}
+                                  className="bg-green-600 hover:bg-green-700"
+                                >
+                                  <CheckCircle className="w-4 h-4 mr-1" />
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleVetApproval(vet.id, 'rejected')}
+                                >
+                                  <XCircle className="w-4 h-4 mr-1" />
+                                  Reject
+                                </Button>
+                              </>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
