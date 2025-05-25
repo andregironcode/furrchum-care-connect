@@ -1,4 +1,4 @@
-import { toast } from 'react-hot-toast';
+import { toast } from 'sonner';
 
 export interface Meeting {
   id: string;
@@ -69,18 +69,11 @@ export async function createMeeting(options: CreateMeetingOptions): Promise<Crea
     
     console.log('Creating meeting with body:', JSON.stringify(body, null, 2));
     
-    const WHEREBY_API_KEY = import.meta.env.VITE_WHEREBY_API_KEY;
-    const WHEREBY_API_URL = import.meta.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
-    
-    if (!WHEREBY_API_KEY) {
-      throw new Error('Missing Whereby API key');
-    }
-    
-    const response = await fetch(`${WHEREBY_API_URL}/meetings`, {
+    // Use a proxy endpoint to avoid CORS issues and keep API key secure
+    const response = await fetch('/api/whereby/meetings', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${WHEREBY_API_KEY}`,
       },
       body: JSON.stringify(body),
     });
@@ -96,12 +89,22 @@ export async function createMeeting(options: CreateMeetingOptions): Promise<Crea
     
     // Log the response for debugging
     console.log('Meeting created successfully:', responseData);
-    
-    // Return the response data with the current timestamp
-    return {
-      ...responseData,
-      createdAt: new Date().toISOString()
+
+    // Map the response to our CreateMeetingResponse interface
+    const meeting: CreateMeetingResponse = {
+      meetingId: responseData.meetingId,
+      startDate: responseData.startDate,
+      endDate: responseData.endDate,
+      roomUrl: responseData.roomUrl,
+      hostRoomUrl: responseData.hostRoomUrl || '',
+      roomName: responseData.roomName || '',
+      isLocked: responseData.isLocked || false,
+      roomMode: responseData.roomMode || 'group',
+      roomModeProps: responseData.roomModeProps,
+      createdAt: new Date().toISOString(),
     };
+
+    return meeting;
   } catch (error) {
     console.error('Failed to create meeting:', error);
     toast.error('Failed to create video meeting. Please try again.');
