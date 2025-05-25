@@ -92,7 +92,8 @@ const VetAppointmentsPage = () => {
         .from('bookings')
         .select('*')
         .eq('vet_id', user?.id)
-        .order('booking_date', { ascending: false });
+        .order('booking_date', { ascending: true })
+        .order('start_time', { ascending: true });
 
       if (error) {
         console.error('Error fetching appointments:', error);
