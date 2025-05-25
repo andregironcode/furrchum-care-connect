@@ -69,10 +69,18 @@ export async function createMeeting(options: CreateMeetingOptions): Promise<Crea
     
     console.log('Creating meeting with body:', JSON.stringify(body, null, 2));
     
-    const response = await fetch('/api/whereby/meetings', {
+    const WHEREBY_API_KEY = import.meta.env.VITE_WHEREBY_API_KEY;
+    const WHEREBY_API_URL = import.meta.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
+    
+    if (!WHEREBY_API_KEY) {
+      throw new Error('Missing Whereby API key');
+    }
+    
+    const response = await fetch(`${WHEREBY_API_URL}/meetings`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        'Authorization': `Bearer ${WHEREBY_API_KEY}`,
       },
       body: JSON.stringify(body),
     });
@@ -88,24 +96,12 @@ export async function createMeeting(options: CreateMeetingOptions): Promise<Crea
     
     // Log the response for debugging
     console.log('Meeting created successfully:', responseData);
-
-    // Map the response to our Meeting interface
-    const meeting: Meeting = {
-      id: responseData.meetingId,
-      startDate: responseData.startDate,
-      endDate: responseData.endDate,
-      roomUrl: responseData.roomUrl,
-      hostRoomUrl: responseData.hostRoomUrl,
-      viewRecordingUrl: responseData.viewRecordingUrl,
-      roomName: responseData.roomName,
-      hostRoom: responseData.hostRoom,
-      isLocked: responseData.isLocked,
-      roomMode: responseData.roomMode,
-      roomModeProps: responseData.roomModeProps,
-      createdAt: new Date().toISOString(),
+    
+    // Return the response data with the current timestamp
+    return {
+      ...responseData,
+      createdAt: new Date().toISOString()
     };
-
-    return meeting;
   } catch (error) {
     console.error('Failed to create meeting:', error);
     toast.error('Failed to create video meeting. Please try again.');

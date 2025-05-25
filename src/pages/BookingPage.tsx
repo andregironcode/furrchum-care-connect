@@ -11,7 +11,7 @@ import { toast } from 'sonner';
 import { Clock, CalendarIcon, MapPin, Phone, Star, CheckCircle, Badge as BadgeIcon, Loader2, Video as VideoIcon, Users as UsersIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { createClient } from '@supabase/supabase-js';
+// Remove duplicate import
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -72,19 +72,23 @@ const BookingPage = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   
+  const [isLoading, setIsLoading] = useState(true);
   const [vet, setVet] = useState<VetDetails | null>(null);
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPetId, setSelectedPetId] = useState<string>('');
+  const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [isLoadingPets, setIsLoadingPets] = useState(true);
   const [date, setDate] = useState<Date | null>(null);
   const [timeSlot, setTimeSlot] = useState<string>('');
-  const [notes, setNotes] = useState('');
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [duration, setDuration] = useState<number>(30);
   const [consultationType, setConsultationType] = useState<'in_person' | 'video_call'>('in_person');
-  const [duration, setDuration] = useState(30); // Default 30 minutes
-  const [isLoading, setIsLoading] = useState(true);
+  const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [vetAvailability, setVetAvailability] = useState<VetAvailability[]>([]);
+  const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
+  const [bookedSlots, setBookedSlots] = useState<Record<string, string[]>>({});
 
   const fetchVetDetails = useCallback(async () => {
     if (!vetId) return;
@@ -124,6 +128,15 @@ const BookingPage = () => {
     }
   }, [vetId]);
 
+  useEffect(() => {
+    fetchVetDetails();
+    
+    // Cleanup function
+    return () => {
+      // Any cleanup if needed
+    };
+  }, [fetchVetDetails, vetId]);
+
   const fetchUserPets = useCallback(async () => {
     if (!user) return;
     
@@ -149,6 +162,7 @@ const BookingPage = () => {
       // Auto-select the first pet if available
       if (formattedPets.length > 0) {
         setSelectedPetId(formattedPets[0].id);
+        setSelectedPet(formattedPets[0]);
       }
     } catch (error) {
       console.error('Error fetching pets:', error);
@@ -158,6 +172,128 @@ const BookingPage = () => {
       setIsLoadingPets(false);
     }
   }, [user]);
+
+  const fetchVetAvailability = useCallback(async () => {
+    if (!vetId) return;
+    
+    setIsLoadingAvailability(true);
+    try {
+      // Fetch vet's availability
+      const { data: availabilityData, error: availabilityError } = await supabase
+        .from('vet_availability')
+        .select('*')
+        .eq('vet_id', vetId)
+        .eq('is_available', true)
+        .order('day_of_week', { ascending: true });
+
+      if (availabilityError) throw availabilityError;
+      setVetAvailability(availabilityData || []);
+
+      // Fetch already booked slots
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('booking_date, start_time')
+        .eq('vet_id', vetId)
+        .gte('booking_date', new Date().toISOString().split('T')[0]);
+
+      if (bookingsError) throw bookingsError;
+
+      // Group booked slots by date
+      const slotsByDate = (bookingsData || []).reduce((acc, booking) => {
+        const date = booking.booking_date;
+        if (!acc[date]) {
+          acc[date] = [];
+        }
+        acc[date].push(booking.start_time);
+        return acc;
+      }, {} as Record<string, string[]>);
+
+      setBookedSlots(slotsByDate);
+    } catch (error) {
+      console.error('Error fetching availability:', error);
+      toast.error('Failed to load vet availability');
+    } finally {
+      setIsLoadingAvailability(false);
+    }
+  }, [vetId]);
+
+  // Check if a date should be disabled in the calendar
+  const isDateDisabled = (date: Date) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Disable past dates
+    if (date < today) return true;
+    
+    // Check if vet is available on this day of week
+    const dayOfWeek = date.getDay();
+    const isAvailable = vetAvailability.some(avail => avail.day_of_week === dayOfWeek);
+    
+    return !isAvailable;
+  };
+
+  // Generate time slots based on vet's availability for the selected date
+  const generateTimeSlots = useCallback((selectedDate: Date) => {
+    if (!vetAvailability.length) return [];
+    
+    const dayOfWeek = selectedDate.getDay();
+    const dayAvailability = vetAvailability.find(avail => avail.day_of_week === dayOfWeek);
+    
+    if (!dayAvailability) return [];
+    
+    const slots: string[] = [];
+    const [startHour, startMinute] = dayAvailability.start_time.split(':').map(Number);
+    const [endHour, endMinute] = dayAvailability.end_time.split(':').map(Number);
+    
+    let currentHour = startHour;
+    let currentMinute = startMinute;
+    
+    while (currentHour < endHour || (currentHour === endHour && currentMinute < endMinute)) {
+      const timeString = `${currentHour.toString().padStart(2, '0')}:${currentMinute.toString().padStart(2, '0')}`;
+      const dateString = format(selectedDate, 'yyyy-MM-dd');
+      
+      // Check if the slot is already booked
+      if (!bookedSlots[dateString]?.includes(timeString)) {
+        slots.push(timeString);
+      }
+      
+      // Increment by 30 minutes
+      currentMinute += 30;
+      if (currentMinute >= 60) {
+        currentHour++;
+        currentMinute = 0;
+      }
+    }
+    
+    return slots;
+  }, [vetAvailability, bookedSlots]);
+
+  // Update time slots when date changes
+  useEffect(() => {
+    if (date) {
+      const slots = generateTimeSlots(date);
+      setTimeSlots(slots);
+      
+      // Reset selected time if it's not in the new slots
+      if (timeSlot && !slots.includes(timeSlot)) {
+        setTimeSlot('');
+      }
+    } else {
+      setTimeSlots([]);
+      setTimeSlot('');
+    }
+  }, [date, generateTimeSlots, timeSlot]);
+
+  // Initial data loading
+  useEffect(() => {
+    if (user) {
+      fetchUserPets();
+      fetchVetAvailability();
+    } else if (vetId) {
+      // If no user is logged in, redirect to login
+      navigate('/auth', { state: { from: `/booking/${vetId}` } });
+    }
+  }, [user, vetId, navigate, fetchUserPets, fetchVetAvailability]);
 
   const validateBookingDetails = () => {
     if (!selectedPetId) {
@@ -212,78 +348,94 @@ const BookingPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (isSubmitting) return;
+    if (!user) {
+      toast.error('You must be logged in to book an appointment');
+      navigate('/login');
+      return;
+    }
+    
+    if (!selectedPetId) {
+      toast.error('Please select a pet');
+      return;
+    }
+    
+    if (!date) {
+      toast.error('Please select a date');
+      return;
+    }
+    
+    if (!timeSlot) {
+      toast.error('Please select a time slot');
+      return;
+    }
+    
+    if (!vetId) {
+      toast.error('Vet information is missing');
+      return;
+    }
+    
+    setIsSubmitting(true);
+    setError(null);
     
     try {
-      setIsSubmitting(true);
-      setError(null);
-      validateBookingDetails();
-      
-      if (!date || !timeSlot || !selectedPetId || !user || !vet) {
-        throw new Error('Missing required booking information');
-      }
-      
-      // Create booking data object
-      const [hours, minutes] = timeSlot.split(':');
-      const appointmentDate = new Date(date);
-      appointmentDate.setHours(parseInt(hours, 10), parseInt(minutes, 10), 0, 0);
-      
-      const endDate = new Date(appointmentDate);
-      endDate.setMinutes(endDate.getMinutes() + duration);
-
-      // Format times for database
-      const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:00`;
-      const endTime = `${endDate.getHours().toString().padStart(2, '0')}:${endDate.getMinutes().toString().padStart(2, '0')}:00`;
-      const formattedDate = format(date, 'yyyy-MM-dd');
-
-      const bookingData: BookingData = {
-        vet_id: vet.id,
+      // Create booking data
+      const bookingData = {
+        vet_id: vetId,
         pet_owner_id: user.id,
         pet_id: selectedPetId,
-        booking_date: formattedDate,
-        start_time: startTime,
-        end_time: endTime,
+        booking_date: format(date, 'yyyy-MM-dd'),
+        start_time: timeSlot,
+        end_time: format(new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000), 'HH:mm'),
         consultation_type: consultationType,
         notes: notes,
-        meeting_id: null,
-        meeting_url: null,
-        host_meeting_url: null,
+        meeting_id: null as string | null,
+        meeting_url: null as string | null,
+        host_meeting_url: null as string | null,
         status: 'confirmed' as const
       };
       
       // If it's a video call, create a meeting first
       if (consultationType === 'video_call') {
         try {
-          const meeting = await createVideoMeeting(appointmentDate);
-          bookingData.meeting_id = meeting.meetingId;
+          const meeting = await createMeeting({
+            roomName: `Vet-Consultation-${vetId}-${Date.now()}`,
+            startDate: new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`),
+            endDate: new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000),
+            fields: ['hostRoomUrl']
+          });
+          
+          if (!meeting || !meeting.roomUrl) {
+            throw new Error('Failed to create video meeting: Invalid response from Whereby');
+          }
+          
+          bookingData.meeting_id = meeting.meetingId || null;
           bookingData.meeting_url = meeting.roomUrl;
           bookingData.host_meeting_url = meeting.hostRoomUrl || null;
-        } catch (err) {
-          console.error('Error creating video meeting:', err);
-          const errorMessage = err instanceof Error ? err.message : 'Unknown error';
-          setError(`Failed to create video meeting: ${errorMessage}`);
-          toast.error(`Failed to create video meeting: ${errorMessage}`);
+        } catch (error: any) {
+          console.error('Error creating video meeting:', error);
+          toast.error(error.message || 'Failed to create video meeting. Please try again.');
+          setIsSubmitting(false);
           return;
         }
       }
       
       // Save booking to database
-      const { data, error: dbError } = await supabase
-        .from('bookings')
+      const { data: booking, error: bookingError } = await supabase
+        .from('appointments')
         .insert([bookingData])
-        .select();
-        
-      if (dbError) {
-        console.error('Database error:', dbError);
-        throw new Error(`Failed to save booking: ${dbError.message}`);
+        .select()
+        .single();
+      
+      if (bookingError) {
+        throw new Error(bookingError.message || 'Failed to save booking');
+      }
+      
+      if (!booking) {
+        throw new Error('No booking data returned from server');
       }
       
       // Show success message
-      const successMessage = consultationType === 'video_call'
-        ? 'Appointment booked! Video meeting link has been created.'
-        : 'Appointment booked successfully!';
-      
-      toast.success(successMessage);
+      toast.success('Appointment booked successfully!');
       
       // Redirect to appointments page after a short delay
       setTimeout(() => {
@@ -314,7 +466,10 @@ const BookingPage = () => {
   if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="w-8 h-8 animate-spin" />
+        <div className="flex flex-col items-center space-y-4">
+          <Loader2 className="h-12 w-12 animate-spin text-primary" />
+          <p className="text-lg font-medium">Loading vet details...</p>
+        </div>
       </div>
     );
   }
@@ -322,7 +477,13 @@ const BookingPage = () => {
   if (!vet) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <p>Veterinarian not found</p>
+        <div className="text-center">
+          <h2 className="text-2xl font-bold mb-2">Vet not found</h2>
+          <p className="text-muted-foreground">The requested veterinarian could not be found.</p>
+          <Button className="mt-4" onClick={() => navigate('/find-vets')}>
+            Back to Find Vets
+          </Button>
+        </div>
       </div>
     );
   }
@@ -500,16 +661,16 @@ const BookingPage = () => {
                   <div className="rounded-md border">
                     <Calendar
                       mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      className="rounded-md border"
-                      disabled={(date) => {
-                        const day = date.getDay();
-                        return !availabilityByDay[day];
+                      selected={date || undefined}
+                      onSelect={(selectedDate) => {
+                        if (selectedDate) {
+                          setDate(selectedDate);
+                        }
                       }}
+                      disabled={isDateDisabled}
+                      className="rounded-md border"
                       fromDate={new Date()}
-                      toDate={addDays(new Date(), 30)}
-                      initialFocus
+                      toDate={new Date(Date.now() + 30 * 24 * 60 * 60 * 1000)} // 30 days from now
                     />
                   </div>
                 </div>
@@ -518,18 +679,29 @@ const BookingPage = () => {
                 {date && (
                   <div>
                     <h3 className="font-medium mb-2">Select Time</h3>
-                    {timeSlots.length > 0 ? (
-                      <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
-                        {timeSlots.map((slot) => (
-                          <Button
-                            key={slot}
-                            variant={timeSlot === slot ? 'default' : 'outline'}
-                            onClick={() => setTimeSlot(slot)}
-                            className="h-10"
-                          >
-                            {formatTime(slot)}
-                          </Button>
-                        ))}
+                    {isLoadingAvailability ? (
+                      <div className="flex items-center justify-center py-4">
+                        <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                        <span>Loading available slots...</span>
+                      </div>
+                    ) : timeSlots.length > 0 ? (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                        {timeSlots.map((slot) => {
+                          const isBooked = bookedSlots[format(date, 'yyyy-MM-dd')]?.includes(slot);
+                          return (
+                            <Button
+                              key={slot}
+                              variant={timeSlot === slot ? 'default' : 'outline'}
+                              onClick={() => !isBooked && setTimeSlot(slot)}
+                              className={`h-10 ${isBooked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                              disabled={isBooked}
+                              title={isBooked ? 'This slot is already booked' : ''}
+                            >
+                              {formatTime(slot)}
+                              {isBooked && <span className="ml-1 text-xs">(Booked)</span>}
+                            </Button>
+                          );
+                        })}
                       </div>
                     ) : (
                       <p className="text-sm text-muted-foreground">
@@ -549,7 +721,13 @@ const BookingPage = () => {
                   ) : pets.length > 0 ? (
                     <Select 
                       value={selectedPetId} 
-                      onValueChange={setSelectedPetId}
+                      onValueChange={(value) => {
+                        setSelectedPetId(value);
+                        const selectedPet = pets.find(pet => pet.id === value);
+                        if (selectedPet) {
+                          setSelectedPet(selectedPet);
+                        }
+                      }}
                       disabled={isLoadingPets || pets.length === 0}
                     >
                       <SelectTrigger>
@@ -608,7 +786,7 @@ const BookingPage = () => {
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Pet:</span>
-                      <span>{pets.find(p => p.id === selectedPetId)?.name || 'Not selected'}</span>
+                      <span>{selectedPet?.name || 'Not selected'}</span>
                     </div>
                     <Separator className="my-2" />
                     <div className="flex justify-between font-medium">
@@ -619,40 +797,35 @@ const BookingPage = () => {
                 </div>
                 
                 {/* Submit Button */}
-                <Button 
-                  onClick={handleProceedToConfirmation}
-                  disabled={
-                    isSubmitting || 
-                    !date || 
-                    !timeSlot || 
-                    !selectedPet || 
-                    (consultationType === 'in_person' && !vet.offers_in_person) ||
-                    (consultationType === 'video_call' && !vet.offers_video_calls)
-                  }
-                  className="w-full"
-                  size="lg"
-                >
-                  {isSubmitting ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      {consultationType === 'video_call' ? 'Creating Meeting...' : 'Booking...'}
-                    </>
-                  ) : (
-                    <>
-                      {consultationType === 'video_call' ? (
-                        <>
-                          <VideoIcon className="mr-2 h-4 w-4" />
-                          Book Video Call (${vet.consultation_fee?.toFixed(2) || '0.00'})
-                        </>
-                      ) : (
-                        <>
-                          <UsersIcon className="mr-2 h-4 w-4" />
-                          Book In-Person (${vet.consultation_fee?.toFixed(2) || '0.00'})
-                        </>
-                      )}
-                    </>
-                  )}
-                </Button>
+                <form onSubmit={handleSubmit} className="w-full">
+                  <Button 
+                    type="submit"
+                    className="w-full"
+                    disabled={isSubmitting || !selectedPetId || !date || !timeSlot}
+                    size="lg"
+                  >
+                    {isSubmitting ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        {consultationType === 'video_call' ? 'Creating Meeting...' : 'Booking...'}
+                      </>
+                    ) : (
+                      <>
+                        {consultationType === 'video_call' ? (
+                          <>
+                            <VideoIcon className="mr-2 h-4 w-4" />
+                            Book Video Call (${vet.consultation_fee?.toFixed(2) || '0.00'})
+                          </>
+                        ) : (
+                          <>
+                            <UsersIcon className="mr-2 h-4 w-4" />
+                            Book In-Person (${vet.consultation_fee?.toFixed(2) || '0.00'})
+                          </>
+                        )}
+                      </>
+                    )}
+                  </Button>
+                </form>
               </div>
             </CardContent>
           </Card>

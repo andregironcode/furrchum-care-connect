@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Menu, X, LogOut, UserCircle } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { User } from '@supabase/supabase-js';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,10 +14,27 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
+interface UserWithAppMetadata extends User {
+  user_metadata: {
+    user_type?: 'pet_owner' | 'vet';
+    full_name?: string;
+    [key: string]: any; // Allow other metadata properties
+  };
+}
+
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  
+  // Safely get user type from user_metadata
+  const getUserType = () => {
+    if (!user) return 'pet_owner';
+    const userWithMeta = user as UserWithAppMetadata;
+    return userWithMeta.user_metadata?.user_type || 'pet_owner';
+  };
+  
+  const userType = getUserType();
   
   const handleSignOut = async () => {
     await signOut();
@@ -57,8 +75,13 @@ const Navbar = () => {
                   <DropdownMenuLabel>My Account</DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem>
-                    <Link to="/dashboard" className="flex items-center w-full">
-                      <UserCircle className="w-4 h-4 mr-2" /> Dashboard
+                    <Link 
+                      to={userType === 'vet' ? '/vet-dashboard' : '/dashboard'} 
+                      className="flex items-center w-full"
+                      onClick={() => setIsOpen(false)}
+                    >
+                      <UserCircle className="w-4 h-4 mr-2" /> 
+                      {userType === 'vet' ? 'Vet Dashboard' : 'Dashboard'}
                     </Link>
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />

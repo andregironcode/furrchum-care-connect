@@ -421,100 +421,119 @@ const PetOwnerDashboard = () => {
     updated_at: string;
   }
 
-  // Main data loading function
-  const loadData = useCallback(async () => {
-    if (!user) {
-      console.log('No user found, skipping data load');
-      return;
-    }
-    
-    try {
-      console.log('Starting to load data for user:', user.id);
-      setIsLoading(true);
-      setError(null);
+  // Memoize the data fetching functions to prevent unnecessary recreations
+  const memoizedFetchPets = useCallback(async (userId: string) => {
+    return fetchPets(userId);
+  }, []);
 
-      // Fetch profile
-      console.log('Fetching user profile...');
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single();
+  const memoizedFetchAppointments = useCallback(async (userId: string) => {
+    return fetchAppointments(userId);
+  }, []);
 
-      if (profileError) {
-        console.error('Profile fetch error:', profileError);
-        throw profileError;
-      }
-      
-      if (!profileData) {
-        console.error('No profile data found');
-        throw new Error('Profile not found');
-      }
+  const memoizedFetchPrescriptions = useCallback(async (userId: string) => {
+    return fetchPrescriptions(userId);
+  }, []);
 
-      console.log('Profile data fetched successfully:', profileData);
-
-      // Cast the profile data to the correct type and set default values
-      const typedProfileData = profileData as unknown as ProfileData;
-      
-      // Set profile with proper typing
-      setProfile({
-        id: user.id,
-        email: user.email || '',
-        user_type: (typedProfileData.user_type as UserType) || 'pet_owner',
-        full_name: typedProfileData.full_name || null,
-        phone: typedProfileData.phone || null,
-        address: typedProfileData.address || null,
-        avatar_url: typedProfileData.avatar_url || null,
-        bio: typedProfileData.bio || null,
-        created_at: typedProfileData.created_at || new Date().toISOString(),
-        updated_at: typedProfileData.updated_at || new Date().toISOString()
-      });
-
-      // Fetch all data in parallel with individual error handling
-      console.log('Fetching pets, appointments, and prescriptions...');
-      
-      try {
-        const petsData = await fetchPets(user.id);
-        console.log('Pets data fetched:', petsData.length, 'pets');
-        setPets(petsData);
-      } catch (petsError) {
-        console.error('Error fetching pets:', petsError);
-        // Continue with other data fetching even if pets fail
-      }
-      
-      try {
-        const appointmentsData = await fetchAppointments(user.id);
-        console.log('Appointments data fetched:', appointmentsData.length, 'appointments');
-        setAppointments(appointmentsData);
-      } catch (appointmentsError) {
-        console.error('Error fetching appointments:', appointmentsError);
-        // Continue with other data fetching even if appointments fail
-      }
-      
-      try {
-        const prescriptionsData = await fetchPrescriptions(user.id);
-        console.log('Prescriptions data fetched:', prescriptionsData.length, 'prescriptions');
-        setPrescriptions(prescriptionsData);
-      } catch (prescriptionsError) {
-        console.error('Error fetching prescriptions:', prescriptionsError);
-        // Continue with other data fetching even if prescriptions fail
-      }
-      
-      console.log('All data loaded successfully');
-    } catch (error) {
-      console.error('Error loading data:', error);
-      setError(error instanceof Error ? error.message : 'Failed to load data');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [user, fetchPets, fetchAppointments, fetchPrescriptions]);
-
-  // Initialize data on component mount
+  // Initialize data on component mount and when user changes
   useEffect(() => {
-    if (user) {
-      loadData();
-    }
-  }, [user, loadData]);
+    let isMounted = true;
+    
+    const loadDataWrapper = async () => {
+      if (!user) return;
+      
+      try {
+        console.log('Starting to load data for user:', user.id);
+        setIsLoading(true);
+        setError(null);
+
+        // Fetch profile
+        console.log('Fetching user profile...');
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Profile fetch error:', profileError);
+          throw profileError;
+        }
+        
+        if (!profileData) {
+          console.error('No profile data found');
+          throw new Error('Profile not found');
+        }
+
+        console.log('Profile data fetched successfully:', profileData);
+
+        // Cast the profile data to the correct type and set default values
+        const typedProfileData = profileData as unknown as ProfileData;
+        
+        if (isMounted) {
+          // Set profile with proper typing
+          setProfile({
+            id: user.id,
+            email: user.email || '',
+            user_type: (typedProfileData.user_type as UserType) || 'pet_owner',
+            full_name: typedProfileData.full_name || null,
+            phone: typedProfileData.phone || null,
+            address: typedProfileData.address || null,
+            avatar_url: typedProfileData.avatar_url || null,
+            bio: typedProfileData.bio || null,
+            created_at: typedProfileData.created_at || new Date().toISOString(),
+            updated_at: typedProfileData.updated_at || new Date().toISOString()
+          });
+
+          // Fetch all data in parallel
+          console.log('Fetching pets, appointments, and prescriptions...');
+          
+          try {
+            const petsData = await fetchPets(user.id);
+            console.log('Pets data fetched:', petsData.length, 'pets');
+            setPets(petsData);
+          } catch (petsError) {
+            console.error('Error fetching pets:', petsError);
+            // Continue with other data fetching even if pets fail
+          }
+          
+          try {
+            const appointmentsData = await fetchAppointments(user.id);
+            console.log('Appointments data fetched:', appointmentsData.length, 'appointments');
+            setAppointments(appointmentsData);
+          } catch (appointmentsError) {
+            console.error('Error fetching appointments:', appointmentsError);
+            // Continue with other data fetching even if appointments fail
+          }
+          
+          try {
+            const prescriptionsData = await fetchPrescriptions(user.id);
+            console.log('Prescriptions data fetched:', prescriptionsData.length, 'prescriptions');
+            setPrescriptions(prescriptionsData);
+          } catch (prescriptionsError) {
+            console.error('Error fetching prescriptions:', prescriptionsError);
+            // Continue with other data fetching even if prescriptions fail
+          }
+          
+          console.log('All data loaded successfully');
+        }
+      } catch (error) {
+        console.error('Error loading data:', error);
+        if (isMounted) {
+          setError(error instanceof Error ? error.message : 'Failed to load data');
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    
+    loadDataWrapper();
+    
+    return () => {
+      isMounted = false;
+    };
+  }, [user?.id]); // Only depend on user.id instead of the whole user object and loadData
 
   // Generate PDF for prescription (placeholder function)
   const generatePrescriptionPDF = (prescription: Prescription) => {

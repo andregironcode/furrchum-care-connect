@@ -48,10 +48,15 @@ const App = () => {
               <Route path="/test-whereby" element={<WherebyTest />} />
               <Route path="/vet-details/:vetId" element={<VetDetailsPage />} />
               
-              {/* Pet Owner Routes */}
+              {/* Pet Owner Dashboard with vet redirection */}
               <Route path="/dashboard" element={
                 <RouteGuard>
-                  <PetOwnerDashboard />
+                  {({ profile }) => {
+                    if (profile?.user_type === 'vet') {
+                      return <Navigate to="/vet-dashboard" replace />;
+                    }
+                    return <PetOwnerDashboard />;
+                  }}
                 </RouteGuard>
               } />
               <Route path="/my-pets" element={
