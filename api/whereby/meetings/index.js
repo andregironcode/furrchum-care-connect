@@ -36,7 +36,13 @@ export default async (req, res) => {
     // In Vercel serverless functions, environment variables might not retain the VITE_ prefix
     // Try both with and without the prefix
     const WHEREBY_API_KEY = process.env.WHEREBY_API_KEY || process.env.VITE_WHEREBY_API_KEY;
-    const WHEREBY_API_URL = process.env.WHEREBY_API_URL || process.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
+    
+    // Explicitly set the API URL to avoid any potential formatting issues
+    // Remove any markdown formatting that might be in the environment variable
+    let rawApiUrl = process.env.WHEREBY_API_URL || process.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
+    // Clean up the URL by removing any markdown link formatting if present
+    const cleanApiUrl = rawApiUrl.replace(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+    const WHEREBY_API_URL = cleanApiUrl;
     
     // Log API configuration (partially redacted for security)
     console.log('API URL:', WHEREBY_API_URL);
@@ -59,8 +65,12 @@ export default async (req, res) => {
     // Log the request we're about to make (redact sensitive info)
     console.log(`Making request to ${WHEREBY_API_URL}/meetings with body:`, JSON.stringify(body));
     
-    // Call Whereby API to create meeting
-    const response = await fetch(`${WHEREBY_API_URL}/meetings`, {
+    // Log and ensure the URL is properly formatted
+    const apiEndpoint = 'https://api.whereby.dev/v1/meetings';
+    console.log('Making request to:', apiEndpoint);
+    
+    // Call Whereby API to create meeting - using hardcoded URL to avoid any formatting issues
+    const response = await fetch(apiEndpoint, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
