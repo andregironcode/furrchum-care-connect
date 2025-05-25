@@ -406,32 +406,41 @@ const BookingPage = () => {
       // If it's a video call, create a meeting first
       if (consultationType === 'video_call') {
         try {
-          const meeting = await createMeeting({
-            roomNamePrefix: `vet-${vetId}`,
-            roomMode: 'group',
-            startDate: new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).toISOString(),
-            endDate: new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000).toISOString(),
-            fields: ['hostRoomUrl']
-          });
+          // Create appointment date from selected date and time
+          const appointmentDate = new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`);
+          
+          // Create meeting with a start time 15 minutes before the appointment
+          const meeting = await createVideoMeeting(appointmentDate);
           
           if (!meeting || !meeting.roomUrl) {
             throw new Error('Failed to create video meeting: Invalid response from Whereby');
           }
           
-          // Store meeting details in localStorage since we can't store them in the database
-          // We'll use the booking_id (which will be created after insert) and date as a composite key
-          const meetingKey = `meeting-${format(date, 'yyyy-MM-dd')}-${timeSlot.replace(':', '')}-${vetId}`;
+          // Calculate end time
+          const endTimeObj = new Date(appointmentDate.getTime() + duration * 60000);
+          const endTimeString = format(endTimeObj, 'HH:mm');
+          const formattedDate = format(date, 'yyyy-MM-dd');
+          
+          // Store meeting details in localStorage with booking ID reference
+          const bookingIdPrefix = `${formattedDate}-${timeSlot.replace(':', '')}-${vetId}`;
+          const meetingKey = `meeting-${bookingIdPrefix}`;
+          
+          console.log('Storing meeting info in localStorage:', meeting);
           localStorage.setItem(meetingKey, JSON.stringify({
             meetingId: meeting.meetingId,
             roomUrl: meeting.roomUrl,
             hostRoomUrl: meeting.hostRoomUrl || null,
-            createdAt: new Date().toISOString()
+            startDate: meeting.startDate,
+            endDate: meeting.endDate,
+            createdAt: new Date().toISOString(),
+            bookingDate: formattedDate,
+            startTime: timeSlot,
+            endTime: endTimeString
           }));
           
-          // We'll also store the most recent meeting for immediate access after booking
+          // Store reference for lookup after booking is created
           localStorage.setItem('last-created-meeting', meetingKey);
-          
-        } catch (error: unknown) {
+        } catch (error) {
           console.error('Error creating video meeting:', error);
           toast.error(
             error instanceof Error 

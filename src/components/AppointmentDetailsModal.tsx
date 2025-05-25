@@ -201,9 +201,25 @@ const AppointmentDetailsModal = ({
                   const now = new Date();
                   const appointmentDate = new Date(`${appointment.booking_date}T${appointment.start_time}`);
                   const endTime = new Date(`${appointment.booking_date}T${appointment.end_time}`);
-                  const isWithin15Minutes = appointmentDate.getTime() - now.getTime() <= 15 * 60 * 1000;
-                  const hasStarted = now >= appointmentDate;
+                  
+                  // Calculate time boundaries for joining
+                  const earliestJoinTime = new Date(appointmentDate);
+                  earliestJoinTime.setMinutes(appointmentDate.getMinutes() - 15); // 15 minutes before appointment
+                  
+                  // Check if current time is AFTER the end time
                   const hasEnded = now > endTime;
+                  
+                  // Check if current time is BEFORE the earliest join time (15 min before start)
+                  const isTooEarly = now < earliestJoinTime;
+                  
+                  console.log('Video call access times:', {
+                    now: now.toISOString(),
+                    appointmentTime: appointmentDate.toISOString(),
+                    endTime: endTime.toISOString(),
+                    earliestJoinTime: earliestJoinTime.toISOString(),
+                    hasEnded,
+                    isTooEarly
+                  });
 
                   if (hasEnded) {
                     return (
@@ -213,7 +229,7 @@ const AppointmentDetailsModal = ({
                     );
                   }
 
-                  if (!hasStarted && !isWithin15Minutes) {
+                  if (isTooEarly) {
                     return (
                       <div className="text-sm text-muted-foreground">
                         The video call link will be available 15 minutes before the appointment.
