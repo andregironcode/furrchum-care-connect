@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -11,6 +10,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
 import { LogOut, Users, Calendar, CreditCard, CheckCircle, XCircle, Clock, Search, UserCheck, UserX } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import UserDetailsModal from '@/components/UserDetailsModal';
 
 interface AppointmentWithDetails {
   id: string;
@@ -51,6 +51,8 @@ const SuperAdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -220,6 +222,20 @@ const SuperAdminDashboard = () => {
     );
   };
 
+  const handleUserClick = (user: UserProfile) => {
+    setSelectedUser(user);
+    setIsUserModalOpen(true);
+  };
+
+  const handleUserModalClose = () => {
+    setIsUserModalOpen(false);
+    setSelectedUser(null);
+  };
+
+  const handleUserUpdated = () => {
+    fetchData(); // Refresh data when user is updated
+  };
+
   const filteredUsers = users.filter(user => 
     user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.user_type.toLowerCase().includes(searchTerm.toLowerCase())
@@ -319,7 +335,7 @@ const SuperAdminDashboard = () => {
               <CardHeader>
                 <CardTitle>User Management</CardTitle>
                 <CardDescription>
-                  View & search all pet parent profiles, manage vet accounts, and control user statuses
+                  View & search all pet parent profiles, manage vet accounts, and control user statuses. Click on any user to view detailed information.
                 </CardDescription>
                 <div className="flex items-center space-x-2">
                   <Search className="w-4 h-4 text-muted-foreground" />
@@ -351,8 +367,14 @@ const SuperAdminDashboard = () => {
                       </TableRow>
                     ) : (
                       filteredUsers.map((user) => (
-                        <TableRow key={user.id}>
-                          <TableCell>{user.full_name || 'Unknown User'}</TableCell>
+                        <TableRow 
+                          key={user.id} 
+                          className="cursor-pointer hover:bg-muted/50"
+                          onClick={() => handleUserClick(user)}
+                        >
+                          <TableCell className="font-medium">
+                            {user.full_name || 'Unknown User'}
+                          </TableCell>
                           <TableCell className="capitalize">
                             <Badge variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
                               {user.user_type.replace('_', ' ')}
@@ -365,7 +387,7 @@ const SuperAdminDashboard = () => {
                             {getStatusBadge(user.status || 'active')}
                           </TableCell>
                           <TableCell>
-                            <div className="flex space-x-2">
+                            <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
                               <Button
                                 size="sm"
                                 variant="outline"
@@ -561,6 +583,13 @@ const SuperAdminDashboard = () => {
             </Card>
           </TabsContent>
         </Tabs>
+
+        <UserDetailsModal
+          user={selectedUser}
+          isOpen={isUserModalOpen}
+          onClose={handleUserModalClose}
+          onUserUpdated={handleUserUpdated}
+        />
       </main>
     </div>
   );
