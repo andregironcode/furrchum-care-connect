@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -30,6 +29,9 @@ import VetDetailsPage from "./pages/VetDetailsPage";
 import WherebyTest from "./components/WherebyTest";
 import WherebyTestEnhanced from '@/components/WherebyTest.enhanced';
 import TestVideoCallPage from "./pages/TestVideoCallPage";
+import SuperAdminAuth from "./pages/SuperAdminAuth";
+import SuperAdminDashboard from "./pages/SuperAdminDashboard";
+import SuperAdminGuard from "./components/SuperAdminGuard";
 
 const App = () => {
   // Move queryClient inside the component
@@ -52,6 +54,14 @@ const App = () => {
               <Route path="/test-whereby" element={<WherebyTest />} />
               <Route path="/vet-details/:vetId" element={<VetDetailsPage />} />
               <Route path="/test-video-call" element={<TestVideoCallPage />} />
+              
+              {/* Super Admin Routes */}
+              <Route path="/superadmin/auth" element={<SuperAdminAuth />} />
+              <Route path="/superadmin/dashboard" element={
+                <SuperAdminGuard>
+                  <SuperAdminDashboard />
+                </SuperAdminGuard>
+              } />
               
               {/* Pet Owner Dashboard with vet redirection */}
               <Route path="/dashboard" element={

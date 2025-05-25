@@ -263,6 +263,53 @@ export type Database = {
         }
         Relationships: []
       }
+      transactions: {
+        Row: {
+          amount: number
+          booking_id: string | null
+          created_at: string | null
+          currency: string | null
+          description: string | null
+          id: string
+          payment_method: string | null
+          status: string
+          transaction_reference: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          amount: number
+          booking_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          payment_method?: string | null
+          status?: string
+          transaction_reference?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          amount?: number
+          booking_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          description?: string | null
+          id?: string
+          payment_method?: string | null
+          status?: string
+          transaction_reference?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transactions_booking_id_fkey"
+            columns: ["booking_id"]
+            isOneToOne: false
+            referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vet_availability: {
         Row: {
           created_at: string
@@ -307,6 +354,9 @@ export type Database = {
       vet_profiles: {
         Row: {
           about: string | null
+          approval_status: string | null
+          approved_at: string | null
+          approved_by: string | null
           availability: string | null
           clinic_images: string[] | null
           clinic_location: string | null
@@ -331,6 +381,9 @@ export type Database = {
         }
         Insert: {
           about?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           availability?: string | null
           clinic_images?: string[] | null
           clinic_location?: string | null
@@ -355,6 +408,9 @@ export type Database = {
         }
         Update: {
           about?: string | null
+          approval_status?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
           availability?: string | null
           clinic_images?: string[] | null
           clinic_location?: string | null
