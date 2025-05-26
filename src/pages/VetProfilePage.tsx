@@ -23,7 +23,7 @@ import PhoneInput from '@/components/ui/phone-input';
 import PinCodeInput from '@/components/ui/pin-code-input';
 
 interface VetProfile {
-  id: string;
+  id: string; // Primary key, matches the user's ID
   first_name: string;
   last_name: string;
   specialization: string;
@@ -34,11 +34,11 @@ interface VetProfile {
   phone: string;
   gender: string;
   languages: string[];
-  pin_code: string;
+  zip_code: string;
   license_url: string;
   clinic_location: string;
   clinic_images: string[];
-  offers_telemedicine: boolean;
+  offers_telemedicine: boolean; // Maps to offers_video_calls in DB
   offers_in_person: boolean;
 }
 
@@ -48,6 +48,7 @@ const VetProfilePage = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [isPageLoading, setIsPageLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingLicense, setUploadingLicense] = useState(false);
   const [uploadingClinicImages, setUploadingClinicImages] = useState(false);
@@ -68,10 +69,10 @@ const VetProfilePage = () => {
     consultation_fee: z.number().min(0),
     image_url: z.string(),
     years_experience: z.number().min(0),
-    phone: z.string().regex(/^\d{10}$/, { message: 'Phone number must be exactly 10 digits' }),
+    phone: z.string().optional(),
     gender: z.string(),
     languages: z.array(z.string()),
-    pin_code: z.string(),
+    zip_code: z.string(),
     license_url: z.string(),
     clinic_location: z.string(),
     clinic_images: z.array(z.string()),
@@ -93,7 +94,7 @@ const VetProfilePage = () => {
       phone: '',
       gender: '',
       languages: [],
-      pin_code: '',
+      zip_code: '',
       license_url: '',
       clinic_location: '',
       clinic_images: [],
@@ -103,16 +104,101 @@ const VetProfilePage = () => {
     },
   });
 
-  const fetchVetProfile = useCallback(async () => {
+  const createVetProfile = async () => {
+    if (!user?.id) return null;
+
     try {
-      setLoadingProfile(true);
+      console.log('Creating new vet profile for user:', user.id);
+      
+      // Create initial profile data
+      const newProfile = {
+        id: user.id, // Primary key in the vet_profiles table
+        first_name: user.user_metadata?.full_name?.split(' ')[0] || '',
+        last_name: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
+        specialization: 'General Veterinarian',
+        about: '',
+        consultation_fee: 0,
+        years_experience: 0,
+        phone: '',
+        gender: '',
+        languages: [],
+        zip_code: '',
+        image_url: user.user_metadata?.avatar_url || '',
+        license_url: '',
+        clinic_location: '',
+        clinic_images: [],
+        offers_video_calls: false,
+        offers_in_person: false
+      };
+
       const { data, error } = await supabase
         .from('vet_profiles')
-        .select('*')
-        .eq('id', user?.id)
+        .insert([newProfile])
+        .select()
         .single();
 
       if (error) throw error;
+
+      console.log('Created new vet profile:', data);
+      
+      // Convert to our VetProfile type
+      const sanitizedProfile: VetProfile = {
+        id: data.id || '',
+        first_name: data.first_name || '',
+        last_name: data.last_name || '',
+        specialization: data.specialization || '',
+        about: data.about || '',
+        consultation_fee: Number(data.consultation_fee) || 0,
+        image_url: data.image_url || '',
+        years_experience: Number(data.years_experience) || 0,
+        phone: data.phone || '',
+        gender: data.gender || '',
+        languages: Array.isArray(data.languages) ? data.languages : [],
+        zip_code: data.zip_code || '',
+        license_url: data.license_url || '',
+        clinic_location: data.clinic_location || '',
+        clinic_images: Array.isArray(data.clinic_images) ? data.clinic_images : [],
+        offers_telemedicine: Boolean(data.offers_video_calls),
+        offers_in_person: Boolean(data.offers_in_person)
+      };
+      
+      return sanitizedProfile;
+    } catch (error) {
+      console.error('Error creating vet profile:', error);
+      toast.error('Failed to create profile');
+      return null;
+    }
+  };
+
+  const fetchVetProfile = useCallback(async () => {
+    if (!user?.id) return;
+    
+    try {
+      setLoadingProfile(true);
+      console.log('Fetching vet profile for user ID:', user.id);
+      
+      // Query using id as the primary key
+      const { data, error } = await supabase
+        .from('vet_profiles')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        if (error.code === 'PGRST116') { // No rows found
+          console.log('No vet profile found, creating new one');
+          const newProfile = await createVetProfile();
+          if (newProfile) {
+            setProfile(newProfile);
+            form.reset(newProfile);
+            setImagePreview(newProfile.image_url);
+            setClinicImagePreviews(newProfile.clinic_images);
+            setIsPageLoading(false);
+          }
+          return;
+        }
+        throw error;
+      }
 
       if (data) {
         // Convert database values to proper types
@@ -128,7 +214,7 @@ const VetProfilePage = () => {
           phone: data.phone || '',
           gender: data.gender || '',
           languages: Array.isArray(data.languages) ? data.languages : [],
-          pin_code: data.pin_code || data.zip_code || '', // Support both pin_code and legacy zip_code
+          zip_code: data.zip_code || '',
           license_url: data.license_url || '',
           clinic_location: data.clinic_location || '',
           clinic_images: Array.isArray(data.clinic_images) ? data.clinic_images : [],
@@ -340,6 +426,11 @@ const VetProfilePage = () => {
   };
 
   const saveProfile = async (values: VetProfile) => {
+    if (!user?.id) {
+      toast.error('User not authenticated');
+      return;
+    }
+    
     try {
       setIsSaving(true);
       
@@ -349,21 +440,21 @@ const VetProfilePage = () => {
       let clinicImages = profile?.clinic_images || [];
 
       if (selectedImage) {
-        const newImageUrl = await uploadProfileImage(user?.id as string);
+        const newImageUrl = await uploadProfileImage(user.id);
         if (newImageUrl) {
           imageUrl = newImageUrl;
         }
       }
 
       if (selectedLicense) {
-        const newLicenseUrl = await uploadLicense(user?.id as string);
+        const newLicenseUrl = await uploadLicense(user.id);
         if (newLicenseUrl) {
           licenseUrl = newLicenseUrl;
         }
       }
 
       if (selectedClinicImages.length > 0) {
-        const newClinicImages = await uploadClinicImages(user?.id as string);
+        const newClinicImages = await uploadClinicImages(user.id);
         clinicImages = [...clinicImages, ...newClinicImages.filter(url => url)];
       }
       
@@ -377,13 +468,13 @@ const VetProfilePage = () => {
         years_experience: values.years_experience,
         phone: values.phone,
         gender: values.gender,
-        pin_code: values.pin_code,
+        zip_code: values.zip_code,
         image_url: imageUrl,
         license_url: licenseUrl,
         clinic_images: clinicImages,
         clinic_location: values.clinic_location,
-        offers_telemedicine: values.offers_telemedicine,
-        offers_in_person: values.offers_in_person,
+        offers_video_calls: values.offers_telemedicine, // Map to correct DB column
+        offers_in_person: values.offers_in_person
       };
       
       console.log('Saving profile data:', profileData);
@@ -391,7 +482,7 @@ const VetProfilePage = () => {
       const { data, error } = await supabase
         .from('vet_profiles')
         .update(profileData)
-        .eq('id', user?.id)
+        .eq('id', user.id) // Use id field which is the primary key
         .select();
 
       if (error) throw error;
@@ -607,7 +698,7 @@ const VetProfilePage = () => {
 
                           <div>
                             <h3 className="text-sm font-medium">PIN Code</h3>
-                            <p className="text-lg">{profile?.pin_code || "Not provided"}</p>
+                            <p className="text-lg">{profile?.zip_code || "Not provided"}</p>
                           </div>
 
                           <div>
@@ -924,11 +1015,11 @@ const VetProfilePage = () => {
 
                             <div className="grid w-full items-center gap-1.5">
                               <PinCodeInput<VetProfile>
-                                name="pin_code"
+                                name="zip_code"
                                 label="PIN Code"
                                 control={form.control}
                                 description="Enter your 6-digit PIN code"
-                                error={form.formState.errors.pin_code?.message}
+                                error={form.formState.errors.zip_code?.message}
                               />
                             </div>
 

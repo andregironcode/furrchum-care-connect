@@ -3,6 +3,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
+import { sendAccountCreationEmail } from '@/integrations/resend/emailService';
 
 interface AuthContextType {
   user: User | null;
@@ -62,6 +63,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) throw error;
+      
+      // Send branded welcome email via Resend
+      await sendAccountCreationEmail({
+        email,
+        fullName
+      });
       
       toast.success('Account created! Check your email for confirmation.');
     } catch (error: any) {

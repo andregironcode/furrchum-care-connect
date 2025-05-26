@@ -89,8 +89,8 @@ export function PhoneInput<T extends FieldValues = FieldValues>({
                     return;
                   }
                   
-                  const formattedValue = formatPhoneNumber(rawValue);
-                  field.onChange(formattedValue);
+                  // Store the raw digits in the form value, but display the formatted version
+                  field.onChange(rawValue);
                 }}
                 onFocus={() => setFocused(true)}
                 onBlur={(e) => {

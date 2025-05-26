@@ -7,8 +7,8 @@ interface PrescriptionPDFData {
   dosage: string;
   frequency: string;
   duration: string;
-  instructions?: string;
-  diagnosis?: string;
+  instructions?: string | null;
+  diagnosis?: string | null;
   prescribed_date: string;
   status: string;
   pet_name: string;

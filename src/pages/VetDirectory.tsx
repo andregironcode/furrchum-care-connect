@@ -78,6 +78,7 @@ const VetDirectory = () => {
   const [searchParams] = useSearchParams();
   const [vets, setVets] = useState<Vet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -186,7 +187,7 @@ const VetDirectory = () => {
     return filtered;
   }, [vets, searchTerm, specialization, availability, zipCode]);
   
-  const handleBookNow = (vetId: string) => {
+  const handleBookNow = async (vetId: string) => {
     if (!user) {
       toast.error("Please login to book a consultation", {
         action: {
@@ -196,7 +197,16 @@ const VetDirectory = () => {
       });
       return;
     }
-    navigate(`/booking/${vetId}`);
+    
+    try {
+      setIsSaving(true);
+      navigate(`/booking/${vetId}`);
+    } catch (error) {
+      console.error('Error navigating to booking:', error);
+      toast.error('Failed to start booking process');
+    } finally {
+      setIsSaving(false);
+    }
   };
   
   // Get unique specializations from actual vets data

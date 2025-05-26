@@ -19,8 +19,8 @@ interface Prescription {
   dosage: string;
   frequency: string;
   duration: string;
-  instructions: string;
-  diagnosis: string;
+  instructions: string | null;
+  diagnosis: string | null;
   prescribed_date: string;
   status: string;
   pet_id: string;
@@ -66,17 +66,23 @@ const PrescriptionsPage = () => {
 
             if (vetsError) throw vetsError;
 
-            // Combine data
-            const enrichedPrescriptions = prescriptionsData.map(prescription => {
-              const pet = petsData?.find(p => p.id === prescription.pet_id);
-              const vet = vetsData?.find(v => v.id === prescription.vet_id);
-              
-              return {
-                ...prescription,
-                pet_name: pet?.name || 'Unknown Pet',
-                vet_name: vet ? `Dr. ${vet.first_name} ${vet.last_name}` : 'Unknown Vet'
-              };
-            });
+            // Combine data and ensure it matches the Prescription interface
+            const enrichedPrescriptions = prescriptionsData.map(prescription => ({
+              id: prescription.id,
+              medication_name: prescription.medication_name,
+              dosage: prescription.dosage,
+              frequency: prescription.frequency,
+              duration: prescription.duration,
+              instructions: prescription.instructions || null,
+              diagnosis: prescription.diagnosis || null,
+              prescribed_date: prescription.prescribed_date,
+              status: prescription.status,
+              pet_id: prescription.pet_id,
+              pet_name: petsData?.find(p => p.id === prescription.pet_id)?.name || 'Unknown Pet',
+              vet_name: vetsData?.find(v => v.id === prescription.vet_id) 
+                ? `Dr. ${vetsData.find(v => v.id === prescription.vet_id)?.first_name} ${vetsData.find(v => v.id === prescription.vet_id)?.last_name}` 
+                : 'Unknown Vet'
+            } as Prescription));
 
             setPrescriptions(enrichedPrescriptions);
           }
@@ -121,9 +127,6 @@ const PrescriptionsPage = () => {
                   <SidebarTrigger />
                   <h1 className="text-2xl font-bold">Prescriptions</h1>
                 </div>
-                <Button className="bg-primary hover:bg-primary-600">
-                  <Plus className="mr-2 h-4 w-4" /> Request Prescription
-                </Button>
               </div>
             </header>
             
@@ -273,11 +276,6 @@ const EmptyPrescriptionState = ({ type = "active" }: { type: string }) => {
           ? "You don't have any active prescriptions. After a vet visit, your prescriptions will appear here."
           : "You don't have any expired prescriptions. When prescriptions expire, they will be moved here for reference."}
       </p>
-      {type === "active" && (
-        <Button className="bg-primary hover:bg-primary-600">
-          <Plus className="mr-2 h-4 w-4" /> Request Prescription
-        </Button>
-      )}
     </div>
   );
 };

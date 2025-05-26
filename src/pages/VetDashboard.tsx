@@ -7,7 +7,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, AlertCircle, Users, Calendar, FileText, ShieldAlert } from 'lucide-react';
+import { Loader2, AlertCircle, Users, Calendar, FileText, ShieldAlert, Phone } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import VetSidebar from '@/components/VetSidebar';
 import ApprovalStatusBanner from '@/components/ApprovalStatusBanner';
@@ -160,14 +160,9 @@ const VetDashboard = () => {
               
               {/* Display vet approval status banner */}
               {vetProfile && (
-                <ApprovalStatusBanner 
-                  status={vetProfile.approval_status} 
-                  rejectionReason={vetProfile.rejection_reason} 
-                  approvedAt={vetProfile.approved_at}
-                  submittedAt={vetProfile.created_at}
-                  showProfileLink={true}
-                  className="mb-6" 
-                />
+                <>
+                  <ApprovalStatusBanner status={vetProfile.approval_status} />
+                </>
               )}
               
               {/* Conditional notice for rejected or pending vets */}

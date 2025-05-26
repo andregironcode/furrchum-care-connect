@@ -354,18 +354,20 @@ const AppointmentsPage = () => {
   return (
     <SidebarProvider>
       <div className="grid lg:grid-cols-[240px_1fr] h-screen">
-        <SidebarTrigger className="absolute left-4 top-4 z-40 lg:hidden">
-          <Button variant="outline" size="icon" className="rounded-full">
-            <span className="sr-only">Toggle Sidebar</span>
-          </Button>
-        </SidebarTrigger>
-
         <PetOwnerSidebar />
 
         <div className="flex-1 flex flex-col">
           <SidebarInset className="p-4 md:p-6">
+            <div className="flex items-center gap-2 mb-4 lg:hidden">
+              <SidebarTrigger>
+                <Button variant="outline" size="icon" className="h-8 w-8">
+                  <span className="sr-only">Toggle Sidebar</span>
+                </Button>
+              </SidebarTrigger>
+            </div>
+            
             <header className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-              <div>
+              <div className="pl-0 md:pl-0">
                 <h1 className="text-2xl font-bold tracking-tight">My Appointments</h1>
                 <p className="text-muted-foreground">
                   View and manage your veterinary appointments

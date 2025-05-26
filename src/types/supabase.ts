@@ -17,24 +17,30 @@ export interface Profile {
 
 export interface VetProfile {
   id: string;
-  created_at?: string;
-  updated_at?: string;
-  user_id: string;
+  created_at: string;
+  updated_at: string;
   first_name: string;
   last_name: string;
-  specialization?: string;
-  experience_years?: number;
-  about?: string;
-  consultation_fee?: number;
-  phone?: string;
-  email?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  zip_code?: string;
-  profile_image?: string;
-  is_available?: boolean;
-  rating?: number;
+  specialization: string | null;
+  years_experience: number | null;
+  consultation_fee: number | null;
+  gender: string | null;
+  languages: string[] | null;
+  availability: string | null;
+  rating: number | null;
+  image_url: string | null;
+  location: any | null; // JSONB field
+  zip_code: string | null;
+  about: string | null;
+  phone: string | null;
+  license_url: string | null;
+  clinic_images: string[] | null;
+  clinic_location: string | null;
+  offers_video_calls: boolean | null;
+  offers_in_person: boolean | null;
+  approval_status: 'pending' | 'approved' | 'rejected' | null;
+  approved_at: string | null;
+  approved_by: string | null;
 }
 
 export interface Pet {

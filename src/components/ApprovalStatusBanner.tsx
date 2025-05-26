@@ -122,10 +122,12 @@ const ApprovalStatusBanner: React.FC<ApprovalStatusBannerProps> = ({
               </div>
             )}
             <div className="mt-4 space-x-2">
-              <Button variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50">
-                <Phone className="h-4 w-4 mr-2" />
-                Call Support
-              </Button>
+              <a href="tel:+918700608887">
+                <Button variant="outline" className="border-amber-300 text-amber-700 hover:bg-amber-50">
+                  <Phone className="h-4 w-4 mr-2" />
+                  Call Support
+                </Button>
+              </a>
               <Button variant="ghost" className="text-amber-700 hover:bg-amber-100/50">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Learn More

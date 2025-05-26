@@ -27,6 +27,7 @@ interface VetProfile {
   availability: string;
   zip_code: string;
   phone: string;
+  gender: string;
   clinic_location: string;
   clinic_images: string[];
   license_url: string;
@@ -72,6 +73,8 @@ const VetDetailsPage = () => {
   const fetchVetDetails = async () => {
     try {
       setLoading(true);
+      if (!vetId) return;
+      
       const { data, error } = await supabase
         .from('vet_profiles')
         .select('*')
@@ -79,7 +82,31 @@ const VetDetailsPage = () => {
         .single();
 
       if (error) throw error;
-      setVet(data);
+      
+      if (data) {
+        const vetProfile: VetProfile = {
+          id: data.id || '',
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          specialization: data.specialization || '',
+          about: data.about || '',
+          consultation_fee: data.consultation_fee || 0,
+          image_url: data.image_url || '',
+          years_experience: data.years_experience || 0,
+          phone: data.phone || '',
+          gender: data.gender || '',
+          languages: Array.isArray(data.languages) ? data.languages : [],
+          zip_code: data.zip_code || '',
+          clinic_location: data.clinic_location || '',
+          clinic_images: Array.isArray(data.clinic_images) ? data.clinic_images : [],
+          license_url: data.license_url || '',
+          rating: typeof data.rating === 'number' ? data.rating : 5,
+          availability: data.availability || 'Available',
+          offers_video_calls: Boolean(data.offers_video_calls),
+          offers_in_person: Boolean(data.offers_in_person)
+        };
+        setVet(vetProfile);
+      }
     } catch (error) {
       console.error('Error fetching vet details:', error);
       setError('Failed to load veterinarian details');
@@ -90,17 +117,22 @@ const VetDetailsPage = () => {
 
   const fetchVetAvailability = async () => {
     try {
+      if (!vetId) return;
+      setLoading(true);
+      
       const { data, error } = await supabase
         .from('vet_availability')
         .select('*')
         .eq('vet_id', vetId)
-        .eq('is_available', true)
         .order('day_of_week', { ascending: true });
 
       if (error) throw error;
       setAvailability(data || []);
     } catch (error) {
       console.error('Error fetching vet availability:', error);
+      setError('Failed to load availability');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -230,19 +262,7 @@ const VetDetailsPage = () => {
                       </div>
                     )}
 
-                    {vet.license_url && (
-                      <div className="flex items-center">
-                        <FileText className="h-5 w-5 text-purple-500 mr-2" />
-                        <a 
-                          href={vet.license_url} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:underline"
-                        >
-                          View License
-                        </a>
-                      </div>
-                    )}
+
                     
                     <div className="flex items-center">
                       <Mail className="h-5 w-5 text-purple-500 mr-2" />
@@ -367,9 +387,7 @@ const VetDetailsPage = () => {
               </CardHeader>
               
               <CardContent className="space-y-4">
-                <div className="text-center py-2 bg-green-50 rounded-md text-green-700 font-medium">
-                  In-person consultations only
-                </div>
+
                 
                 <div className="flex items-center justify-between py-2 border-b">
                   <span className="text-gray-600">Consultation Fee</span>
@@ -388,7 +406,7 @@ const VetDetailsPage = () => {
                 
                 <Button 
                   className="w-full bg-primary hover:bg-primary/90 text-white mt-4"
-                  onClick={() => handleBookNow(vetId)}
+                  onClick={() => vetId && handleBookNow(vetId)}
                 >
                   Book Now
                 </Button>
@@ -398,18 +416,7 @@ const VetDetailsPage = () => {
                 </div>
               </CardContent>
             </Card>
-            
-            <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-              <div className="flex items-center text-amber-700 mb-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <h3 className="font-medium">Online Consultations</h3>
-              </div>
-              <p className="text-sm text-amber-700">
-                Video consultations are currently unavailable with this veterinarian. Only in-person visits are offered at this time.
-              </p>
-            </div>
+          
           </div>
         </div>
       </div>
