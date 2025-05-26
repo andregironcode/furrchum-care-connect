@@ -61,8 +61,11 @@ interface BookingData {
   end_time: string;
   consultation_type: 'in_person' | 'video_call';
   notes: string;
-  // Video meeting details will be stored in localStorage instead of database
-  status: 'confirmed';
+  status: 'confirmed' | 'pending';
+  payment_status?: 'pending' | 'paid' | 'failed';
+  meeting_id?: string;
+  meeting_url?: string;
+  host_meeting_url?: string;
 }
 
 const BookingPage = () => {
@@ -381,7 +384,7 @@ const BookingPage = () => {
       return;
     }
     
-    if (!vetId) {
+    if (!vetId || !vet) {
       toast.error('Vet information is missing');
       return;
     }
@@ -390,20 +393,14 @@ const BookingPage = () => {
     setError(null);
     
     try {
-      // Create booking data - only including fields that exist in the database schema
-      const bookingData = {
-        vet_id: vetId,
-        pet_owner_id: user.id,
-        pet_id: selectedPetId,
-        booking_date: format(date, 'yyyy-MM-dd'),
-        start_time: timeSlot,
-        end_time: format(new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000), 'HH:mm'),
-        consultation_type: consultationType,
-        notes: notes,
-        status: 'confirmed' as const
-      };
-      
       // If it's a video call, create a meeting first
+      let meetingDetails: {
+        meetingId: string;
+        roomUrl: string;
+        hostRoomUrl: string | null;
+        startDate: string;
+        endDate: string;
+      } | null = null;
       if (consultationType === 'video_call') {
         try {
           // Create appointment date from selected date and time
@@ -419,27 +416,16 @@ const BookingPage = () => {
           // Calculate end time
           const endTimeObj = new Date(appointmentDate.getTime() + duration * 60000);
           const endTimeString = format(endTimeObj, 'HH:mm');
-          const formattedDate = format(date, 'yyyy-MM-dd');
           
-          // Store meeting details in localStorage with booking ID reference
-          const bookingIdPrefix = `${formattedDate}-${timeSlot.replace(':', '')}-${vetId}`;
-          const meetingKey = `meeting-${bookingIdPrefix}`;
-          
-          console.log('Storing meeting info in localStorage:', meeting);
-          localStorage.setItem(meetingKey, JSON.stringify({
+          meetingDetails = {
             meetingId: meeting.meetingId,
             roomUrl: meeting.roomUrl,
             hostRoomUrl: meeting.hostRoomUrl || null,
             startDate: meeting.startDate,
-            endDate: meeting.endDate,
-            createdAt: new Date().toISOString(),
-            bookingDate: formattedDate,
-            startTime: timeSlot,
-            endTime: endTimeString
-          }));
+            endDate: meeting.endDate
+          };
           
-          // Store reference for lookup after booking is created
-          localStorage.setItem('last-created-meeting', meetingKey);
+          console.log('Created meeting:', meetingDetails);
         } catch (error) {
           console.error('Error creating video meeting:', error);
           toast.error(
@@ -452,70 +438,87 @@ const BookingPage = () => {
         }
       }
       
-      // Save booking to database
-      const { data: booking, error: bookingError } = await supabase
+      // Prepare payment data
+      const endTime = format(new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000), 'HH:mm');
+      const paymentData = {
+        vetId: vetId,
+        vetName: `${vet.first_name} ${vet.last_name}`,
+        petId: selectedPetId,
+        petName: selectedPet?.name,
+        date: format(date, 'yyyy-MM-dd'),
+        timeSlot: `${timeSlot} - ${endTime}`,
+        consultationType: 'schedule',
+        consultationMode: consultationType === 'video_call' ? 'video' : 'in_person',
+        fee: vet.consultation_fee || 0,
+        userId: user.id,
+        notes: notes,
+        // If we have meeting details, include them
+        meetingDetails: meetingDetails
+      };
+      
+      // Store booking data in session storage for the payment page
+      sessionStorage.setItem('bookingData', JSON.stringify(paymentData));
+      
+      // Create a pending booking in the database
+      const bookingData: BookingData = {
+        vet_id: vetId,
+        pet_owner_id: user.id,
+        pet_id: selectedPetId,
+        booking_date: format(date, 'yyyy-MM-dd'),
+        start_time: timeSlot,
+        end_time: endTime,
+        consultation_type: consultationType,
+        notes: notes,
+        status: 'pending' as const,
+        payment_status: 'pending' as const
+      };
+      
+      // Save pending booking to database
+      const pendingBookingData = {
+        vet_id: vetId,
+        pet_owner_id: user.id,
+        pet_id: selectedPetId,
+        booking_date: format(date, 'yyyy-MM-dd'),
+        start_time: timeSlot,
+        end_time: endTime,
+        consultation_type: consultationType,
+        notes: notes,
+        status: 'pending',
+        payment_status: 'pending',
+        ...(meetingDetails ? {
+          meeting_id: meetingDetails.meetingId,
+          meeting_url: meetingDetails.roomUrl,
+          host_meeting_url: meetingDetails.hostRoomUrl
+        } : {})
+      };
+      
+      const { data: pendingBooking, error: bookingError } = await supabase
         .from('bookings')
-        .insert([bookingData])
+        .insert([pendingBookingData])
         .select()
         .single();
       
       if (bookingError) {
-        throw new Error(bookingError.message || 'Failed to save booking');
+        throw new Error(bookingError.message || 'Failed to create pending booking');
       }
       
-      if (!booking) {
+      if (!pendingBooking) {
         throw new Error('No booking data returned from server');
       }
       
-      // Show success message - include video meeting info if applicable
-      if (consultationType === 'video_call') {
-        const lastMeetingKey = localStorage.getItem('last-created-meeting');
-        if (lastMeetingKey) {
-          try {
-            // Get the original meeting data
-            const meetingData = localStorage.getItem(lastMeetingKey);
-            if (meetingData && booking) {
-              // Store the same meeting data with the booking ID for future lookup
-              const bookingIdKey = `meeting-${booking.id}`;
-              localStorage.setItem(bookingIdKey, meetingData);
-              console.log(`Successfully stored meeting data with booking ID key: ${bookingIdKey}`);
-              
-              // Keep a master lookup table of all meetings
-              try {
-                const meetingLookup = JSON.parse(localStorage.getItem('meeting-lookup') || '{}');
-                meetingLookup[booking.id] = lastMeetingKey;
-                localStorage.setItem('meeting-lookup', JSON.stringify(meetingLookup));
-                console.log('Updated meeting lookup table:', meetingLookup);
-              } catch (e) {
-                console.error('Error updating meeting lookup table:', e);
-              }
-            }
-            
-            toast.success(
-              <div>
-                <p>Video appointment booked successfully!</p>
-                <p className="text-sm mt-1">Your meeting link will be available in your appointments.</p>
-              </div>
-            );
-          } catch (e) {
-            console.error('Error handling meeting data after booking:', e);
-            toast.success('Video appointment booked successfully!');
-          }
-        } else {
-          toast.success('Video appointment booked successfully!');
-        }
-      } else {
-        toast.success('Appointment booked successfully!');
-      }
+      // Store the booking ID in session storage for the payment page
+      const updatedPaymentData = {
+        ...paymentData,
+        bookingId: pendingBooking.id
+      };
+      sessionStorage.setItem('bookingData', JSON.stringify(updatedPaymentData));
       
-      // Redirect to appointments page after a short delay
-      setTimeout(() => {
-        navigate('/appointments');
-      }, 1500);
+      // Redirect to payment page
+      navigate('/payment');
       
     } catch (err) {
-      console.error('Error booking appointment:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to book appointment. Please try again.';
+      console.error('Error preparing booking:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to prepare booking. Please try again.';
       setError(errorMessage);
       toast.error(errorMessage, {
         duration: 5000,

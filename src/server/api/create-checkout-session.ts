@@ -34,10 +34,13 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
         },
       ],
       metadata: {
+        booking_id: bookingData.bookingId, // Store the booking ID for the webhook
+        user_id: bookingData.userId,       // Store the user ID
+        // Include meeting details if available
+        meeting_details: bookingData.meetingDetails ? JSON.stringify(bookingData.meetingDetails) : '',
+        // Keep additional metadata for reference
         vet_id: bookingData.vetId,
         pet_id: bookingData.petId,
-        user_id: bookingData.userId, // Store the user ID
-        consultation_type: bookingData.consultationType,
         consultation_mode: bookingData.consultationMode,
         date: bookingData.date || '',
         time_slot: bookingData.timeSlot,

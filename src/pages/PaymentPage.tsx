@@ -20,10 +20,20 @@ type BookingData = {
   petId: string;
   petName?: string;
   consultationType: 'schedule' | 'immediate';
-  consultationMode: 'video' | 'chat';
+  consultationMode: 'video' | 'in_person';
   fee: number;
   date: string;
   timeSlot: string;
+  userId?: string;
+  bookingId?: string;
+  notes?: string;
+  meetingDetails?: {
+    meetingId: string;
+    roomUrl: string;
+    hostRoomUrl: string | null;
+    startDate: string;
+    endDate: string;
+  } | null;
 };
 
 const PaymentPage = () => {
@@ -46,14 +56,11 @@ const PaymentPage = () => {
       navigate('/vets');
     }
 
-      // Check if we're in development without Stripe keys
+    // Check if we're in development without Stripe keys
     if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
       console.warn('Stripe publishable key not found, using fallback payment mode');
       setIsFallbackMode(true);
     }
-    
-    // Clear any previous payment success messages from sessionStorage
-    sessionStorage.removeItem('paymentSuccess');
   }, [navigate]);
 
   const handleStripeCheckout = async () => {
@@ -79,12 +86,11 @@ const PaymentPage = () => {
         return;
       }
 
-      // Store booking data in database as 'pending' first
-      // This helps track abandoned checkout sessions
-      const pendingBookingId = await createPendingBooking();
+      // We already have a pending booking from the BookingPage
+      const bookingId = bookingData.bookingId;
       
-      if (!pendingBookingId) {
-        toast.error("Could not create booking. Please try again.");
+      if (!bookingId) {
+        toast.error("No booking ID found. Please try again.");
         setIsProcessing(false);
         return;
       }
@@ -99,7 +105,7 @@ const PaymentPage = () => {
           bookingData: {
             ...bookingData,
             userId: user.id,
-            pendingBookingId
+            bookingId
           },
         }),
       });
@@ -126,97 +132,85 @@ const PaymentPage = () => {
 
   // Fallback payment for development without Stripe
   const handleFallbackPayment = async () => {
-    try {
-      // Create the booking directly
-      await createBooking('confirmed');
-      
-      // Create a mock transaction record
-      await supabase.from('transactions').insert({
-        booking_id: user?.id + '-' + Date.now(), // Dummy booking ID
-        payment_intent_id: 'dev_' + Date.now(),
-        amount: bookingData?.fee ? bookingData.fee * 1.05 : 0,
-        currency: 'inr',
-        status: 'completed',
-        payment_method: 'card',
-        customer_email: user?.email,
-      });
-
-      // Wait a moment to simulate processing
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setIsProcessing(false);
-      toast.success("Payment successful! Your appointment has been confirmed.");
-      
-      // Clear booking data from session storage
-      sessionStorage.removeItem('bookingData');
-      
-      // Redirect to dashboard
-      navigate('/appointments');
-    } catch (error) {
-      console.error('Fallback payment error:', error);
-      toast.error("Payment processing failed. Please try again.");
-      setIsProcessing(false);
-    }
-  };
-
-  // Create a pending booking while waiting for Stripe confirmation
-  const createPendingBooking = async (): Promise<string | null> => {
-    try {
-      return await createBooking('pending');
-    } catch (error) {
-      console.error('Error creating pending booking:', error);
-      return null;
-    }
-  };
-
-  // Helper to create booking with a specific status
-  const createBooking = async (status: 'pending' | 'confirmed'): Promise<string | null> => {
     if (!bookingData || !user) {
-      throw new Error('Missing booking data or user not logged in');
+      toast.error("Missing booking data or user not logged in");
+      setIsProcessing(false);
+      return;
+    }
+    
+    try {
+      // Show a processing message
+      toast.info('Simulating payment processing...', {
+        duration: 2000
+      });
+      
+      // Simulate processing delay
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
+      // Get the existing booking ID
+      const bookingId = bookingData.bookingId;
+      
+      if (!bookingId) {
+        throw new Error('No booking ID found');
+      }
+      
+      // Update the booking status to confirmed
+      await updateBookingStatus(bookingId);
+      
+      // Show success message
+      toast.success('Payment processed successfully!');
+      
+      // Store success in sessionStorage for PaymentSuccessPage
+      sessionStorage.setItem('paymentSuccess', JSON.stringify({
+        bookingId,
+        bookingData
+      }));
+      
+      // Redirect to success page
+      navigate(`/payment-success?session_id=dev_${bookingId}`);
+    } catch (error) {
+      console.error('Error in fallback payment:', error);
+      toast.error('Payment simulation failed. Please try again.');
+      setIsProcessing(false);
+    }
+  };
+
+  // Update booking status to confirmed
+  const updateBookingStatus = async (bookingId: string): Promise<boolean> => {
+    if (!user) {
+      throw new Error('User not logged in');
     }
 
-    // Ensure date is not null before proceeding
-    if (!bookingData.date) {
-      throw new Error('Booking date is required');
-    }
-
-    // Create booking object with proper types to satisfy TypeScript
-    const bookingInsert = {
-      vet_id: bookingData.vetId,
-      pet_id: bookingData.petId,
-      pet_owner_id: user.id,
-      booking_date: bookingData.date,
-      start_time: bookingData.timeSlot.split('-')[0].trim(),
-      end_time: bookingData.timeSlot.split('-')[1].trim(),
-      consultation_type: bookingData.consultationType,
-      consultation_mode: bookingData.consultationMode,
-      status: status,
-      payment_status: status === 'confirmed' ? 'paid' : 'pending',
-      notes: `${bookingData.consultationMode} consultation`,
-    };
-
-    const { data, error } = await supabase
+    // Update booking status
+    const { error } = await supabase
       .from('bookings')
-      .insert(bookingInsert)
-      .select('id')
-      .single();
+      .update({
+        status: 'confirmed',
+        payment_status: 'paid',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', bookingId);
 
     if (error) {
-      console.error('Error creating booking:', error);
-      throw error;
+      throw new Error(`Failed to update booking: ${error.message}`);
     }
 
-    return data?.id || null;
+    return true;
   };
 
   if (!bookingData) {
     return (
-      <div className="min-h-screen bg-neutral-50 flex items-center justify-center">
-        <Card className="w-[350px]">
+      <div className="flex items-center justify-center min-h-screen bg-white">
+        <Card className="max-w-md w-full">
           <CardHeader>
-            <CardTitle>Loading...</CardTitle>
-            <CardDescription>Retrieving booking information</CardDescription>
+            <CardTitle>No Booking Data</CardTitle>
+            <CardDescription>No booking information was found.</CardDescription>
           </CardHeader>
+          <CardFooter>
+            <Button className="w-full" onClick={() => navigate('/vets')}>
+              Find Vets
+            </Button>
+          </CardFooter>
         </Card>
       </div>
     );
@@ -377,7 +371,7 @@ const PaymentPage = () => {
                       Processing...
                     </span>
                   ) : (
-                    `Pay ₹${(bookingData.fee * 1.05).toFixed(2)}`
+                    `Pay $${(bookingData.fee * 1.05).toFixed(2)}`
                   )}
                 </Button>
               </CardFooter>
