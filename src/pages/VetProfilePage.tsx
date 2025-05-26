@@ -68,7 +68,7 @@ const VetProfilePage = () => {
     consultation_fee: z.number().min(0),
     image_url: z.string(),
     years_experience: z.number().min(0),
-    phone: z.string(),
+    phone: z.string().regex(/^\d{10}$/, { message: 'Phone number must be exactly 10 digits' }),
     gender: z.string(),
     languages: z.array(z.string()),
     pin_code: z.string(),
