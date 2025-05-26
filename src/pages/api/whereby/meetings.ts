@@ -1,7 +1,8 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 
-const WHEREBY_API_URL = 'https://api.whereby.dev/v1';
-const API_KEY = process.env.VITE_WHEREBY_API_KEY;
+const WHEREBY_API_URL = process.env.WHEREBY_API_URL || process.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
+// Try both with and without VITE_ prefix to support both local and Vercel environments
+const API_KEY = process.env.WHEREBY_API_KEY || process.env.VITE_WHEREBY_API_KEY;
 
 // Helper function to set CORS headers
 type ApiHandler = (req: NextApiRequest, res: NextApiResponse) => Promise<void> | void;

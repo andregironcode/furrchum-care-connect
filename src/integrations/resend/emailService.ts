@@ -7,9 +7,11 @@ interface User {
   firstName?: string;
 }
 
+import { env } from '@/utils/envLoader';
+
 // Email service configuration
 const emailConfig = {
-  from: import.meta.env.VITE_EMAIL_FROM || 'no-reply@furrchum.com',
+  from: env.EMAIL_FROM || 'no-reply@furrchum.com',
   replyTo: 'support@furrchum.com',
   logoUrl: 'https://furrchum.com/logo.png', // Update with your actual logo URL
 };
