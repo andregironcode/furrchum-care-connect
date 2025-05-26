@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { FormControl, FormDescription, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Controller, Control, FieldValues, Path } from 'react-hook-form';
 import { Phone } from 'lucide-react';
+import { toast } from 'sonner';
 
 interface PhoneInputProps<T extends FieldValues = FieldValues> extends React.InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -73,9 +74,22 @@ export function PhoneInput<T extends FieldValues = FieldValues>({
                 onChange={(e) => {
                   // When user types, format the phone number
                   const rawValue = unformatPhoneNumber(e.target.value);
-                  const formattedValue = formatPhoneNumber(rawValue);
                   
-                  // Store the raw digits in the form state
+                  // Strictly enforce max 10 digits
+                  if (rawValue.length > 10) {
+                    // If user tries to enter more than 10 digits, just use the first 10
+                    const trimmedValue = rawValue.slice(0, 10);
+                    const formattedValue = formatPhoneNumber(trimmedValue);
+                    field.onChange(formattedValue);
+                    
+                    // Optionally notify user they've reached the limit
+                    if (rawValue.length === 11) { // Only show once when they go over
+                      toast.info('Phone number must be exactly 10 digits');
+                    }
+                    return;
+                  }
+                  
+                  const formattedValue = formatPhoneNumber(rawValue);
                   field.onChange(formattedValue);
                 }}
                 onFocus={() => setFocused(true)}
@@ -83,9 +97,13 @@ export function PhoneInput<T extends FieldValues = FieldValues>({
                   setFocused(false);
                   field.onBlur();
                   
-                  // Validate on blur
-                  if (field.value && !isValidPhoneNumber(field.value)) {
-                    // This will be caught by the form validation
+                  // Validate on blur - must be exactly 10 digits
+                  if (field.value) {
+                    const digits = unformatPhoneNumber(field.value);
+                    if (digits.length !== 0 && digits.length !== 10) {
+                      // Show a warning to the user
+                      toast.error('Phone number must be exactly 10 digits');
+                    }
                   }
                 }}
                 maxLength={14} // Formatted length (XXX) XXX-XXXX
@@ -93,7 +111,7 @@ export function PhoneInput<T extends FieldValues = FieldValues>({
                 type="tel"
                 className={`${className} pl-10`}
                 placeholder={props.placeholder || "(555) 123-4567"}
-                aria-invalid={!!fieldState.error}
+                aria-invalid={!!fieldState.error || (field.value && !isValidPhoneNumber(field.value))}
               />
             </div>
           </FormControl>
