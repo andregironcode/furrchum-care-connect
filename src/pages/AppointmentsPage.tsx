@@ -14,13 +14,31 @@ import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from 'sonner';
 import AppointmentDetailsModal from '@/components/AppointmentDetailsModal';
-import { Booking, Pet } from '@/types/supabase';
+import { Booking } from '@/types/supabase';
 
-// Local interface for Vet data with simplified structure
+// Local interfaces for data structures
+interface Pet {
+  id: string;
+  name: string;
+  species: string;
+  breed: string | null;
+  owner_id: string;
+  date_of_birth?: string | null;
+  age?: number | null;
+  weight?: number | null;
+  image_url?: string | null;
+  color?: string | null;
+  gender?: string | null;
+  chip_number?: string | null;
+  notes?: string | null;
+  type?: string;
+}
+
 interface Vet {
   id: string;
-  first_name: string;
-  last_name: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
   specialization?: string | null;
   phone?: string | null;
   zip_code?: string | null;
@@ -40,15 +58,17 @@ const AppointmentsPage = () => {
   // Define fetchPetsAndVets with useCallback first
   const fetchPetsAndVets = useCallback(async (bookings: Booking[]) => {
     // Get unique pet IDs and vet IDs
-    const petIds = [...new Set(bookings.map(booking => booking.pet_id))];
-    const vetIds = [...new Set(bookings.map(booking => booking.vet_id))];
+    const petIds = [...new Set(bookings.map(booking => booking.pet_id).filter(id => id))];
+    const vetIds = [...new Set(bookings.map(booking => booking.vet_id).filter(id => id))];
+    
+    console.log('Fetching data for pets:', petIds, 'and vets:', vetIds);
     
     // Fetch pets
     if (petIds.length > 0) {
       try {
         const { data: petsData, error } = await supabase
           .from('pets')
-          .select('id, name, type')
+          .select('id, name, type, breed, owner_id')
           .in('id', petIds);
           
         if (error) {
@@ -59,9 +79,16 @@ const AppointmentsPage = () => {
         if (petsData) {
           const petsRecord: Record<string, Pet> = {};
           petsData.forEach(pet => {
-            petsRecord[pet.id] = pet;
+            // Convert the pet data to match our local interface
+            petsRecord[pet.id] = {
+              id: pet.id,
+              name: pet.name,
+              species: pet.type || 'Pet', // Map type to species for compatibility
+              breed: pet.breed,
+              owner_id: pet.owner_id
+            };
           });
-          console.log('Fetched pets:', petsRecord);
+          console.log('Fetched pets:', petsData.length, 'pet records');
           setPets(petsRecord);
         }
       } catch (error) {
@@ -70,31 +97,90 @@ const AppointmentsPage = () => {
       }
     }
     
-    // Fetch vets
+    // Fetch vets with a retry mechanism
     if (vetIds.length > 0) {
-      try {
-        const { data: vetsData, error } = await supabase
-          .from('vet_profiles')
-          .select('id, first_name, last_name, specialization, phone, zip_code, about')
-          .in('id', vetIds);
-          
-        if (error) {
-          console.error('Error fetching vets:', error);
-          throw error;
+      let retries = 0;
+      const maxRetries = 2;
+      
+      const fetchVetData = async () => {
+        try {
+          const { data: vetsData, error } = await supabase
+            .from('vet_profiles')
+            .select('id, first_name, last_name, specialization, phone, zip_code, about')
+            .in('id', vetIds);
+            
+          if (error) {
+            console.error('Error fetching vets:', error);
+            throw error;
+          }
+            
+          if (vetsData && vetsData.length > 0) {
+            const vetsRecord: Record<string, Vet> = {};
+            vetsData.forEach(vet => {
+              vetsRecord[vet.id] = vet as Vet;
+            });
+            console.log('Fetched vets:', vetsData.length, 'vet records');
+            setVets(vetsRecord);
+          } else if (retries < maxRetries) {
+            // If no vets found, retry with profiles table which might have the basic info
+            retries++;
+            console.log(`No vets found, retrying with profiles table (attempt ${retries})`);
+            
+            const { data: profilesData, error: profilesError } = await supabase
+              .from('profiles')
+              .select('id, full_name')
+              .in('id', vetIds);
+              
+            if (profilesError) {
+              console.error('Error fetching profiles:', profilesError);
+              throw profilesError;
+            }
+            
+            if (profilesData && profilesData.length > 0) {
+              const vetsRecord: Record<string, Vet> = {};
+              profilesData.forEach(profile => {
+                // Skip any invalid profiles
+                if (!profile || !profile.id) return;
+                if (profile && profile.id) {
+                  // Split full name into first and last if possible
+                  let firstName = 'Doctor';
+                  let lastName = '';
+                  
+                  if (profile.full_name) {
+                    const nameParts = profile.full_name.split(' ');
+                    firstName = nameParts[0] || 'Doctor';
+                    lastName = nameParts.slice(1).join(' ') || '';
+                  }
+                  
+                  vetsRecord[profile.id] = {
+                    id: profile.id,
+                    first_name: firstName,
+                    last_name: lastName,
+                    full_name: profile.full_name || 'Doctor',
+                    specialization: null,
+                    phone: null,
+                    zip_code: null,
+                    about: null
+                  };
+                }
+              });
+              console.log('Fetched profiles as fallback:', profilesData.length, 'profile records');
+              setVets(vetsRecord);
+            }
+          }
+        } catch (error) {
+          console.error('Error in vet fetch attempt:', error);
+          if (retries < maxRetries) {
+            retries++;
+            console.log(`Retrying vet fetch (attempt ${retries})`);
+            await fetchVetData();
+          } else {
+            toast.error('Failed to load veterinarian information');
+          }
         }
-          
-        if (vetsData) {
-          const vetsRecord: Record<string, Vet> = {};
-          vetsData.forEach(vet => {
-            vetsRecord[vet.id] = vet as Vet;
-          });
-          console.log('Fetched vets:', vetsRecord);
-          setVets(vetsRecord);
-        }
-      } catch (error) {
-        console.error('Error fetching vets:', error);
-        toast.error('Failed to load veterinarian information');
-      }
+      };
+      
+      await fetchVetData();
     }
   }, []);
 
@@ -348,10 +434,14 @@ const AppointmentsPage = () => {
                         <div className="flex justify-between items-start">
                           <div>
                             <CardTitle>
-                              {pets[booking.pet_id] ? `${pets[booking.pet_id].name} - ${pets[booking.pet_id].type}` : "Unknown Pet"}
+                              {pets[booking.pet_id] ? `${pets[booking.pet_id].name} - ${pets[booking.pet_id].species || pets[booking.pet_id].type || 'Pet'}` : "Your Pet"}
                             </CardTitle>
                             <CardDescription>
-                              With Dr. {vets[booking.vet_id] ? `${vets[booking.vet_id].first_name} ${vets[booking.vet_id].last_name}` : "Unknown Vet"}
+                              With Dr. {vets[booking.vet_id] ? 
+                                (vets[booking.vet_id].full_name ? 
+                                  vets[booking.vet_id].full_name : 
+                                  `${vets[booking.vet_id].first_name || ''} ${vets[booking.vet_id].last_name || ''}`.trim()) : 
+                                "Your Veterinarian"}
                             </CardDescription>
                           </div>
                           <Badge variant={getStatusBadgeVariant(booking.status)}>{booking.status}</Badge>
@@ -413,9 +503,31 @@ const AppointmentsPage = () => {
           <AppointmentDetailsModal
             isOpen={isDetailsModalOpen}
             onClose={() => setIsDetailsModalOpen(false)}
-            appointment={selectedAppointment}
-            pet={pets[selectedAppointment.pet_id]}
-            vet={vets[selectedAppointment.vet_id]}
+            appointment={{
+              id: selectedAppointment.id,
+              booking_date: selectedAppointment.booking_date,
+              start_time: selectedAppointment.start_time,
+              end_time: selectedAppointment.end_time,
+              consultation_type: selectedAppointment.consultation_type,
+              notes: selectedAppointment.notes || null, // Convert undefined to null for compatibility
+              status: selectedAppointment.status,
+              pet_id: selectedAppointment.pet_id,
+              vet_id: selectedAppointment.vet_id,
+              meeting_id: selectedAppointment.meeting_id,
+              meeting_url: selectedAppointment.meeting_url,
+              host_meeting_url: selectedAppointment.host_meeting_url
+            }}
+            pet={pets[selectedAppointment.pet_id] || {
+              id: selectedAppointment.pet_id,
+              name: 'Your Pet',
+              species: 'Pet',
+              breed: null,
+              owner_id: user?.id || ''
+            }}
+            vet={vets[selectedAppointment.vet_id] || {
+              id: selectedAppointment.vet_id,
+              full_name: 'Your Veterinarian'
+            }}
             onCancelAppointment={handleCancelAppointment}
           />
         )}

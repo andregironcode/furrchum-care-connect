@@ -117,11 +117,11 @@ const PetOwnerDashboard = () => {
     }
   }, []);
 
-  // Helper function to safely access pet name by ID
+  // Helper function to get pet name by ID
   const getPetNameById = useCallback((petId: string): string => {
-    if (!petId) return 'Unknown Pet';
+    if (!petId) return 'Your Pet';
     const pet = pets.find(p => p.id === petId);
-    return pet ? pet.name : 'Unknown Pet';
+    return pet ? pet.name : 'Your Pet';
   }, [pets]);
 
   // Function to handle video call initiation
@@ -424,15 +424,15 @@ const PetOwnerDashboard = () => {
   // Memoize the data fetching functions to prevent unnecessary recreations
   const memoizedFetchPets = useCallback(async (userId: string) => {
     return fetchPets(userId);
-  }, []);
+  }, [fetchPets]);
 
   const memoizedFetchAppointments = useCallback(async (userId: string) => {
     return fetchAppointments(userId);
-  }, []);
+  }, [fetchAppointments]);
 
   const memoizedFetchPrescriptions = useCallback(async (userId: string) => {
     return fetchPrescriptions(userId);
-  }, []);
+  }, [fetchPrescriptions]);
 
   // Initialize data on component mount and when user changes
   useEffect(() => {

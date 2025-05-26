@@ -23,17 +23,21 @@ interface Appointment {
 interface Pet {
   id: string;
   name: string;
-  type: string;
+  species?: string;
+  type?: string;
+  breed?: string | null;
+  owner_id: string;
 }
 
 interface Vet {
   id: string;
-  first_name: string;
-  last_name: string;
-  specialization?: string;
-  phone?: string;
-  zip_code?: string;
-  about?: string;
+  first_name?: string;
+  last_name?: string;
+  full_name?: string;
+  specialization?: string | null;
+  phone?: string | null;
+  zip_code?: string | null;
+  about?: string | null;
 }
 
 interface AppointmentDetailsModalProps {
@@ -63,7 +67,7 @@ const AppointmentDetailsModal = ({
   vet,
   onCancelAppointment 
 }: AppointmentDetailsModalProps) => {
-  // Define state for meeting details - hooks must be called unconditionally at the top level
+  // Always define state hooks at the top level
   const [meetingDetails, setMeetingDetails] = useState<{
     roomUrl?: string;
     hostRoomUrl?: string;
@@ -72,12 +76,12 @@ const AppointmentDetailsModal = ({
     endDate?: string;
   } | null>(null);
   
-  // Early return must come after hooks are defined
-  if (!appointment || !pet || !vet) return null;
-  
   // Load meeting details from localStorage
   useEffect(() => {
-    if (appointment?.consultation_type === 'video_call') {
+    // Safety check inside the effect
+    if (!isOpen || !appointment || !pet || !vet) return;
+    
+    if (appointment.consultation_type === 'video_call') {
       console.log('🔍 DEBUG - Looking for video meeting data for appointment:', {
         id: appointment.id,
         date: appointment.booking_date,
@@ -127,8 +131,11 @@ const AppointmentDetailsModal = ({
         console.log('❌ DEBUG - No meeting data found for appointment ID:', appointment.id);
       }
     }
-  }, [appointment]);
+  }, [isOpen, appointment, pet, vet]);
 
+  // Early return for safety (in case component renders despite the hooks check)
+  if (!isOpen || !appointment || !pet || !vet) return null;
+  
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -192,8 +199,8 @@ const AppointmentDetailsModal = ({
             <div className="flex items-center gap-2">
               <User className="h-4 w-4 text-primary" />
               <div>
-                <p className="text-sm text-muted-foreground">Pet Name & Type</p>
-                <p className="font-medium">{pet.name} - {pet.type}</p>
+                <span className="text-sm font-medium">Pet:</span>
+                <p className="text-base">{pet.name} - {pet.species || pet.type || 'Pet'}</p>
               </div>
             </div>
           </div>
@@ -207,8 +214,10 @@ const AppointmentDetailsModal = ({
               <div className="flex items-center gap-2">
                 <Stethoscope className="h-4 w-4 text-primary" />
                 <div>
-                  <p className="text-sm text-muted-foreground">Veterinarian</p>
-                  <p className="font-medium">Dr. {vet.first_name} {vet.last_name}</p>
+                  <span className="text-sm font-medium">Veterinarian:</span>
+                  <p className="text-base">{vet.full_name ? 
+                    vet.full_name : 
+                    `Dr. ${vet.first_name || ''} ${vet.last_name || ''}`.trim()}</p>
                 </div>
               </div>
               
