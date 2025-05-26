@@ -22,7 +22,7 @@ type BookingData = {
   consultationType: 'schedule' | 'immediate';
   consultationMode: 'video' | 'chat';
   fee: number;
-  date: string | null;
+  date: string;
   timeSlot: string;
 };
 
@@ -46,17 +46,27 @@ const PaymentPage = () => {
       navigate('/vets');
     }
 
-    // Check if we're in development without Stripe keys
+      // Check if we're in development without Stripe keys
     if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
       console.warn('Stripe publishable key not found, using fallback payment mode');
       setIsFallbackMode(true);
     }
+    
+    // Clear any previous payment success messages from sessionStorage
+    sessionStorage.removeItem('paymentSuccess');
   }, [navigate]);
 
   const handleStripeCheckout = async () => {
-    if (!bookingData) return;
+    if (!bookingData) {
+      toast.error("No booking information found");
+      return;
+    }
     if (!termsAccepted) {
       toast.error("Please accept the terms and conditions");
+      return;
+    }
+    if (!user?.id) {
+      toast.error("You must be logged in to make a payment");
       return;
     }
 
@@ -69,6 +79,16 @@ const PaymentPage = () => {
         return;
       }
 
+      // Store booking data in database as 'pending' first
+      // This helps track abandoned checkout sessions
+      const pendingBookingId = await createPendingBooking();
+      
+      if (!pendingBookingId) {
+        toast.error("Could not create booking. Please try again.");
+        setIsProcessing(false);
+        return;
+      }
+
       // Create a checkout session via our API endpoint
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
@@ -78,26 +98,28 @@ const PaymentPage = () => {
         body: JSON.stringify({
           bookingData: {
             ...bookingData,
-            // Include user ID as client reference for later association
-            userId: user?.id,
+            userId: user.id,
+            pendingBookingId
           },
         }),
       });
 
       if (!response.ok) {
-        throw new Error('Failed to create checkout session');
+        const errorData = await response.json().catch(() => null);
+        throw new Error(errorData?.error || 'Failed to create checkout session');
       }
 
       const { url } = await response.json();
 
-      // Store booking data in database as 'pending'
-      await createPendingBooking();
+      if (!url) {
+        throw new Error('Invalid checkout session response');
+      }
 
       // Redirect to Stripe Checkout
       window.location.href = url;
     } catch (error) {
       console.error('Payment error:', error);
-      toast.error("Payment processing failed. Please try again.");
+      toast.error(typeof error === 'string' ? error : "Payment processing failed. Please try again.");
       setIsProcessing(false);
     }
   };
@@ -138,37 +160,53 @@ const PaymentPage = () => {
   };
 
   // Create a pending booking while waiting for Stripe confirmation
-  const createPendingBooking = async () => {
-    if (!bookingData || !user) return;
-
+  const createPendingBooking = async (): Promise<string | null> => {
     try {
-      await createBooking('pending');
+      return await createBooking('pending');
     } catch (error) {
       console.error('Error creating pending booking:', error);
-      // Don't block the checkout process for this error
+      return null;
     }
   };
 
   // Helper to create booking with a specific status
-  const createBooking = async (status: 'pending' | 'confirmed') => {
-    if (!bookingData || !user) return;
+  const createBooking = async (status: 'pending' | 'confirmed'): Promise<string | null> => {
+    if (!bookingData || !user) {
+      throw new Error('Missing booking data or user not logged in');
+    }
 
-    const { error } = await supabase.from('bookings').insert({
+    // Ensure date is not null before proceeding
+    if (!bookingData.date) {
+      throw new Error('Booking date is required');
+    }
+
+    // Create booking object with proper types to satisfy TypeScript
+    const bookingInsert = {
       vet_id: bookingData.vetId,
       pet_id: bookingData.petId,
       pet_owner_id: user.id,
-      booking_date: bookingData.date || new Date().toISOString().split('T')[0],
-      start_time: bookingData.timeSlot?.split('-')[0].trim(),
-      end_time: bookingData.timeSlot?.split('-')[1].trim(),
+      booking_date: bookingData.date,
+      start_time: bookingData.timeSlot.split('-')[0].trim(),
+      end_time: bookingData.timeSlot.split('-')[1].trim(),
       consultation_type: bookingData.consultationType,
+      consultation_mode: bookingData.consultationMode,
       status: status,
+      payment_status: status === 'confirmed' ? 'paid' : 'pending',
       notes: `${bookingData.consultationMode} consultation`,
-    });
+    };
+
+    const { data, error } = await supabase
+      .from('bookings')
+      .insert(bookingInsert)
+      .select('id')
+      .single();
 
     if (error) {
       console.error('Error creating booking:', error);
       throw error;
     }
+
+    return data?.id || null;
   };
 
   if (!bookingData) {

@@ -1,25 +1,35 @@
 import { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { CheckCircle, XCircle, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { User, FileText, CheckCircle, XCircle, Download, Eye } from 'lucide-react';
+import { Textarea } from '@/components/ui/textarea';
+import { UserProfile, VetProfile, Appointment } from '@/types/profiles';
+import { User, FileText, CheckCircle as CheckCircleIcon, XCircle as XCircleIcon, Download, Eye } from 'lucide-react';
 
 interface UserDetailsModalProps {
-  user: any;
+  user: UserProfile & Partial<VetProfile>;
   isOpen: boolean;
   onClose: () => void;
-  onUserUpdated: () => void;
+  onUserUpdated?: () => void;
 }
 
 const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsModalProps) => {
-  const [vetProfile, setVetProfile] = useState<any>(null);
-  const [pets, setPets] = useState<any[]>([]);
-  const [appointments, setAppointments] = useState<any[]>([]);
+  const [vetProfile, setVetProfile] = useState<VetProfile | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(false);
+  const [rejectionFeedback, setRejectionFeedback] = useState('');
+  const [showRejectionForm, setShowRejectionForm] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -30,7 +40,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
 
   const fetchUserDetails = async () => {
     if (!user) return;
-    
+
     setLoading(true);
     try {
       // Fetch vet profile if user is a vet
@@ -46,20 +56,6 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
         } else {
           setVetProfile(vetData);
           console.log('Vet profile data:', vetData); // Debug log
-        }
-      }
-
-      // Fetch pets if user is a pet owner
-      if (user.user_type === 'pet_owner') {
-        const { data: petsData, error: petsError } = await supabase
-          .from('pets')
-          .select('*')
-          .eq('owner_id', user.id);
-
-        if (petsError) {
-          console.error('Error fetching pets:', petsError);
-        } else {
-          setPets(petsData || []);
         }
       }
 
@@ -92,38 +88,54 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
     }
   };
 
-  const handleVetApproval = async (status: 'approved' | 'rejected') => {
+  const handleVetApproval = async (status: 'approved' | 'rejected', feedback?: string) => {
     if (!vetProfile) return;
 
     try {
+      setLoading(true);
+
+      const updateData: any = {
+        approval_status: status,
+        approved_at: new Date().toISOString(),
+        approved_by: 'Super Admin'
+      };
+
+      // Add feedback for rejections
+      if (status === 'rejected' && feedback) {
+        updateData.rejection_reason = feedback;
+      }
+
       const { error } = await supabase
         .from('vet_profiles')
-        .update({
-          approval_status: status,
-          approved_at: new Date().toISOString(),
-          approved_by: 'Super Admin'
-        })
+        .update(updateData)
         .eq('id', vetProfile.id);
 
       if (error) throw error;
 
+      // Send notification to the vet (this would normally be an email)
+      // For now, we'll just log it
+      console.log(`Notification to vet ${vetProfile.id}: Your account has been ${status}${feedback ? ` with feedback: ${feedback}` : ''}`);
+
       toast({
-        title: `Vet ${status}`,
+        title: `Vet ${status === 'approved' ? 'Approved' : 'Rejected'}`,
         description: `The veterinarian has been ${status} successfully.`,
       });
 
-      // Update local state with new status
-      setVetProfile({ ...vetProfile, approval_status: status });
-      
-      // Notify parent component about the update
-      onUserUpdated();
+      if (onUserUpdated) onUserUpdated();
+      onClose();
+
+      // Reset rejection form state
+      setRejectionFeedback('');
+      setShowRejectionForm(false);
     } catch (error: any) {
       console.error('Error updating vet status:', error);
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.message || 'Failed to update vet status',
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -150,7 +162,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
       });
       return;
     }
-    
+
     window.open(url, '_blank');
   };
 
@@ -177,13 +189,13 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
         <Tabs defaultValue="profile" className="mt-4">
           <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger 
-              value="documents" 
+            <TabsTrigger
+              value="documents"
               className={user.user_type === 'vet' ? '' : 'hidden'}
             >
               Documents
             </TabsTrigger>
-            <TabsTrigger 
+            <TabsTrigger
               value="pets"
               className={user.user_type === 'pet_owner' ? '' : 'hidden'}
             >
@@ -202,7 +214,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                   <strong>Name:</strong> {user.full_name || 'Not provided'}
                 </div>
                 <div>
-                  <strong>User Type:</strong> 
+                  <strong>User Type:</strong>
                   <Badge className="ml-2" variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
                     {user.user_type.replace('_', ' ')}
                   </Badge>
@@ -244,22 +256,63 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                     </div>
                   )}
 
-                  {vetProfile.approval_status === 'pending' && (
-                    <div className="flex gap-2 pt-4">
-                      <Button
-                        onClick={() => handleVetApproval('approved')}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        <CheckCircle className="w-4 h-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        variant="destructive"
-                        onClick={() => handleVetApproval('rejected')}
-                      >
-                        <XCircle className="w-4 h-4 mr-1" />
-                        Reject
-                      </Button>
+                  {vetProfile && vetProfile.approval_status === 'pending' && (
+                    <div className="space-y-4 mt-4">
+                      {!showRejectionForm ? (
+                        <div className="flex space-x-2">
+                          <Button
+                            onClick={() => handleVetApproval('approved')}
+                            className="bg-green-600 hover:bg-green-700"
+                            disabled={loading}
+                          >
+                            <CheckCircleIcon className="mr-2 h-4 w-4" />
+                            Approve Vet
+                          </Button>
+                          <Button
+                            onClick={() => setShowRejectionForm(true)}
+                            variant="destructive"
+                            disabled={loading}
+                          >
+                            <XCircleIcon className="mr-2 h-4 w-4" />
+                            Reject Vet
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4 border rounded-md p-4 bg-red-50 border-red-200">
+                          <div className="flex items-center text-red-700 mb-2">
+                            <AlertCircle className="h-4 w-4 mr-2" />
+                            <p className="font-medium">Provide rejection feedback</p>
+                          </div>
+
+                          <Textarea
+                            placeholder="Please provide feedback on why this vet is being rejected..."
+                            value={rejectionFeedback}
+                            onChange={(e) => setRejectionFeedback(e.target.value)}
+                            className="h-24"
+                          />
+
+                          <div className="flex space-x-2">
+                            <Button
+                              onClick={() => handleVetApproval('rejected', rejectionFeedback)}
+                              variant="destructive"
+                              disabled={loading || !rejectionFeedback.trim()}
+                            >
+                              <XCircleIcon className="mr-2 h-4 w-4" />
+                              Confirm Rejection
+                            </Button>
+                            <Button
+                              onClick={() => {
+                                setShowRejectionForm(false);
+                                setRejectionFeedback('');
+                              }}
+                              variant="outline"
+                              disabled={loading}
+                            >
+                              Cancel
+                            </Button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </CardContent>

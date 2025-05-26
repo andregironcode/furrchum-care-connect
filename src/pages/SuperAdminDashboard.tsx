@@ -8,51 +8,26 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Users, Calendar, CreditCard, CheckCircle, XCircle, Clock, Search, UserCheck, UserX, FileText } from 'lucide-react';
+import { LogOut, Users, Calendar, CreditCard, CheckCircle, XCircle, Clock, Search, UserCheck, UserX, FileText, Filter } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import UserDetailsModal from '@/components/UserDetailsModal';
+import VetApprovalCard from '@/components/VetApprovalCard';
+import { UserProfile, VetProfile, Appointment, Transaction } from '@/types/profiles';
 
-interface AppointmentWithDetails {
-  id: string;
-  booking_date: string;
-  start_time: string;
-  end_time: string;
-  consultation_type: string;
-  status: string;
-  notes?: string;
-  created_at: string;
-  vet_profiles?: {
-    first_name: string;
-    last_name: string;
-  };
-  pets?: {
-    name: string;
-    owner_id: string;
-  };
-  pet_owner?: {
-    full_name: string;
-  };
-}
-
-interface UserProfile {
-  id: string;
-  full_name: string;
-  user_type: string;
-  created_at: string;
-  email?: string;
-  status?: string;
-}
+// Use the imported types from profiles.ts
 
 const SuperAdminDashboard = () => {
-  const [vets, setVets] = useState<any[]>([]);
-  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
+  const [vets, setVets] = useState<VetProfile[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [reviewMode, setReviewMode] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -148,20 +123,31 @@ const SuperAdminDashboard = () => {
     }
   };
 
-  const handleVetApproval = async (vetId: string, status: 'approved' | 'rejected') => {
+  const handleVetApproval = async (vetId: string, status: 'approved' | 'rejected', feedback?: string) => {
     try {
       setLoading(true);
 
+      const updateData: any = {
+        approval_status: status,
+        approved_at: new Date().toISOString(),
+        approved_by: 'Super Admin'
+      };
+      
+      // Add feedback for rejections
+      if (status === 'rejected' && feedback) {
+        updateData.rejection_reason = feedback;
+      }
+
       const { error } = await supabase
         .from('vet_profiles')
-        .update({
-          approval_status: status,
-          approved_at: new Date().toISOString(),
-          approved_by: 'Super Admin'
-        })
+        .update(updateData)
         .eq('id', vetId);
 
       if (error) throw error;
+
+      // Send notification to the vet (this would normally be an email or in-app notification)
+      // For now, we'll just log it
+      console.log(`Notification to vet ${vetId}: Your account has been ${status}${feedback ? ` with feedback: ${feedback}` : ''}`);
 
       toast({
         title: `Vet ${status}`,
@@ -356,93 +342,6 @@ const SuperAdminDashboard = () => {
             <TabsTrigger value="appointments">All Appointments</TabsTrigger>
             <TabsTrigger value="transactions">All Transactions</TabsTrigger>
           </TabsList>
-
-          <TabsContent value="users">
-            <Card>
-              <CardHeader>
-                <CardTitle>User Management</CardTitle>
-                <CardDescription>
-                  View & search all pet parent profiles, manage vet accounts, and control user statuses. Click on any user to view detailed information.
-                </CardDescription>
-                <div className="flex items-center space-x-2">
-                  <Search className="w-4 h-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search users by name or type..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="max-w-sm"
-                  />
-                </div>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Name</TableHead>
-                      <TableHead>User Type</TableHead>
-                      <TableHead>Joined Date</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredUsers.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
-                          No users found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      filteredUsers.map((user) => (
-                        <TableRow 
-                          key={user.id} 
-                          className="cursor-pointer hover:bg-muted/50"
-                          onClick={() => handleUserClick(user)}
-                        >
-                          <TableCell className="font-medium">
-                            {user.full_name || 'Unknown User'}
-                          </TableCell>
-                          <TableCell className="capitalize">
-                            <Badge variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
-                              {user.user_type.replace('_', ' ')}
-                            </Badge>
-                          </TableCell>
-                          <TableCell>
-                            {new Date(user.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            {getStatusBadge(user.status || 'active')}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex space-x-2" onClick={(e) => e.stopPropagation()}>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleUserStatusChange(user.id, 'active')}
-                                className="text-green-600 hover:text-green-700"
-                              >
-                                <UserCheck className="w-4 h-4 mr-1" />
-                                Activate
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleUserStatusChange(user.id, 'suspended')}
-                                className="text-red-600 hover:text-red-700"
-                              >
-                                <UserX className="w-4 h-4 mr-1" />
-                                Suspend
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
           <TabsContent value="vets">
             <Card>

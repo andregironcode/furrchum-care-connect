@@ -25,6 +25,7 @@ import PaymentsPage from "./pages/PaymentsPage";
 import ProfilePage from "./pages/ProfilePage";
 import BookingPage from "./pages/BookingPage";
 import PaymentPage from "./pages/PaymentPage";
+import PaymentSuccessPage from "./pages/PaymentSuccessPage";
 import VetDetailsPage from "./pages/VetDetailsPage";
 import WherebyTest from "./components/WherebyTest";
 import WherebyTestEnhanced from '@/components/WherebyTest.enhanced';
@@ -114,6 +115,11 @@ const App = () => {
               <Route path="/payment" element={
                 <RouteGuard>
                   <PaymentPage />
+                </RouteGuard>
+              } />
+              <Route path="/payment-success" element={
+                <RouteGuard>
+                  <PaymentSuccessPage />
                 </RouteGuard>
               } />
               

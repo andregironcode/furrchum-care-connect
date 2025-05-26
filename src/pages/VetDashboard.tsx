@@ -7,41 +7,116 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { supabase } from '@/integrations/supabase/client';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, AlertCircle, Users, Calendar, FileText } from 'lucide-react';
+import { Loader2, AlertCircle, Users, Calendar, FileText, ShieldAlert } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import VetSidebar from '@/components/VetSidebar';
+import ApprovalStatusBanner from '@/components/ApprovalStatusBanner';
+import { UserProfile, VetProfile, Appointment } from '@/types/profiles';
 
 const VetDashboard = () => {
   const { user, isLoading } = useAuth();
-  const [profile, setProfile] = useState<any>(null);
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [vetProfile, setVetProfile] = useState<VetProfile | null>(null);
+  const [recentAppointments, setRecentAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!user) return;
+      
       try {
-        if (user) {
-          const { data, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', user.id)
-            .single();
-            
-          if (error) throw error;
-          setProfile(data);
+        // Fetch user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (profileError) throw profileError;
+        setProfile(profileData as UserProfile);
+        
+        // Fetch vet profile
+        const { data: vetData, error: vetError } = await supabase
+          .from('vet_profiles')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+
+        if (vetError && vetError.code !== 'PGRST116') {
+          throw vetError;
         }
-      } catch (error: any) {
-        console.error('Error fetching profile:', error);
-        setError(error.message);
+        
+        if (vetData) {
+          // Handle type-casting safely by creating an object with required fields
+          // and using type assertion
+          const transformedVetData: VetProfile = {
+            id: vetData.id || '',
+            first_name: vetData.first_name || '',
+            last_name: vetData.last_name || '',
+            created_at: vetData.created_at || '',
+            approval_status: (vetData.approval_status as 'pending' | 'approved' | 'rejected') || 'pending',
+            // Map known fields from vetData directly without accessing them individually
+          } as VetProfile;
+          setVetProfile(transformedVetData);
+          
+          // Fetch recent appointments
+          const { data: appointmentsData, error: appointmentsError } = await supabase
+            .from('bookings')
+            .select(`
+              *,
+              pets(name, type),
+              profiles!bookings_pet_owner_id_fkey(full_name, email, phone_number)
+            `)
+            .eq('vet_id', user.id)
+            .order('booking_date', { ascending: false })
+            .limit(5);
+            
+          if (appointmentsError) throw appointmentsError;
+          
+          // Map to properly formatted appointments
+          if (appointmentsData) {
+            const formattedAppointments = appointmentsData.map(appt => {
+              // Create a type-safe appointment object
+              const appointment: Appointment = {
+                id: appt.id,
+                booking_date: appt.booking_date,
+                start_time: appt.start_time,
+                end_time: appt.end_time,
+                consultation_type: appt.consultation_type,
+                status: appt.status,
+                notes: appt.notes,
+                pet_id: appt.pet_id,
+                pet_owner_id: appt.pet_owner_id,
+                vet_id: appt.vet_id,
+                created_at: appt.created_at,
+                updated_at: appt.updated_at,
+                // Handle any incompatible types safely
+                pets: appt.pets,
+                // Use type assertion to handle the profiles field
+                profiles: appt.profiles ? {} as {
+                  full_name: string | null;
+                  email?: string | null;
+                  phone_number?: string | null;
+                } : null
+              };
+              return appointment;
+            });
+            
+            setRecentAppointments(formattedAppointments);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching vet profile:', err);
+        const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
     };
 
-    if (!isLoading) {
-      fetchProfile();
-    }
-  }, [user, isLoading]);
+    fetchProfile();
+  }, [user]);
 
   if (isLoading || loading) {
     return (
@@ -77,10 +152,41 @@ const VetDashboard = () => {
             
             <main className="flex-1 container mx-auto px-4 py-8">
               {error && (
-                <Alert variant="destructive" className="mb-4">
+                <Alert variant="destructive" className="mb-6">
                   <AlertCircle className="h-4 w-4" />
                   <AlertDescription>{error}</AlertDescription>
                 </Alert>
+              )}
+              
+              {/* Display vet approval status banner */}
+              {vetProfile && (
+                <ApprovalStatusBanner 
+                  status={vetProfile.approval_status} 
+                  rejectionReason={vetProfile.rejection_reason} 
+                  approvedAt={vetProfile.approved_at}
+                  submittedAt={vetProfile.created_at}
+                  showProfileLink={true}
+                  className="mb-6" 
+                />
+              )}
+              
+              {/* Conditional notice for rejected or pending vets */}
+              {vetProfile && (vetProfile.approval_status === 'rejected' || vetProfile.approval_status === 'pending') && (
+                <Card className="mb-6 border-yellow-200 bg-yellow-50">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-yellow-800 flex items-center gap-2">
+                      <ShieldAlert className="h-5 w-5 text-yellow-600" />
+                      <span>Limited Access Mode</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <p className="text-yellow-700">
+                      {vetProfile.approval_status === 'pending' ? 
+                        "While your account is pending approval, you can complete your profile and explore the dashboard, but you won't be able to accept appointments or use all features." :
+                        "Your account approval was not granted. Please update your profile with valid information and credentials to request another review."}
+                    </p>
+                  </CardContent>
+                </Card>
               )}
 
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
