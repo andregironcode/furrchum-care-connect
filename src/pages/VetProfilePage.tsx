@@ -1,12 +1,13 @@
-import { useEffect, useState, ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, ChangeEvent } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Navigate } from 'react-router-dom';
+import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import VetSidebar from '@/components/VetSidebar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from '@/components/ui/card';
-import { Loader2, Save, Edit2, Upload, Camera, FileText, MapPin, Video, User, Trash2 } from 'lucide-react';
-import VetAvailabilityForm from './VetProfile/VetAvailabilityForm';
+import { Loader2, Edit2, FileText, MapPin, Video, User, Camera, Upload, Trash2, Save } from 'lucide-react';
+import { z } from 'zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { supabase } from "@/integrations/supabase/client";
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,8 @@ import { Textarea } from '@/components/ui/textarea';
 import { v4 as uuidv4 } from 'uuid';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
+import PhoneInput from '@/components/ui/phone-input';
+import PinCodeInput from '@/components/ui/pin-code-input';
 
 interface VetProfile {
   id: string;
@@ -28,23 +31,23 @@ interface VetProfile {
   consultation_fee: number;
   image_url: string;
   years_experience: number;
-  phone?: string;
-  gender?: string;
-  languages?: string[];
-  zip_code?: string;
-  license_url?: string;
-  clinic_images?: string[];
-  clinic_location?: string;
-  offers_video_calls?: boolean;
-  offers_in_person?: boolean;
+  phone: string;
+  gender: string;
+  languages: string[];
+  pin_code: string;
+  license_url: string;
+  clinic_location: string;
+  clinic_images: string[];
+  offers_telemedicine: boolean;
+  offers_in_person: boolean;
 }
 
 const VetProfilePage = () => {
   const { user, isLoading } = useAuth();
   const [profile, setProfile] = useState<VetProfile | null>(null);
-  const [loadingProfile, setLoadingProfile] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [isPageLoading, setIsPageLoading] = useState(true);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [uploadingLicense, setUploadingLicense] = useState(false);
   const [uploadingClinicImages, setUploadingClinicImages] = useState(false);
@@ -53,54 +56,54 @@ const VetProfilePage = () => {
   const [selectedClinicImages, setSelectedClinicImages] = useState<File[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [clinicImagePreviews, setClinicImagePreviews] = useState<string[]>([]);
+  const [defaultValues, setDefaultValues] = useState<Partial<VetProfile>>({});
+
+  // Validation schema for vet profile form
+  const vetProfileSchema = z.object({
+    id: z.string(),
+    first_name: z.string().min(1, { message: 'First name is required' }),
+    last_name: z.string().min(1, { message: 'Last name is required' }),
+    specialization: z.string().min(1, { message: 'Specialization is required' }),
+    about: z.string(),
+    consultation_fee: z.number().min(0),
+    image_url: z.string(),
+    years_experience: z.number().min(0),
+    phone: z.string(),
+    gender: z.string(),
+    languages: z.array(z.string()),
+    pin_code: z.string(),
+    license_url: z.string(),
+    clinic_location: z.string(),
+    clinic_images: z.array(z.string()),
+    offers_telemedicine: z.boolean(),
+    offers_in_person: z.boolean()
+  });
 
   const form = useForm<VetProfile>({
+    resolver: zodResolver(vetProfileSchema),
     defaultValues: {
+      id: '',
       first_name: '',
       last_name: '',
       specialization: '',
       about: '',
       consultation_fee: 0,
+      image_url: '',
       years_experience: 0,
       phone: '',
       gender: '',
-      zip_code: '',
+      languages: [],
+      pin_code: '',
+      license_url: '',
       clinic_location: '',
-      offers_video_calls: false,
-      offers_in_person: false
-    }
+      clinic_images: [],
+      offers_telemedicine: false,
+      offers_in_person: false,
+      ...defaultValues,
+    },
   });
 
-  useEffect(() => {
-    if (user) {
-      fetchVetProfile();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (profile) {
-      // Reset form with profile data when profile is loaded or editing is toggled
-      form.reset({
-        ...profile,
-        consultation_fee: profile.consultation_fee || 0,
-        years_experience: profile.years_experience || 0,
-        offers_video_calls: profile.offers_video_calls || false,
-        offers_in_person: profile.offers_in_person || false
-      });
-      
-      // Set image preview if exists
-      if (profile.image_url) {
-        setImagePreview(profile.image_url);
-      }
-
-      // Set clinic image previews if exist
-      if (profile.clinic_images) {
-        setClinicImagePreviews(profile.clinic_images);
-      }
-    }
-  }, [profile, form]);
-
-  const fetchVetProfile = async () => {
+  const fetchVetProfile = useCallback(async () => {
     try {
       setLoadingProfile(true);
       const { data, error } = await supabase
@@ -110,13 +113,67 @@ const VetProfilePage = () => {
         .single();
 
       if (error) throw error;
-      setProfile(data);
+
+      if (data) {
+        // Convert database values to proper types
+        const sanitizedProfile: VetProfile = {
+          id: data.id || '',
+          first_name: data.first_name || '',
+          last_name: data.last_name || '',
+          specialization: data.specialization || '',
+          about: data.about || '',
+          consultation_fee: Number(data.consultation_fee) || 0,
+          image_url: data.image_url || '',
+          years_experience: Number(data.years_experience) || 0,
+          phone: data.phone || '',
+          gender: data.gender || '',
+          languages: Array.isArray(data.languages) ? data.languages : [],
+          pin_code: data.pin_code || data.zip_code || '', // Support both pin_code and legacy zip_code
+          license_url: data.license_url || '',
+          clinic_location: data.clinic_location || '',
+          clinic_images: Array.isArray(data.clinic_images) ? data.clinic_images : [],
+          offers_telemedicine: Boolean(data.offers_telemedicine || data.offers_video_calls),
+          offers_in_person: Boolean(data.offers_in_person)
+        };
+        
+        setProfile(sanitizedProfile);
+        form.reset(sanitizedProfile);
+        setImagePreview(sanitizedProfile.image_url);
+        setClinicImagePreviews(sanitizedProfile.clinic_images);
+        setIsPageLoading(false);
+      }
     } catch (error) {
       console.error('Error fetching vet profile:', error);
+      toast.error('Failed to load profile');
     } finally {
       setLoadingProfile(false);
     }
-  };
+  }, [supabase, user, form, toast]);
+
+  useEffect(() => {
+    if (user) {
+      fetchVetProfile();
+    }
+  }, [user, fetchVetProfile]);
+
+  useEffect(() => {
+    if (profile) {
+      // Initialize form with profile data
+      setIsPageLoading(false);
+
+      // Set profile defaults for form
+      form.reset({
+        ...profile,
+        consultation_fee: profile.consultation_fee || 0,
+        years_experience: profile.years_experience || 0,
+        offers_telemedicine: profile.offers_telemedicine || false,
+        offers_in_person: profile.offers_in_person || false
+      });
+
+      // Set clinic image previews if exist
+      setClinicImagePreviews(profile.clinic_images || []);
+    }
+  }, [profile, form]);
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -163,53 +220,55 @@ const VetProfilePage = () => {
   };
 
   const handleClinicImagesChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0) return;
+    const files = e.target.files;
+    if (!files) return;
 
-    // Check if total images (existing + new) exceed 5
-    const totalImages = (profile?.clinic_images?.length || 0) + files.length;
-    if (totalImages > 5) {
-      toast.error('Maximum 5 clinic images allowed');
+    const newFiles: File[] = [];
+    const currentPreviews = clinicImagePreviews || [];
+    
+    // Add only new files up to a maximum of 5 total
+    const remainingSlots = 5 - (selectedClinicImages.length + currentPreviews.length);
+    
+    if (remainingSlots <= 0) {
+      toast.error("Maximum of 5 clinic images allowed");
       return;
     }
-
-    // Validate each file
-    for (const file of files) {
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Each image should be less than 5MB');
-        return;
-      }
-
-      if (!['image/jpeg', 'image/png', 'image/jpg'].includes(file.type)) {
-        toast.error('Please upload JPG or PNG images only');
-        return;
-      }
-    }
-
-    setSelectedClinicImages(files);
-
-    // Create previews
-    const previews: string[] = [];
-    files.forEach(file => {
+    
+    // Process only up to the remaining slots
+    for (let i = 0; i < Math.min(files.length, remainingSlots); i++) {
+      const file = files[i];
+      newFiles.push(file);
+      
+      // Create preview URL
       const reader = new FileReader();
-      reader.onloadend = () => {
-        previews.push(reader.result as string);
-        if (previews.length === files.length) {
-          setClinicImagePreviews([...clinicImagePreviews, ...previews]);
+      reader.onload = (e) => {
+        if (e.target?.result) {
+          const previewUrl = e.target.result as string;
+          setClinicImagePreviews(prev => [...(prev || []), previewUrl]);
         }
       };
       reader.readAsDataURL(file);
-    });
+    }
+    
+    setSelectedClinicImages([...selectedClinicImages, ...newFiles]);
   };
 
   const removeClinicImage = (index: number) => {
-    const newPreviews = clinicImagePreviews.filter((_, i) => i !== index);
-    setClinicImagePreviews(newPreviews);
+    const currentPreviews = clinicImagePreviews || [];
     
-    // If removing from existing images, update profile state
-    if (profile?.clinic_images && index < profile.clinic_images.length) {
-      const newClinicImages = profile.clinic_images.filter((_, i) => i !== index);
-      setProfile(prev => prev ? { ...prev, clinic_images: newClinicImages } : null);
+    // Check if we're removing a selected image or an existing one
+    if (index < currentPreviews.length) {
+      // Remove from previews
+      const newPreviews = [...currentPreviews];
+      newPreviews.splice(index, 1);
+      setClinicImagePreviews(newPreviews);
+      
+      // If it's also in the selectedClinicImages, remove it
+      if (index < selectedClinicImages.length) {
+        const newSelectedImages = [...selectedClinicImages];
+        newSelectedImages.splice(index, 1);
+        setSelectedClinicImages(newSelectedImages);
+      }
     }
   };
 
@@ -314,16 +373,16 @@ const VetProfilePage = () => {
         last_name: values.last_name,
         specialization: values.specialization,
         about: values.about,
-        consultation_fee: values.consultation_fee === '' ? null : parseFloat(values.consultation_fee) || null,
-        years_experience: values.years_experience === '' ? null : parseInt(values.years_experience) || null,
+        consultation_fee: values.consultation_fee,
+        years_experience: values.years_experience,
         phone: values.phone,
         gender: values.gender,
-        zip_code: values.zip_code,
+        pin_code: values.pin_code,
         image_url: imageUrl,
         license_url: licenseUrl,
         clinic_images: clinicImages,
         clinic_location: values.clinic_location,
-        offers_video_calls: values.offers_video_calls,
+        offers_telemedicine: values.offers_telemedicine,
         offers_in_person: values.offers_in_person,
       };
       
@@ -339,8 +398,31 @@ const VetProfilePage = () => {
       
       // Update local state with returned data
       if (data && data.length > 0) {
-        setProfile(data[0]);
-        form.reset(data[0]);
+        const profile = data[0] as unknown as VetProfile;
+        // Handle null values from database and convert to expected types
+        const sanitizedProfile: VetProfile = {
+          id: profile.id || '',
+          first_name: profile.first_name || '',
+          last_name: profile.last_name || '',
+          specialization: profile.specialization || '',
+          about: profile.about || '',
+          consultation_fee: Number(profile.consultation_fee) || 0,
+          image_url: profile.image_url || '',
+          years_experience: Number(profile.years_experience) || 0,
+          phone: profile.phone || '',
+          gender: profile.gender || '',
+          languages: Array.isArray(profile.languages) ? profile.languages : [],
+          pin_code: profile.pin_code || '',
+          license_url: profile.license_url || '',
+          clinic_location: profile.clinic_location || '',
+          clinic_images: Array.isArray(profile.clinic_images) ? profile.clinic_images : [],
+          offers_telemedicine: Boolean(profile.offers_telemedicine),
+          offers_in_person: Boolean(profile.offers_in_person)
+        };
+        
+        setProfile(sanitizedProfile);
+        setDefaultValues(sanitizedProfile);
+        form.reset(sanitizedProfile);
       }
       
       setIsEditing(false);
@@ -359,7 +441,7 @@ const VetProfilePage = () => {
     }
   };
 
-  if (isLoading || loadingProfile) {
+  if (isPageLoading || loadingProfile) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -475,7 +557,7 @@ const VetProfilePage = () => {
                             <div>
                               <h3 className="text-sm font-medium">Consultation Types</h3>
                               <div className="flex gap-2 mt-1">
-                                {profile?.offers_video_calls && (
+                                {profile?.offers_telemedicine && (
                                   <div className="flex items-center gap-1 px-2 py-1 bg-blue-100 text-blue-800 rounded-full text-xs">
                                     <Video className="h-3 w-3" />
                                     Video Calls
@@ -487,7 +569,7 @@ const VetProfilePage = () => {
                                     In-Person
                                   </div>
                                 )}
-                                {!profile?.offers_video_calls && !profile?.offers_in_person && (
+                                {(!profile?.offers_telemedicine && !profile?.offers_in_person) && (
                                   <p className="text-muted-foreground text-sm">Not specified</p>
                                 )}
                               </div>
@@ -524,8 +606,8 @@ const VetProfilePage = () => {
                           </div>
 
                           <div>
-                            <h3 className="text-sm font-medium">Pin Code</h3>
-                            <p className="text-lg">{profile?.zip_code || "Not provided"}</p>
+                            <h3 className="text-sm font-medium">PIN Code</h3>
+                            <p className="text-lg">{profile?.pin_code || "Not provided"}</p>
                           </div>
 
                           <div>
@@ -655,7 +737,7 @@ const VetProfilePage = () => {
                               <div className="flex flex-col gap-3 mt-2">
                                 <FormField
                                   control={form.control}
-                                  name="offers_video_calls"
+                                  name="offers_telemedicine"
                                   render={({ field }) => (
                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                       <FormControl>
@@ -830,49 +912,32 @@ const VetProfilePage = () => {
                               />
                             </div>
 
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <FormField
-                                control={form.control}
+                            <div className="grid w-full items-center gap-1.5">
+                              <PhoneInput<VetProfile>
                                 name="phone"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Phone Number</FormLabel>
-                                    <FormControl>
-                                      <Input 
-                                        {...field} 
-                                        type="tel" 
-                                        pattern="[0-9]*" 
-                                        inputMode="numeric" 
-                                        onChange={(e) => {
-                                          // Allow only numeric input
-                                          const value = e.target.value.replace(/[^0-9]/g, '');
-                                          field.onChange(value);
-                                        }}
-                                      />
-                                    </FormControl>
-                                  </FormItem>
-                                )}
-                              />
-                              <FormField
+                                label="Phone Number"
                                 control={form.control}
-                                name="gender"
-                                render={({ field }) => (
-                                  <FormItem>
-                                    <FormLabel>Gender</FormLabel>
-                                    <FormControl>
-                                      <Input {...field} />
-                                    </FormControl>
-                                  </FormItem>
-                                )}
+                                description="Enter your phone number"
+                                error={form.formState.errors.phone?.message}
+                              />
+                            </div>
+
+                            <div className="grid w-full items-center gap-1.5">
+                              <PinCodeInput<VetProfile>
+                                name="pin_code"
+                                label="PIN Code"
+                                control={form.control}
+                                description="Enter your 6-digit PIN code"
+                                error={form.formState.errors.pin_code?.message}
                               />
                             </div>
 
                             <FormField
                               control={form.control}
-                              name="zip_code"
+                              name="gender"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Pin Code</FormLabel>
+                                  <FormLabel>Gender</FormLabel>
                                   <FormControl>
                                     <Input {...field} />
                                   </FormControl>
@@ -916,7 +981,18 @@ const VetProfilePage = () => {
                 </TabsContent>
                 
                 <TabsContent value="availability">
-                  <VetAvailabilityForm />
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Manage Your Availability</CardTitle>
+                      <CardDescription>
+                        Set your working hours and availability for appointments
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      {/* Placeholder for availability management - will be implemented separately */}
+                      <p>Availability management will be implemented in a future update.</p>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
               </Tabs>
             </main>

@@ -1,14 +1,18 @@
-
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { CreditCard, WalletCards, AlertCircle } from 'lucide-react';
+import { loadStripe } from '@stripe/stripe-js';
+import { CreditCard, WalletCards, AlertCircle, Loader2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/context/AuthContext';
+
+// Initialize Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
 
 type BookingData = {
   vetId: string;
@@ -24,16 +28,12 @@ type BookingData = {
 
 const PaymentPage = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [bookingData, setBookingData] = useState<BookingData | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'wallet'>('card');
   const [isProcessing, setIsProcessing] = useState(false);
-
-  // Card details state
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardName, setCardName] = useState('');
-  const [cardExpiry, setCardExpiry] = useState('');
-  const [cardCvc, setCardCvc] = useState('');
-  const [saveCard, setSaveCard] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+  const [isFallbackMode, setIsFallbackMode] = useState(false);
 
   useEffect(() => {
     // Retrieve booking data from sessionStorage
@@ -45,46 +45,83 @@ const PaymentPage = () => {
       toast.error("No booking information found");
       navigate('/vets');
     }
+
+    // Check if we're in development without Stripe keys
+    if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
+      console.warn('Stripe publishable key not found, using fallback payment mode');
+      setIsFallbackMode(true);
+    }
   }, [navigate]);
 
-  const handleCardNumberChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Format card number with spaces every 4 digits
-    const value = e.target.value.replace(/\s/g, '');
-    if (value.length <= 16) {
-      setCardNumber(value.replace(/(.{4})/g, '$1 ').trim());
-    }
-  };
-
-  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Format expiry as MM/YY
-    const value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 4) {
-      setCardExpiry(
-        value.length > 2 ? `${value.slice(0, 2)}/${value.slice(2)}` : value
-      );
-    }
-  };
-
-  const handleCvcChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    // Limit CVC to 3 or 4 digits
-    const value = e.target.value.replace(/\D/g, '');
-    if (value.length <= 4) {
-      setCardCvc(value);
-    }
-  };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (paymentMethod === 'card' && (!cardNumber || !cardName || !cardExpiry || !cardCvc)) {
-      toast.error("Please fill in all card details");
+  const handleStripeCheckout = async () => {
+    if (!bookingData) return;
+    if (!termsAccepted) {
+      toast.error("Please accept the terms and conditions");
       return;
     }
-    
+
     setIsProcessing(true);
-    
-    // Simulate payment processing
-    setTimeout(() => {
+
+    try {
+      // If we're in fallback mode, simulate payment processing
+      if (isFallbackMode) {
+        await handleFallbackPayment();
+        return;
+      }
+
+      // Create a checkout session via our API endpoint
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          bookingData: {
+            ...bookingData,
+            // Include user ID as client reference for later association
+            userId: user?.id,
+          },
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to create checkout session');
+      }
+
+      const { url } = await response.json();
+
+      // Store booking data in database as 'pending'
+      await createPendingBooking();
+
+      // Redirect to Stripe Checkout
+      window.location.href = url;
+    } catch (error) {
+      console.error('Payment error:', error);
+      toast.error("Payment processing failed. Please try again.");
+      setIsProcessing(false);
+    }
+  };
+
+  // Fallback payment for development without Stripe
+  const handleFallbackPayment = async () => {
+    try {
+      // Create the booking directly
+      await createBooking('confirmed');
+      
+      // Create a mock transaction record
+      await supabase.from('transactions').insert({
+        booking_id: user?.id + '-' + Date.now(), // Dummy booking ID
+        payment_intent_id: 'dev_' + Date.now(),
+        amount: bookingData?.fee ? bookingData.fee * 1.05 : 0,
+        currency: 'inr',
+        status: 'completed',
+        payment_method: 'card',
+        customer_email: user?.email,
+      });
+
+      // Wait a moment to simulate processing
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
       setIsProcessing(false);
       toast.success("Payment successful! Your appointment has been confirmed.");
       
@@ -93,7 +130,45 @@ const PaymentPage = () => {
       
       // Redirect to dashboard
       navigate('/appointments');
-    }, 2000);
+    } catch (error) {
+      console.error('Fallback payment error:', error);
+      toast.error("Payment processing failed. Please try again.");
+      setIsProcessing(false);
+    }
+  };
+
+  // Create a pending booking while waiting for Stripe confirmation
+  const createPendingBooking = async () => {
+    if (!bookingData || !user) return;
+
+    try {
+      await createBooking('pending');
+    } catch (error) {
+      console.error('Error creating pending booking:', error);
+      // Don't block the checkout process for this error
+    }
+  };
+
+  // Helper to create booking with a specific status
+  const createBooking = async (status: 'pending' | 'confirmed') => {
+    if (!bookingData || !user) return;
+
+    const { error } = await supabase.from('bookings').insert({
+      vet_id: bookingData.vetId,
+      pet_id: bookingData.petId,
+      pet_owner_id: user.id,
+      booking_date: bookingData.date || new Date().toISOString().split('T')[0],
+      start_time: bookingData.timeSlot?.split('-')[0].trim(),
+      end_time: bookingData.timeSlot?.split('-')[1].trim(),
+      consultation_type: bookingData.consultationType,
+      status: status,
+      notes: `${bookingData.consultationMode} consultation`,
+    });
+
+    if (error) {
+      console.error('Error creating booking:', error);
+      throw error;
+    }
   };
 
   if (!bookingData) {
@@ -116,6 +191,7 @@ const PaymentPage = () => {
           variant="outline" 
           onClick={() => navigate(`/booking/${bookingData.vetId}`)}
           className="mb-6"
+          disabled={isProcessing}
         >
           ← Back to Booking
         </Button>
@@ -163,22 +239,22 @@ const PaymentPage = () => {
               <div className="pt-4 border-t">
                 <div className="flex justify-between">
                   <span className="font-medium">Consultation Fee</span>
-                  <span className="font-semibold">${bookingData.fee.toFixed(2)}</span>
+                  <span className="font-semibold">₹{bookingData.fee.toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between text-sm mt-1">
                   <span className="text-slate-500">Platform Fee</span>
-                  <span>${(bookingData.fee * 0.05).toFixed(2)}</span>
+                  <span>₹{(bookingData.fee * 0.05).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between font-bold mt-4 text-lg">
                   <span>Total</span>
-                  <span>${(bookingData.fee * 1.05).toFixed(2)}</span>
+                  <span>₹{(bookingData.fee * 1.05).toFixed(2)}</span>
                 </div>
               </div>
             </CardContent>
           </Card>
           
           {/* Payment Form */}
-          <form onSubmit={handleSubmit} className="md:col-span-2">
+          <div className="md:col-span-2">
             <Card className="bg-white">
               <CardHeader>
                 <CardTitle>Payment Details</CardTitle>
@@ -187,98 +263,37 @@ const PaymentPage = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                {/* Payment Method Selection */}
-                <div>
-                  <h3 className="font-medium mb-3">Payment Method</h3>
-                  <RadioGroup 
-                    value={paymentMethod} 
-                    onValueChange={(v) => setPaymentMethod(v as 'card' | 'wallet')}
-                    className="grid grid-cols-2 gap-4"
-                  >
-                    <div>
-                      <RadioGroupItem value="card" id="card" className="peer sr-only" />
-                      <Label
-                        htmlFor="card"
-                        className="flex items-center gap-2 rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                      >
-                        <CreditCard className="h-5 w-5" />
-                        <div>Credit/Debit Card</div>
-                      </Label>
-                    </div>
-                    
-                    <div>
-                      <RadioGroupItem value="wallet" id="wallet" className="peer sr-only" />
-                      <Label
-                        htmlFor="wallet"
-                        className="flex items-center gap-2 rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                      >
-                        <WalletCards className="h-5 w-5" />
-                        <div>Wallet</div>
-                      </Label>
-                    </div>
-                  </RadioGroup>
-                </div>
+                <RadioGroup 
+                  defaultValue="card"
+                  value={paymentMethod}
+                  onValueChange={(value) => setPaymentMethod(value as 'card' | 'wallet')}
+                >
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="card" id="card" />
+                    <Label htmlFor="card" className="flex items-center">
+                      <CreditCard className="h-4 w-4 mr-2" />
+                      Credit/Debit Card
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 mt-2">
+                    <RadioGroupItem value="wallet" id="wallet" disabled />
+                    <Label htmlFor="wallet" className="flex items-center text-gray-500">
+                      <WalletCards className="h-4 w-4 mr-2" />
+                      Digital Wallet (Coming Soon)
+                    </Label>
+                  </div>
+                </RadioGroup>
                 
-                {/* Card Details */}
+                {/* Card Payment Info */}
                 {paymentMethod === 'card' && (
-                  <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-md p-4 flex items-start">
+                    <CreditCard className="h-5 w-5 text-blue-600 mr-2 mt-0.5" />
                     <div>
-                      <Label htmlFor="cardNumber">Card Number</Label>
-                      <Input
-                        id="cardNumber"
-                        placeholder="1234 5678 9012 3456"
-                        value={cardNumber}
-                        onChange={handleCardNumberChange}
-                        className="mt-1"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="cardName">Name on Card</Label>
-                      <Input
-                        id="cardName"
-                        placeholder="John Doe"
-                        value={cardName}
-                        onChange={(e) => setCardName(e.target.value)}
-                        className="mt-1"
-                      />
-                    </div>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <Label htmlFor="cardExpiry">Expiry Date</Label>
-                        <Input
-                          id="cardExpiry"
-                          placeholder="MM/YY"
-                          value={cardExpiry}
-                          onChange={handleExpiryChange}
-                          className="mt-1"
-                        />
-                      </div>
-                      <div>
-                        <Label htmlFor="cardCvc">CVC</Label>
-                        <Input
-                          id="cardCvc"
-                          placeholder="123"
-                          value={cardCvc}
-                          onChange={handleCvcChange}
-                          className="mt-1"
-                        />
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Checkbox 
-                        id="saveCard" 
-                        checked={saveCard}
-                        onCheckedChange={() => setSaveCard(!saveCard)}
-                      />
-                      <label
-                        htmlFor="saveCard"
-                        className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                      >
-                        Save this card for future payments
-                      </label>
+                      <p className="text-sm text-blue-800 font-medium">Secure Payment</p>
+                      <p className="text-sm text-blue-700 mt-1">
+                        You'll be redirected to our secure payment processor to complete your payment.
+                        All payment details are encrypted and processed securely.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -297,7 +312,12 @@ const PaymentPage = () => {
                 {/* Terms and Conditions */}
                 <div className="space-y-4 mt-6">
                   <div className="flex items-start space-x-3">
-                    <Checkbox id="terms" className="mt-1" required />
+                    <Checkbox 
+                      id="terms" 
+                      checked={termsAccepted}
+                      onCheckedChange={() => setTermsAccepted(!termsAccepted)}
+                      className="mt-1" 
+                    />
                     <label
                       htmlFor="terms"
                       className="text-sm leading-tight"
@@ -309,15 +329,22 @@ const PaymentPage = () => {
               </CardContent>
               <CardFooter>
                 <Button 
-                  type="submit" 
+                  onClick={handleStripeCheckout}
                   className="w-full bg-indigo-600 hover:bg-indigo-700"
-                  disabled={isProcessing || paymentMethod === 'wallet'}
+                  disabled={isProcessing || paymentMethod === 'wallet' || !termsAccepted}
                 >
-                  {isProcessing ? 'Processing...' : `Pay $${(bookingData.fee * 1.05).toFixed(2)}`}
+                  {isProcessing ? (
+                    <span className="flex items-center">
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Processing...
+                    </span>
+                  ) : (
+                    `Pay ₹${(bookingData.fee * 1.05).toFixed(2)}`
+                  )}
                 </Button>
               </CardFooter>
             </Card>
-          </form>
+          </div>
         </div>
       </div>
     </div>
