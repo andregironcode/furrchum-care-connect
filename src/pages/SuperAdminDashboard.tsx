@@ -150,6 +150,8 @@ const SuperAdminDashboard = () => {
 
   const handleVetApproval = async (vetId: string, status: 'approved' | 'rejected') => {
     try {
+      setLoading(true);
+
       const { error } = await supabase
         .from('vet_profiles')
         .update({
@@ -166,14 +168,17 @@ const SuperAdminDashboard = () => {
         description: `The veterinarian has been ${status} successfully.`,
       });
 
-      fetchData(); // Refresh data
+      // Refresh all data after approval
+      fetchData();
     } catch (error: any) {
       console.error('Error updating vet status:', error);
       toast({
         title: 'Error',
-        description: error.message,
+        description: error.message || 'Failed to update vet status',
         variant: 'destructive',
       });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -228,12 +233,25 @@ const SuperAdminDashboard = () => {
   };
 
   const handleVetClick = (vet: any) => {
-    // Find the corresponding user profile for this vet
-    const vetUser = users.find(user => user.id === vet.id && user.user_type === 'vet');
+    // Check if we have a corresponding user profile first
+    const vetUser = users.find(user => user.id === vet.id);
     if (vetUser) {
-      setSelectedUser(vetUser);
-      setIsUserModalOpen(true);
+      // Use the full user profile if available
+      setSelectedUser({
+        ...vetUser,
+        ...vet,
+        user_type: 'vet',
+        full_name: `${vet.first_name} ${vet.last_name}`
+      });
+    } else {
+      // Fallback to just the vet profile data
+      setSelectedUser({
+        ...vet,
+        user_type: 'vet',
+        full_name: `${vet.first_name} ${vet.last_name}`
+      });
     }
+    setIsUserModalOpen(true);
   };
 
   const handleUserModalClose = () => {

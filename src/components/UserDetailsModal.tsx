@@ -112,7 +112,10 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
         description: `The veterinarian has been ${status} successfully.`,
       });
 
+      // Update local state with new status
       setVetProfile({ ...vetProfile, approval_status: status });
+      
+      // Notify parent component about the update
       onUserUpdated();
     } catch (error: any) {
       console.error('Error updating vet status:', error);
@@ -139,6 +142,15 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
   };
 
   const openDocument = (url: string) => {
+    if (!url) {
+      toast({
+        title: "Error",
+        description: "Document URL is not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    
     window.open(url, '_blank');
   };
 

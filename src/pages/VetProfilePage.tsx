@@ -308,42 +308,49 @@ const VetProfilePage = () => {
         clinicImages = [...clinicImages, ...newClinicImages.filter(url => url)];
       }
       
-      const { error } = await supabase
+      // Prepare profile data with proper type handling
+      const profileData = {
+        first_name: values.first_name,
+        last_name: values.last_name,
+        specialization: values.specialization,
+        about: values.about,
+        consultation_fee: values.consultation_fee === '' ? null : parseFloat(values.consultation_fee) || null,
+        years_experience: values.years_experience === '' ? null : parseInt(values.years_experience) || null,
+        phone: values.phone,
+        gender: values.gender,
+        zip_code: values.zip_code,
+        image_url: imageUrl,
+        license_url: licenseUrl,
+        clinic_images: clinicImages,
+        clinic_location: values.clinic_location,
+        offers_video_calls: values.offers_video_calls,
+        offers_in_person: values.offers_in_person,
+      };
+      
+      console.log('Saving profile data:', profileData);
+      
+      const { data, error } = await supabase
         .from('vet_profiles')
-        .update({
-          first_name: values.first_name,
-          last_name: values.last_name,
-          specialization: values.specialization,
-          about: values.about,
-          consultation_fee: values.consultation_fee,
-          years_experience: values.years_experience,
-          phone: values.phone,
-          gender: values.gender,
-          zip_code: values.zip_code,
-          image_url: imageUrl,
-          license_url: licenseUrl,
-          clinic_images: clinicImages,
-          clinic_location: values.clinic_location,
-          offers_video_calls: values.offers_video_calls,
-          offers_in_person: values.offers_in_person,
-        })
-        .eq('id', user?.id);
+        .update(profileData)
+        .eq('id', user?.id)
+        .select();
 
       if (error) throw error;
       
-      // Update local state with new values
-      setProfile(prev => prev ? { 
-        ...prev, 
-        ...values, 
-        image_url: imageUrl as string,
-        license_url: licenseUrl,
-        clinic_images: clinicImages,
-      } : null);
+      // Update local state with returned data
+      if (data && data.length > 0) {
+        setProfile(data[0]);
+        form.reset(data[0]);
+      }
+      
       setIsEditing(false);
       setSelectedImage(null);
       setSelectedLicense(null);
       setSelectedClinicImages([]);
       toast.success("Profile updated successfully");
+      
+      // Refresh profile data
+      fetchVetProfile();
     } catch (error) {
       console.error('Error updating vet profile:', error);
       toast.error("Failed to update profile");
@@ -517,7 +524,7 @@ const VetProfilePage = () => {
                           </div>
 
                           <div>
-                            <h3 className="text-sm font-medium">Zip Code</h3>
+                            <h3 className="text-sm font-medium">Pin Code</h3>
                             <p className="text-lg">{profile?.zip_code || "Not provided"}</p>
                           </div>
 
@@ -797,7 +804,8 @@ const VetProfilePage = () => {
                                       <Input 
                                         type="number" 
                                         {...field}
-                                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)} 
+                                        onChange={(e) => field.onChange(e.target.value === '' ? '' : parseInt(e.target.value))} 
+                                        value={field.value === 0 ? '' : field.value}
                                       />
                                     </FormControl>
                                   </FormItem>
@@ -813,7 +821,8 @@ const VetProfilePage = () => {
                                       <Input 
                                         type="number" 
                                         {...field}
-                                        onChange={(e) => field.onChange(parseFloat(e.target.value) || 0)}
+                                        onChange={(e) => field.onChange(e.target.value === '' ? '' : parseFloat(e.target.value))}
+                                        value={field.value === 0 ? '' : field.value}
                                       />
                                     </FormControl>
                                   </FormItem>
@@ -829,7 +838,17 @@ const VetProfilePage = () => {
                                   <FormItem>
                                     <FormLabel>Phone Number</FormLabel>
                                     <FormControl>
-                                      <Input {...field} />
+                                      <Input 
+                                        {...field} 
+                                        type="tel" 
+                                        pattern="[0-9]*" 
+                                        inputMode="numeric" 
+                                        onChange={(e) => {
+                                          // Allow only numeric input
+                                          const value = e.target.value.replace(/[^0-9]/g, '');
+                                          field.onChange(value);
+                                        }}
+                                      />
                                     </FormControl>
                                   </FormItem>
                                 )}
@@ -853,7 +872,7 @@ const VetProfilePage = () => {
                               name="zip_code"
                               render={({ field }) => (
                                 <FormItem>
-                                  <FormLabel>Zip Code</FormLabel>
+                                  <FormLabel>Pin Code</FormLabel>
                                   <FormControl>
                                     <Input {...field} />
                                   </FormControl>
