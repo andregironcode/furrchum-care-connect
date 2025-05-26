@@ -12,6 +12,7 @@ Use these test card numbers to verify different payment scenarios:
 | 4000 0000 0000 0002 | Card declined |
 
 For all test cards, use:
+
 - Any future expiration date (e.g., 12/25)
 - Any 3-digit CVC
 - Any postal code

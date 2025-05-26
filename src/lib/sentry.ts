@@ -17,13 +17,8 @@ export function initSentry() {
     Sentry.init({
       dsn,
       integrations: [
-        new Sentry.BrowserTracing(),
-        new Sentry.Replay({
-          // Record 10% of all sessions
-          sessionSampleRate: 0.1,
-          // Record errors at 100%
-          errorSampleRate: 1.0,
-        }),
+        Sentry.browserTracingIntegration(),
+        Sentry.replayIntegration(),
       ],
       
       // Set tracesSampleRate to 1.0 to capture 100% of transactions for performance monitoring

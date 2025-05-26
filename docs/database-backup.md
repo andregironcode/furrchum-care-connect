@@ -6,7 +6,7 @@ This guide outlines how to set up regular backups for your Supabase database to 
 
 Supabase provides automatic daily backups on paid plans:
 
-1. **Standard Plan (Pro)**: 
+1. **Standard Plan (Pro)**:
    - Daily backups
    - 7-day retention
    - Point-in-time recovery
@@ -89,6 +89,7 @@ echo "Backup completed: ${BACKUP_FILE}.gz"
 ```
 
 Make the script executable:
+
 ```bash
 chmod +x backup_supabase.sh
 ```
@@ -137,12 +138,12 @@ crontab -e
 gunzip backup_20250527_020000.dump.gz
 
 # Restore to the database
-pg_restore -h db.your-project-ref.supabase.co -p 5432 -U postgres -d postgres --clean backup_20250527_020000.dump
+pg_restore -h "db.your-project-ref.supabase.co" -p 5432 -U postgres -d postgres --clean backup_20250527_020000.dump
 ```
 
 ## Emergency Contacts
 
-- Supabase Support: support@supabase.io
-- Documentation: https://supabase.com/docs/guides/platform/backups
+- Supabase Support: [support@supabase.io](mailto:support@supabase.io)
+- Documentation: [Supabase Backups](https://supabase.com/docs/guides/platform/backups)
 
 Remember to test your backup and restoration process regularly to ensure it works when needed!
