@@ -1,13 +1,8 @@
 // This script generates the env-config.js file with actual environment variables
 // It's meant to be run during the build process on Vercel
 
-import fs from 'fs';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-// Get the current file's directory
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
+const fs = require('fs');
+const path = require('path');
 
 // Read the template file
 const templatePath = path.join(__dirname, '../public/env-config.js');
