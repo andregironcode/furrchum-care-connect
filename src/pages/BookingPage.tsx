@@ -15,7 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { createMeeting } from '@/lib/whereby';
+import { createMeeting, deleteMeeting } from '@/lib/whereby';
 
 type CreateMeetingResponse = Awaited<ReturnType<typeof createMeeting>>;
 
@@ -529,8 +529,14 @@ const BookingPage = () => {
       if (err && typeof err === 'object' && 'meetingId' in err) {
         const meetingId = (err as { meetingId: string }).meetingId;
         console.warn('Attempting to clean up orphaned meeting:', meetingId);
-        // TODO: Implement meeting cleanup if supported by the API
-        // await deleteMeeting(meetingId);
+        // Attempt to delete the meeting if it was created but the booking failed
+        try {
+          await deleteMeeting(meetingId);
+          console.log('Successfully cleaned up orphaned meeting:', meetingId);
+        } catch (cleanupError) {
+          console.error('Failed to clean up orphaned meeting:', cleanupError);
+          // We don't want to throw here as it would overshadow the original error
+        }
       }
     } finally {
       setIsSubmitting(false);

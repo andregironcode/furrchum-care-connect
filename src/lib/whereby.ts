@@ -137,6 +137,44 @@ export async function createMeeting(options: CreateMeetingOptions): Promise<Crea
   }
 }
 
+/**
+ * Deletes a Whereby meeting by its ID
+ * @param meetingId The ID of the meeting to delete
+ * @returns A promise that resolves when the meeting is deleted
+ */
+export async function deleteMeeting(meetingId: string): Promise<boolean> {
+  try {
+    // Use a proxy endpoint to avoid CORS issues and keep API key secure
+    const response = await fetch(`/api/whereby/meetings/${meetingId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      let errorMessage = 'Failed to delete meeting';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error || errorData.message || errorMessage;
+        console.error('Error deleting meeting:', errorData);
+      } catch (parseError) {
+        console.error('Error parsing error response:', parseError);
+      }
+      throw new Error(errorMessage);
+    }
+
+    // Meeting was successfully deleted
+    console.log(`Meeting ${meetingId} was successfully deleted`);
+    return true;
+  } catch (error) {
+    console.error(`Failed to delete meeting ${meetingId}:`, error);
+    // Don't show an error toast to the user as this happens in the background
+    // and should not interrupt their flow
+    return false;
+  }
+}
+
 // Export a function to get the Whereby API key (for server-side use only)
 export function getWherebyApiKey(): string {
   if (typeof window !== 'undefined') {

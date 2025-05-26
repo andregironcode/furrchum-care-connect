@@ -6,13 +6,20 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from 'sonner';
-import { loadStripe } from '@stripe/stripe-js';
 import { CreditCard, WalletCards, AlertCircle, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/context/AuthContext';
 
-// Initialize Stripe
-const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY || '');
+// Add the Razorpay script
+function loadRazorpayScript(): Promise<boolean> {
+  return new Promise((resolve) => {
+    const script = document.createElement('script');
+    script.src = 'https://checkout.razorpay.com/v1/checkout.js';
+    script.onload = () => resolve(true);
+    script.onerror = () => resolve(false);
+    document.body.appendChild(script);
+  });
+}
 
 type BookingData = {
   vetId: string;
@@ -56,14 +63,16 @@ const PaymentPage = () => {
       navigate('/vets');
     }
 
-    // Check if we're in development without Stripe keys
-    if (!import.meta.env.VITE_STRIPE_PUBLISHABLE_KEY) {
-      console.warn('Stripe publishable key not found, using fallback payment mode');
-      setIsFallbackMode(true);
-    }
+    // Load Razorpay script
+    loadRazorpayScript().then((loaded) => {
+      if (!loaded) {
+        console.warn('Razorpay script failed to load, using fallback payment mode');
+        setIsFallbackMode(true);
+      }
+    });
   }, [navigate]);
 
-  const handleStripeCheckout = async () => {
+  const handleRazorpayCheckout = async () => {
     if (!bookingData) {
       toast.error("No booking information found");
       return;
@@ -95,7 +104,7 @@ const PaymentPage = () => {
         return;
       }
 
-      // Create a checkout session via our API endpoint
+      // Create a Razorpay order via our API endpoint
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: {
@@ -115,14 +124,77 @@ const PaymentPage = () => {
         throw new Error(errorData?.error || 'Failed to create checkout session');
       }
 
-      const { url } = await response.json();
-
-      if (!url) {
-        throw new Error('Invalid checkout session response');
+      const orderData = await response.json();
+      
+      if (!orderData || !orderData.id) {
+        throw new Error('Invalid order response');
       }
-
-      // Redirect to Stripe Checkout
-      window.location.href = url;
+      
+      // Initialize Razorpay checkout
+      const options = {
+        key: orderData.keyId,
+        amount: orderData.amount,
+        currency: orderData.currency,
+        name: "FurrChum Care Connect",
+        description: `Consultation with ${bookingData.vetName}`,
+        order_id: orderData.id,
+        handler: async function (response: any) {
+          // Payment successful
+          // This callback is invoked when payment is successful
+          try {
+            // Validate payment with server
+            const validationResponse = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                booking_id: bookingId
+              }),
+            });
+            
+            if (validationResponse.ok) {
+              // Navigate to success page
+              navigate(`/payment-success?booking_id=${bookingId}&payment_id=${response.razorpay_payment_id}`);
+            } else {
+              // Handle server validation error
+              const errorData = await validationResponse.json();
+              toast.error(errorData.error || 'Payment verification failed');
+              setIsProcessing(false);
+            }
+          } catch (error) {
+            console.error('Payment verification error:', error);
+            toast.error('Payment verification failed. Please contact support.');
+            setIsProcessing(false);
+          }
+        },
+        prefill: {
+          name: user.user_metadata?.full_name || '',
+          email: user.email || '',
+          contact: user.user_metadata?.phone || ''
+        },
+        notes: {
+          booking_id: bookingId,
+          user_id: user.id,
+          consultation_mode: bookingData.consultationMode
+        },
+        theme: {
+          color: '#4f46e5' // Indigo color matching your button
+        },
+        modal: {
+          ondismiss: function() {
+            setIsProcessing(false);
+          }
+        }
+      };
+      
+      // Open Razorpay checkout
+      const razorpay = new (window as any).Razorpay(options);
+      razorpay.open();
+      
     } catch (error) {
       console.error('Payment error:', error);
       toast.error(typeof error === 'string' ? error : "Payment processing failed. Please try again.");
@@ -361,7 +433,7 @@ const PaymentPage = () => {
               </CardContent>
               <CardFooter>
                 <Button 
-                  onClick={handleStripeCheckout}
+                  onClick={handleRazorpayCheckout}
                   className="w-full bg-indigo-600 hover:bg-indigo-700"
                   disabled={isProcessing || paymentMethod === 'wallet' || !termsAccepted}
                 >
@@ -371,7 +443,7 @@ const PaymentPage = () => {
                       Processing...
                     </span>
                   ) : (
-                    `Pay $${(bookingData.fee * 1.05).toFixed(2)}`
+                    `Pay ₹${(bookingData.fee * 1.05).toFixed(2)}`
                   )}
                 </Button>
               </CardFooter>

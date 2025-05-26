@@ -1,58 +1,72 @@
 import { Request, Response } from 'express';
-import { stripe, supabaseAdmin, getRawBody } from '../api-middleware';
+import { supabase, getRawBody, verifyRazorpayWebhook } from '../api-middleware';
 
-export const stripeWebhook = async (req: Request, res: Response) => {
+export const razorpayWebhook = async (req: Request, res: Response) => {
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
 
   try {
+    // Get the raw request body as a string for signature verification
     const buf = await getRawBody(req);
-    const signature = req.headers['stripe-signature'] as string;
-    const webhookSecret = import.meta.env.VITE_STRIPE_WEBHOOK_SECRET || '';
-
-    if (!webhookSecret) {
-      console.warn('Missing Stripe webhook secret');
-      return res.status(500).json({ error: 'Server configuration error' });
+    const rawBody = buf.toString('utf8');
+    
+    // Get the Razorpay signature from the headers
+    const signature = req.headers['x-razorpay-signature'] as string;
+    
+    if (!signature) {
+      console.warn('Missing Razorpay signature');
+      return res.status(400).json({ error: 'Missing signature' });
     }
-
+    
     // Verify the webhook signature
-    let event;
     try {
-      event = stripe.webhooks.constructEvent(
-        buf,
-        signature,
-        webhookSecret
-      );
-    } catch (err: Error | unknown) {
+      const isValid = verifyRazorpayWebhook(rawBody, signature);
+      if (!isValid) {
+        console.error('Invalid webhook signature');
+        return res.status(400).json({ error: 'Invalid signature' });
+      }
+    } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       console.error(`Webhook signature verification failed: ${errorMessage}`);
       return res.status(400).send(`Webhook Error: ${errorMessage}`);
     }
 
+    // Parse the webhook body
+    const event = JSON.parse(rawBody);
+    
     // Handle specific events
-    if (event.type === 'checkout.session.completed') {
-      const session = event.data.object;
+    if (event.event === 'payment.authorized' || event.event === 'payment.captured') {
+      const payload = event.payload?.payment?.entity;
       
-      // Extract metadata from the session
-      const { booking_id, user_id, meeting_details } = session.metadata || {};
+      if (!payload || !payload.order_id) {
+        console.error('Invalid payload structure', event);
+        return res.status(400).json({ error: 'Invalid payload structure' });
+      }
+      
+      // Get the order details to extract metadata
+      const orderId = payload.order_id;
+      const amount = payload.amount / 100; // Convert from paise to rupees
+      const paymentId = payload.id;
+      
+      // Fetch the order from your database or via Razorpay API to get notes
+      // For this implementation, we'll assume the order notes contain the booking_id and user_id
+      // In a real implementation, you might want to fetch the order from Razorpay's API
+      const { booking_id, user_id, meeting_details } = payload.notes || {};
       
       if (!booking_id || !user_id) {
-        console.error('Missing required metadata in webhook', session.metadata);
-        return res.status(400).json({ error: 'Missing required metadata' });
+        console.error('Missing required notes in webhook', payload.notes);
+        return res.status(400).json({ error: 'Missing required notes' });
       }
 
       // Get customer information
-      const customerId = session.customer;
-      const customerEmail = session.customer_details?.email || '';
+      const customerEmail = payload.email || '';
       
       // Update existing booking to confirmed
       let parsedMeetingDetails: {
         meetingId: string;
         roomUrl: string;
         hostRoomUrl: string | null;
-        startDate: string;
-        endDate: string;
       } | null = null;
       
       // Try to parse meeting details if they exist
@@ -64,8 +78,6 @@ export const stripeWebhook = async (req: Request, res: Response) => {
               meetingId: string;
               roomUrl: string;
               hostRoomUrl: string | null;
-              startDate: string;
-              endDate: string;
             };
           }
         } catch (e) {
@@ -77,7 +89,9 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       const updateData: Record<string, string | boolean | null | Date> = {
         status: 'confirmed',
         payment_status: 'paid',
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        razorpay_payment_id: paymentId,
+        razorpay_order_id: orderId
       };
       
       // Add meeting details if they exist and aren't already in the database
@@ -88,7 +102,7 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       }
       
       // Update the booking
-      const { data: bookingData, error: updateError } = await supabaseAdmin
+      const { data: bookingData, error: updateError } = await supabase
         .from('bookings')
         .update(updateData)
         .eq('id', booking_id)
@@ -106,18 +120,21 @@ export const stripeWebhook = async (req: Request, res: Response) => {
       }
 
       // Record the transaction in Supabase
-      const { error: transactionError } = await supabaseAdmin
+      const { error: transactionError } = await supabase
         .from('transactions')
         .insert({
           booking_id: bookingData.id,
-          payment_intent_id: session.payment_intent,
-          amount: session.amount_total ? session.amount_total / 100 : 0, // Convert from cents
-          currency: session.currency || 'usd',
+          payment_intent_id: paymentId,
+          amount: amount,
+          currency: payload.currency || 'INR',
           status: 'completed',
-          payment_method: 'card',
+          payment_method: payload.method || 'card',
           customer_email: customerEmail,
           created_at: new Date().toISOString(),
-          user_id: user_id
+          user_id: user_id,
+          provider: 'razorpay',
+          provider_payment_id: paymentId,
+          provider_order_id: orderId
         });
 
       if (transactionError) {

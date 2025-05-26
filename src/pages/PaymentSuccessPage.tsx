@@ -36,7 +36,8 @@ const PaymentSuccessPage = () => {
 
   const [booking, setBooking] = useState<Booking | null>(null);
   const [vetName, setVetName] = useState('');
-  const sessionId = searchParams.get('session_id');
+  const paymentId = searchParams.get('payment_id');
+  const bookingId = searchParams.get('booking_id');
 
   useEffect(() => {
     // Store success flag in sessionStorage
@@ -49,31 +50,28 @@ const PaymentSuccessPage = () => {
       }
 
       try {
-        // Find the booking associated with this payment
-        // Handle null session ID
-        const checkoutSessionId = sessionId || '';
-        if (!checkoutSessionId) {
-          toast.error('No session ID found');
+        // For Razorpay, we get the booking_id directly from the URL params
+        if (!bookingId) {
+          toast.error('No booking ID found');
           setIsVerifying(false);
           return;
         }
+        
+        // Check if there's a payment record for this booking
+        if (paymentId) {
+          const { data: transaction, error: transactionError } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('provider_payment_id', paymentId)
+            .eq('booking_id', bookingId)
+            .single();
 
-        const { data: bookings, error: bookingError } = await supabase
-          .from('transactions')
-          .select('booking_id')
-          .eq('payment_intent_id', sessionId || '')
-          .single();
-
-        if (bookingError || !bookings) {
-          console.error('Error finding booking:', bookingError);
-          toast.error('Could not verify your payment. Please contact support.');
-          setIsVerifying(false);
-          return;
+          if (transactionError) {
+            console.warn('Transaction record not found, but proceeding as it might be created asynchronously');
+          } else if (!transaction) {
+            console.warn('No transaction found, but the webhook might not have processed yet');
+          }
         }
-
-        // Get the booking details
-        // Get booking ID safely
-        const bookingId = bookings?.booking_id || '';
         
         const { data: bookingData, error: bookingDetailsError } = await supabase
           .from('bookings')
@@ -102,7 +100,7 @@ const PaymentSuccessPage = () => {
     };
 
     verifyPayment();
-  }, [sessionId, user, navigate]);
+  }, [bookingId, paymentId, user, navigate]);
 
   const handleViewAppointments = () => {
     navigate('/appointments');
