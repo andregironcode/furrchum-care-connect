@@ -149,7 +149,7 @@ const SuperAdminDashboard = () => {
       // Fetch all users
       const { data: usersData, error: userError } = await supabase
         .from('profiles')
-        .select('*')
+        .select('id, full_name, user_type, created_at, updated_at')
         .order('created_at', { ascending: false });
       
       if (userError) {
@@ -159,7 +159,7 @@ const SuperAdminDashboard = () => {
       }
       
       // Log the users data to help with debugging
-      console.log('Fetched users:', usersData?.length || 0, 'users');
+      console.log('Fetched users:', usersData?.length || 0, 'users', usersData);
       
       // Fetch all vets with proper ordering
       const { data: vetsData, error: vetError } = await supabase
@@ -219,7 +219,7 @@ const SuperAdminDashboard = () => {
         // Fetch user profiles for appointments
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
-          .select('id, full_name, email, phone_number')
+          .select('id, full_name')
           .in('id', ownerIds);
         
         if (profilesError) {
@@ -682,9 +682,9 @@ const SuperAdminDashboard = () => {
                       filteredUsers.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.full_name || 'Unknown'}</TableCell>
-                          <TableCell>{user.email || 'No email'}</TableCell>
+                          <TableCell>Not available</TableCell>
                           <TableCell className="capitalize">{user.user_type || 'Unknown'}</TableCell>
-                          <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
+                          <TableCell>{getStatusBadge('active')}</TableCell>
                           <TableCell>
                             {new Date(user.created_at).toLocaleDateString()}
                           </TableCell>
