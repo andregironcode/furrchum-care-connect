@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
-import { MapPin, Search, Loader2, Video, Users, FileText, Images } from 'lucide-react';
+import { MapPin, Search, Loader2, Video, Users, FileText, Images, Download, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
+import { openFile, downloadFile } from '@/utils/supabaseStorage';
 
 // Mapping of zip codes to coordinates (latitude, longitude)
 // This is a simplified version - in a production app, you'd use a geocoding API

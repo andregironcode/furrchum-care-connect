@@ -40,6 +40,7 @@ interface VetProfile {
   clinic_images: string[];
   offers_telemedicine: boolean; // Maps to offers_video_calls in DB
   offers_in_person: boolean;
+  offers_video_calls?: boolean; // For database compatibility
 }
 
 const VetProfilePage = () => {
@@ -311,9 +312,13 @@ const VetProfilePage = () => {
 
     const newFiles: File[] = [];
     const currentPreviews = clinicImagePreviews || [];
+    const currentImages = profile?.clinic_images || [];
     
-    // Add only new files up to a maximum of 5 total
-    const remainingSlots = 5 - (selectedClinicImages.length + currentPreviews.length);
+    // Calculate total images including existing ones in the database
+    const totalExistingImages = currentImages.length;
+    
+    // Add only new files up to a maximum of 5 total (including those already in the database)
+    const remainingSlots = 5 - (totalExistingImages - selectedClinicImages.length);
     
     if (remainingSlots <= 0) {
       toast.error("Maximum of 5 clinic images allowed");
@@ -340,7 +345,12 @@ const VetProfilePage = () => {
   };
 
   const removeClinicImage = (index: number) => {
+    // Get current clinic images from profile
+    const currentImages = profile?.clinic_images || [];
     const currentPreviews = clinicImagePreviews || [];
+    
+    // Track which images to remove from the database
+    const imagesToRemove = [...(form.getValues('clinic_images') || [])];
     
     // Check if we're removing a selected image or an existing one
     if (index < currentPreviews.length) {
@@ -354,6 +364,12 @@ const VetProfilePage = () => {
         const newSelectedImages = [...selectedClinicImages];
         newSelectedImages.splice(index, 1);
         setSelectedClinicImages(newSelectedImages);
+      }
+      
+      // If it's an existing image in the database, mark it for removal
+      if (index < currentImages.length) {
+        imagesToRemove.splice(index, 1);
+        form.setValue('clinic_images', imagesToRemove);
       }
     }
   };
@@ -437,7 +453,10 @@ const VetProfilePage = () => {
       // Handle image uploads
       let imageUrl = profile?.image_url;
       let licenseUrl = profile?.license_url;
-      let clinicImages = profile?.clinic_images || [];
+      
+      // Get the current form values for clinic_images
+      // This ensures we only keep the images that weren't deleted in the UI
+      let clinicImages = values.clinic_images || [];
 
       if (selectedImage) {
         const newImageUrl = await uploadProfileImage(user.id);
@@ -455,7 +474,17 @@ const VetProfilePage = () => {
 
       if (selectedClinicImages.length > 0) {
         const newClinicImages = await uploadClinicImages(user.id);
-        clinicImages = [...clinicImages, ...newClinicImages.filter(url => url)];
+        
+        // Ensure we don't exceed 5 images total
+        const totalImages = clinicImages.length + newClinicImages.length;
+        if (totalImages > 5) {
+          // Only add enough to reach 5 total
+          const availableSlots = Math.max(0, 5 - clinicImages.length);
+          clinicImages = [...clinicImages, ...newClinicImages.slice(0, availableSlots)];
+          toast.warning(`Only added ${availableSlots} images to stay within the 5 image limit`);
+        } else {
+          clinicImages = [...clinicImages, ...newClinicImages.filter(url => url)];
+        }
       }
       
       // Prepare profile data with proper type handling
@@ -503,11 +532,11 @@ const VetProfilePage = () => {
           phone: profile.phone || '',
           gender: profile.gender || '',
           languages: Array.isArray(profile.languages) ? profile.languages : [],
-          pin_code: profile.pin_code || '',
+          zip_code: profile.zip_code || '',
           license_url: profile.license_url || '',
           clinic_location: profile.clinic_location || '',
           clinic_images: Array.isArray(profile.clinic_images) ? profile.clinic_images : [],
-          offers_telemedicine: Boolean(profile.offers_telemedicine),
+          offers_telemedicine: Boolean(profile.offers_video_calls),
           offers_in_person: Boolean(profile.offers_in_person)
         };
         

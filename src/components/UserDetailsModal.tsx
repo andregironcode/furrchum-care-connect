@@ -7,6 +7,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -18,7 +28,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { CheckCircle, XCircle, Calendar, Clock, AlertCircle } from 'lucide-react';
+import { CheckCircle, XCircle, Calendar, Clock, AlertCircle, Trash2, Loader2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
@@ -38,15 +48,11 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
   const [loading, setLoading] = useState(false);
   const [rejectionFeedback, setRejectionFeedback] = useState('');
   const [showRejectionForm, setShowRejectionForm] = useState(false);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (isOpen && user) {
-      fetchUserDetails();
-    }
-  }, [isOpen, user]);
-
-  const fetchUserDetails = async () => {
+  
+  const fetchUserDetails = useCallback(async () => {
     if (!user) return;
 
     setLoading(true);
@@ -61,9 +67,38 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
 
         if (vetError && vetError.code !== 'PGRST116') {
           console.error('Error fetching vet profile:', vetError);
-        } else {
-          setVetProfile(vetData);
-          console.log('Vet profile data:', vetData); // Debug log
+        } else if (vetData) {
+          // Transform the data to handle null values properly
+          // Only include fields that are actually in the VetProfile interface
+          const transformedVetProfile: VetProfile = {
+            id: vetData.id,
+            first_name: vetData.first_name || '',
+            last_name: vetData.last_name || '',
+            specialization: vetData.specialization || '',
+            about: vetData.about || '',
+            consultation_fee: vetData.consultation_fee || 0,
+            image_url: vetData.image_url || '',
+            years_experience: vetData.years_experience || 0,
+            phone: vetData.phone || '',  // phone_number doesn't exist in the database schema
+            gender: vetData.gender || '',
+            languages: Array.isArray(vetData.languages) ? vetData.languages : [],
+            zip_code: vetData.zip_code || '',
+            clinic_location: vetData.clinic_location || '',
+            clinic_images: Array.isArray(vetData.clinic_images) ? vetData.clinic_images : [],
+            license_url: vetData.license_url || '',
+            license_document_url: vetData.license_document_url || '',
+            rating: typeof vetData.rating === 'number' ? vetData.rating : 5,
+            availability: typeof vetData.availability === 'object' ? JSON.stringify(vetData.availability) : (vetData.availability?.toString() || 'Available'),
+            offers_video_calls: Boolean(vetData.offers_video_calls),
+            offers_in_person: Boolean(vetData.offers_in_person),
+            created_at: vetData.created_at,
+            approval_status: (vetData.approval_status as 'pending' | 'approved' | 'rejected') || 'pending',
+            approved_at: vetData.approved_at,
+            approved_by: vetData.approved_by,
+          };
+          
+          setVetProfile(transformedVetProfile);
+          console.log('Transformed vet profile data:', transformedVetProfile); // Debug log
         }
       }
 
@@ -84,71 +119,117 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
       } else {
         setAppointments(appointmentsData || []);
       }
-    } catch (error: any) {
+    } catch (error) {
       console.error('Error fetching user details:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Failed to fetch user details';
       toast({
         title: 'Error',
-        description: 'Failed to fetch user details',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
+  }, [user, toast]);
+  
+  useEffect(() => {
+    if (isOpen && user) {
+      fetchUserDetails();
+    }
+  }, [isOpen, user, fetchUserDetails]);
+
+  // Function to verify if a vet's approval status was updated successfully
+  const verifyVetApprovalStatus = async (vetId: string, expectedStatus: 'pending' | 'approved' | 'rejected'): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('vet_profiles')
+        .select('approval_status')
+        .eq('id', vetId)
+        .single();
+
+      if (error) {
+        console.error('Error verifying vet approval status:', error);
+        return false;
+      }
+
+      if (!data) {
+        console.warn('No vet profile found for verification');
+        return false;
+      }
+
+      const currentStatus = data.approval_status;
+      console.log(`Verification: Expected status ${expectedStatus}, current status ${currentStatus}`);
+      
+      return currentStatus === expectedStatus;
+    } catch (err) {
+      console.error('Error in verification:', err);
+      return false;
+    }
   };
 
-  const handleVetApproval = async (status: 'approved' | 'rejected', feedback?: string) => {
+  const handleVetApproval = useCallback(async (status: 'approved' | 'rejected', feedback?: string) => {
     if (!vetProfile || !user) return;
 
     try {
       setLoading(true);
+
       console.log(`Updating vet profile ${vetProfile.id} to status: ${status}`);
 
-      const updateData: any = {
-        approval_status: status,
-        approved_at: new Date().toISOString(),
-        approved_by: 'Super Admin'
+      // Create update data with only the fields we know exist in the table
+      const updateData = {
+        approval_status: status
       };
 
-      // Add feedback for rejections
+      // Log feedback for rejections, but don't try to store it in a non-existent column
       if (status === 'rejected' && feedback) {
-        updateData.rejection_reason = feedback;
+        console.log(`Rejection feedback for vet ${vetProfile.id}: ${feedback}`);
+        // We could store this in a separate table if needed
       }
 
-      // First, update the vet profile
+      // Update the vet_profiles table
       const { error: profileError } = await supabase
         .from('vet_profiles')
         .update(updateData)
         .eq('id', vetProfile.id);
 
       if (profileError) {
-        console.error('Error updating vet profile:', profileError);
-        throw profileError;
+        throw new Error(`Error updating vet profile: ${profileError.message}`);
+      }
+
+      // Verify the update was successful
+      const verified = await verifyVetApprovalStatus(vetProfile.id, status);
+      if (!verified) {
+        console.warn(`Could not verify vet ${vetProfile.id} status update to ${status}. Will try to refresh data anyway.`);
       }
 
       console.log(`Successfully updated vet profile ${vetProfile.id} to status: ${status}`);
 
       // Next, update the user metadata in the auth system
       // This is important for role-based access control
-      // Cast user to any to access user_metadata which might not be in the type definition
-      const userData = user as any;
-      const currentMetadata = userData.user_metadata || {};
-      
-      const { error: userError } = await supabase.auth.admin.updateUserById(
-        user.id,
-        {
-          user_metadata: {
-            ...currentMetadata,
-            vet_status: status,
-            is_approved_vet: status === 'approved'
-          }
-        }
-      );
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user.id);
 
-      if (userError) {
-        console.error('Error updating user metadata:', userError);
-        // Continue even if this fails, as the profile update is more important
-      } else {
-        console.log(`Successfully updated user metadata for ${user.id}`);
+      if (!userError && userData?.user) {
+        const currentMetadata = userData.user.user_metadata || {};
+
+        const { error: metadataError } = await supabase.auth.admin.updateUserById(
+          user.id,
+          {
+            user_metadata: {
+              ...currentMetadata,
+              vet_status: status,
+              is_approved_vet: status === 'approved'
+            }
+          }
+        );
+
+        if (metadataError) {
+          console.error('Error updating user metadata:', metadataError);
+          // Continue anyway since the profile was updated
+        } else {
+          console.log('Successfully updated user metadata');
+        }
+      } else if (userError) {
+        console.error('Error fetching user for metadata update:', userError);
       }
 
       // Send notification to the vet (this would normally be an email)
@@ -164,42 +245,84 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
       });
 
       if (onUserUpdated) onUserUpdated();
-
-      // Reset rejection form state
-      setRejectionFeedback('');
       setShowRejectionForm(false);
-    } catch (error: any) {
-      console.error('Error updating vet status:', error);
+      setRejectionFeedback('');
+    } catch (error) {
+      console.error('Error in vet approval process:', error);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update vet status',
+        description: `Failed to ${status === 'approved' ? 'approve' : 'reject'} the vet. Please try again.`,
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
     }
-  };
+  }, [vetProfile, user, toast, onUserUpdated, fetchUserDetails]);
 
-  const getStatusBadge = (status: string) => {
-    const statusColors = {
-      pending: 'bg-yellow-100 text-yellow-800',
-      approved: 'bg-green-100 text-green-800',
-      rejected: 'bg-red-100 text-red-800',
-    };
+  const handleDeleteUser = useCallback(async () => {
+    if (!user) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      // First, check if this is a vet and delete vet profile if it exists
+      if (user.user_type === 'vet') {
+        const { error: vetDeleteError } = await supabase
+          .from('vet_profiles')
+          .delete()
+          .eq('id', user.id);
+          
+        if (vetDeleteError) {
+          console.error('Error deleting vet profile:', vetDeleteError);
+          throw new Error(vetDeleteError.message);
+        }
+      }
+      
+      // Delete user profile
+      const { error: profileDeleteError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', user.id);
+        
+      if (profileDeleteError) {
+        console.error('Error deleting user profile:', profileDeleteError);
+        throw new Error(profileDeleteError.message);
+      }
+      
+      // Delete user from auth
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(user.id);
+      
+      if (authDeleteError) {
+        console.error('Error deleting user from auth:', authDeleteError);
+        throw new Error(authDeleteError.message);
+      }
+      
+      toast({
+        title: 'User Deleted',
+        description: 'The user has been successfully deleted.',
+      });
+      
+      if (onUserUpdated) onUserUpdated();
+      onClose();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to delete user. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirmation(false);
+    }
+  }, [user, toast, onUserUpdated, onClose]);
 
-    return (
-      <Badge className={statusColors[status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
-        {status}
-      </Badge>
-    );
-  };
-
-  const openDocument = async (url: string) => {
+  const downloadLicenseDocument = useCallback(async (url: string | undefined) => {
     if (!url) {
       toast({
-        title: "Error",
-        description: "Document URL is not available",
-        variant: "destructive",
+        title: 'Error',
+        description: 'No license document available',
+        variant: 'destructive'
       });
       return;
     }
@@ -208,73 +331,54 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
       console.log('Opening document URL:', url);
       
       // Check if this is a Supabase storage URL
-      if (url.includes('storage.googleapis.com') || url.includes('supabase.co/storage')) {
-        // Parse the URL to extract the bucket name and file path
-        const urlObj = new URL(url);
-        const pathParts = urlObj.pathname.split('/');
+      if (url.includes('storage.googleapis.com') || url.includes('supabase.co')) {
+        // Extract the bucket and file path from the URL
+        const urlParts = url.split('/');
+        const bucket = urlParts[urlParts.indexOf('storage') + 2];
+        const filePath = urlParts.slice(urlParts.indexOf(bucket) + 1).join('/');
         
-        // Find the bucket name in the URL path
-        let bucketName = 'vet_profiles';
-        let filePath = '';
-        
-        // Check if this is a public URL or a signed URL format
-        if (pathParts.includes('public')) {
-          // Format: /storage/v1/object/public/[bucket]/[filepath]
-          const publicIndex = pathParts.indexOf('public');
-          if (publicIndex !== -1 && publicIndex + 1 < pathParts.length) {
-            bucketName = pathParts[publicIndex + 1];
-            filePath = pathParts.slice(publicIndex + 2).join('/');
-          }
-        } else if (pathParts.includes('sign')) {
-          // Format: /storage/v1/object/sign/[bucket]/[filepath]
-          const signIndex = pathParts.indexOf('sign');
-          if (signIndex !== -1 && signIndex + 1 < pathParts.length) {
-            bucketName = pathParts[signIndex + 1];
-            filePath = pathParts.slice(signIndex + 2).join('/');
-          }
-        }
-        
-        console.log(`Extracted bucket: ${bucketName}, file path: ${filePath}`);
-        
-        if (!filePath) {
-          // If we couldn't extract the path properly, try opening directly
-          window.open(url, '_blank');
-          return;
-        }
-        
-        // For Supabase storage URLs, we need to get a signed URL
-        const { data, error } = await supabase.storage
-          .from(bucketName)
+        // Create a signed URL
+        const { data, error } = await supabase
+          .storage
+          .from(bucket)
           .createSignedUrl(filePath, 60); // 60 seconds expiry
-        
+          
         if (error) {
-          console.error('Error creating signed URL:', error);
-          // Try direct access as fallback
-          window.open(url, '_blank');
-          return;
+          throw new Error(`Error creating signed URL: ${error.message}`);
         }
         
         if (data?.signedUrl) {
-          console.log('Opening signed URL:', data.signedUrl);
+          // Open the signed URL in a new tab
           window.open(data.signedUrl, '_blank');
-          return;
         }
+      } else {
+        // For regular URLs, just open in a new tab
+        window.open(url, '_blank');
       }
-      
-      // If it's not a Supabase URL or we couldn't get a signed URL, try opening directly
-      window.open(url, '_blank');
     } catch (error) {
-      console.error('Error opening document:', error);
+      console.error('Error downloading document:', error);
       toast({
-        title: "Error Opening Document",
-        description: error instanceof Error ? error.message : "Failed to open the document",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to download the document. Please try again.',
+        variant: 'destructive',
       });
-      
-      // Try direct access as a last resort
-      window.open(url, '_blank');
     }
-  };
+  }, [toast]);
+
+  const getStatusBadge = useCallback((status: string | null | undefined) => {
+    const statusLower = status?.toLowerCase() || 'pending';
+    const statusColors = {
+      pending: 'bg-yellow-100 text-yellow-800',
+      approved: 'bg-green-100 text-green-800',
+      rejected: 'bg-red-100 text-red-800',
+    };
+
+    return (
+      <Badge className={statusColors[statusLower as keyof typeof statusColors] || 'bg-gray-100 text-gray-800'}>
+        {status || 'Pending'}
+      </Badge>
+    );
+  }, []);
 
   if (!user) return null;
 
@@ -316,10 +420,28 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
 
           <TabsContent value="profile" className="space-y-4">
             <Card>
-              <CardHeader>
-                <CardTitle>Basic Information</CardTitle>
+              <CardHeader className="flex justify-between items-start">
+                <CardTitle>User Information</CardTitle>
+                <Button 
+                  variant="destructive" 
+                  size="sm"
+                  onClick={() => setShowDeleteConfirmation(true)}
+                >
+                  <Trash2 className="h-4 w-4 mr-1" />
+                  Delete User
+                </Button>
               </CardHeader>
-              <CardContent className="space-y-3">
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <p className="text-sm text-gray-500">Full Name</p>
+                    <p className="font-medium">{user.full_name}</p>
+                  </div>
+                  <strong>User Type:</strong>
+                  <Badge className="ml-2" variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
+                    {user.user_type.replace('_', ' ')}
+                  </Badge>
+                </div>
                 <div>
                   <strong>Name:</strong> {user.full_name || 'Not provided'}
                 </div>
@@ -472,7 +594,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => openDocument(vetProfile.license_url)}
+                                onClick={() => downloadLicenseDocument(vetProfile.license_url || '')}
                                 className="bg-white"
                               >
                                 <Eye className="w-4 h-4 mr-1" />
@@ -660,34 +782,8 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                   <CardTitle>Registered Pets</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  {pets.length > 0 ? (
-                    <div className="space-y-4">
-                      {pets.map((pet) => (
-                        <div key={pet.id} className="border rounded-lg p-4">
-                          <div className="flex items-center gap-4">
-                            {pet.photo_url && (
-                              <img
-                                src={pet.photo_url}
-                                alt={pet.name}
-                                className="w-16 h-16 rounded-full object-cover"
-                              />
-                            )}
-                            <div>
-                              <h4 className="font-medium">{pet.name}</h4>
-                              <p className="text-sm text-muted-foreground">
-                                {pet.breed} • {pet.type} • {pet.age} years old
-                              </p>
-                              <p className="text-sm text-muted-foreground">
-                                {pet.gender} • {pet.weight}kg
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-muted-foreground">No pets registered yet.</p>
-                  )}
+                  {/* Pet data would be fetched and displayed here */}
+                  <p className="text-muted-foreground">Pet information would be displayed here.</p>
                 </CardContent>
               </Card>
             </TabsContent>
@@ -739,6 +835,39 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
           </TabsContent>
         </Tabs>
       </DialogContent>
+      
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete the user account
+              and all associated data including pets, appointments, and medical records.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleDeleteUser();
+              }}
+              disabled={isDeleting}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                'Delete User'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 };

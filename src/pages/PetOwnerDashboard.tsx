@@ -626,7 +626,7 @@ const PetOwnerDashboard = () => {
                       </CardContent>
                       <CardFooter>
                         <Button asChild className="w-full" size="sm">
-                          <Link to="/booking">Book Now</Link>
+                          <Link to="/vets">Book Now</Link>
                         </Button>
                       </CardFooter>
                     </Card>
@@ -644,7 +644,7 @@ const PetOwnerDashboard = () => {
                       </CardContent>
                       <CardFooter>
                         <Button asChild className="w-full" size="sm">
-                          <Link to="/add-pet">Add Pet</Link>
+                          <Link to="/my-pets">Add Pet</Link>
                         </Button>
                       </CardFooter>
                     </Card>
@@ -816,7 +816,7 @@ const PetOwnerDashboard = () => {
                         <h3 className="text-lg font-medium text-gray-700 mb-2">No Upcoming Appointments</h3>
                         <p className="text-gray-500">You don't have any appointments scheduled.</p>
                         <Button className="mt-4" asChild>
-                          <Link to="/booking">Book an Appointment</Link>
+                          <Link to="/vets">Book an Appointment</Link>
                         </Button>
                       </div>
                     )}

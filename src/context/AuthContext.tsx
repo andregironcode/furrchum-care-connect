@@ -28,10 +28,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setSession(session);
         setUser(session?.user ?? null);
         
-        if (event === 'SIGNED_IN') {
+        // Only show toast for actual sign in/out events, not on page navigation
+        // TOKEN_REFRESHED events can trigger SIGNED_IN status but shouldn't show toast
+        if (event === 'SIGNED_IN' && !localStorage.getItem('userAlreadySignedIn')) {
           toast.success('Signed in successfully');
+          // Set a flag in localStorage to prevent showing the toast again
+          localStorage.setItem('userAlreadySignedIn', 'true');
         } else if (event === 'SIGNED_OUT') {
           toast.success('Signed out successfully');
+          // Clear the flag when signing out
+          localStorage.removeItem('userAlreadySignedIn');
         }
       }
     );

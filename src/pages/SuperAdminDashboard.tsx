@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import UserDetailsModal from '@/components/UserDetailsModal';
 import VetApprovalCard from '@/components/VetApprovalCard';
 import { UserProfile, VetProfile, Appointment, Transaction } from '@/types/profiles';
+import { createSignedUrl } from '@/utils/supabaseStorage';
 
 // Extended types for the component
 interface AppointmentWithDetails {
@@ -110,7 +111,7 @@ const SuperAdminDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<any>(null);
+  const [selectedUser, setSelectedUser] = useState<(SupabaseUserProfile & Partial<SupabaseVetProfile>) | null>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
   const [filterStatus, setFilterStatus] = useState<'all' | 'pet_owner' | 'vet' | 'admin'>('all');
   const [vetApprovalFilter, setVetApprovalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
@@ -133,6 +134,8 @@ const SuperAdminDashboard = () => {
         .from('vet_profiles')
         .select('*')
         .order('created_at', { ascending: false });
+      
+      // Filter out unapproved vets for regular users (not for super admin)
 
       if (vetsError) {
         console.error('Error fetching vet profiles:', vetsError);
@@ -149,8 +152,10 @@ const SuperAdminDashboard = () => {
         .order('created_at', { ascending: false });
 
       if (usersError) {
-        console.error('Error fetching user profiles:', usersError);
-        throw usersError;
+        setError('Error fetching users data');
+        console.error('Error fetching users:', usersError);
+      } else {
+        setUsers(usersData as SupabaseUserProfile[]);
       }
       console.log('User profiles fetched:', usersData?.length || 0, 'records');
       console.log('Sample user data:', usersData?.[0]);
@@ -161,14 +166,17 @@ const SuperAdminDashboard = () => {
         .from('bookings')
         .select(`
           *,
-          vet_profiles:vet_id(first_name, last_name),
-          pets:pet_id(name, type, owner_id)
+          vet_profiles:vet_id(*),
+          pets:pet_id(*),
+          profiles:pet_owner_id(*)
         `)
-        .order('created_at', { ascending: false });
+        .order('booking_date', { ascending: false });
 
       if (appointmentsError) {
+        setError('Error fetching appointments data');
         console.error('Error fetching appointments:', appointmentsError);
-        throw appointmentsError;
+      } else {
+        setAppointments(appointmentsData as AppointmentWithDetails[]);
       }
       console.log('Appointments fetched:', appointmentsData?.length || 0, 'records');
       console.log('Sample appointment data:', appointmentsData?.[0]);
@@ -181,8 +189,10 @@ const SuperAdminDashboard = () => {
         .order('created_at', { ascending: false });
 
       if (transactionsError) {
+        setError('Error fetching transactions data');
         console.error('Error fetching transactions:', transactionsError);
-        throw transactionsError;
+      } else {
+        setTransactions(transactionsData as SupabaseTransaction[]);
       }
       console.log('Transactions fetched:', transactionsData?.length || 0, 'records');
       console.log('Sample transaction data:', transactionsData?.[0]);
@@ -191,7 +201,7 @@ const SuperAdminDashboard = () => {
       console.log('Processing data...');
       
       // Process vet data - ensure we have the right structure
-      const processedVets = vetsData ? vetsData.map((vet: any) => {
+      const processedVets = vetsData ? vetsData.map((vet: SupabaseVetProfile) => {
         // Ensure each vet has the required fields
         return {
           ...vet,
@@ -206,7 +216,7 @@ const SuperAdminDashboard = () => {
       console.log('Processed vets:', processedVets.length);
       
       // Process user data - ensure all required fields are present
-      const processedUsers = usersData ? usersData.map((user: any) => {
+      const processedUsers = usersData ? usersData.map((user: SupabaseUserProfile) => {
         // Ensure each user has the required fields
         const processedUser = {
           ...user,
@@ -234,7 +244,7 @@ const SuperAdminDashboard = () => {
       }) : [];
       
       // Add any vets that might not be in the users list
-      processedVets.forEach((vet: any) => {
+      processedVets.forEach((vet: SupabaseVetProfile) => {
         const vetExists = processedUsers.some(user => user.id === vet.user_id);
         if (!vetExists && vet.user_id) {
           processedUsers.push({
@@ -262,10 +272,10 @@ const SuperAdminDashboard = () => {
       console.log('Vets count:', veterinarians.length);
       
       // Set state with the processed data
-      setVets(processedVets as SupabaseVetProfile[]);
-      setUsers(processedUsers as SupabaseUserProfile[]);
-      setAppointments(processedAppointments as AppointmentWithDetails[]);
-      setTransactions(processedTransactions as SupabaseTransaction[]);
+      setVets(processedVets);
+      setUsers(processedUsers);
+      setAppointments(processedAppointments);
+      setTransactions(processedTransactions);
 
       // Log counts for debugging
       console.log('Final counts:');
@@ -282,44 +292,114 @@ const SuperAdminDashboard = () => {
     }
   };
 
+  // Function to verify if a vet's approval status was updated successfully
+  const verifyVetApprovalStatus = async (vetId: string, expectedStatus: 'pending' | 'approved' | 'rejected'): Promise<boolean> => {
+    try {
+      const { data, error } = await supabase
+        .from('vet_profiles')
+        .select('approval_status')
+        .eq('id', vetId)
+        .single();
+      
+      if (error) {
+        console.error('Error verifying vet status:', error);
+        return false;
+      }
+      
+      if (!data) {
+        console.warn('No vet profile found for verification');
+        return false;
+      }
+
+      const currentStatus = data.approval_status;
+      console.log(`Verification: Expected status ${expectedStatus}, current status ${currentStatus}`);
+      
+      return currentStatus === expectedStatus;
+    } catch (err) {
+      console.error('Error in verification:', err);
+      return false;
+    }
+  };
   const handleVetApproval = async (vetId: string, status: 'approved' | 'rejected', feedback?: string) => {
     try {
       setLoading(true);
+      
+      console.log(`Updating vet profile ${vetId} to status: ${status}`);
 
-      const updateData: any = {
+      // Create update data with only the fields we know exist in the table
+      const updateData = {
         approval_status: status,
-        approved_at: new Date().toISOString(),
-        approved_by: 'Super Admin'
+        ...(status === 'approved' ? { approved_at: new Date().toISOString() } : {})
       };
       
-      // Add feedback for rejections
+      // Log feedback for rejections, but don't try to store it in a non-existent column
       if (status === 'rejected' && feedback) {
-        updateData.rejection_reason = feedback;
+        console.log(`Rejection feedback for vet ${vetId}: ${feedback}`);
+        // We could store this in a separate table if needed
       }
-
-      const { error } = await supabase
+      
+      // Update the vet_profiles table
+      const { error: profileError } = await supabase
         .from('vet_profiles')
         .update(updateData)
         .eq('id', vetId);
 
-      if (error) throw error;
+      if (profileError) {
+        throw new Error(`Error updating vet profile: ${profileError.message}`);
+      }
+      
+      // Verify the update was successful
+      const verified = await verifyVetApprovalStatus(vetId, status);
+      if (!verified) {
+        console.warn(`Could not verify vet ${vetId} status update to ${status}. Will try to refresh data anyway.`);
+      }
+      
+      // Next, update the user metadata in the auth system
+      // This is important for role-based access control
+      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(vetId);
+      if (!userError && userData?.user) {
+        const currentMetadata = userData.user.user_metadata || {};
 
-      // Send notification to the vet (this would normally be an email or in-app notification)
-      // For now, we'll just log it
-      console.log(`Notification to vet ${vetId}: Your account has been ${status}${feedback ? ` with feedback: ${feedback}` : ''}`);
+        const { error: metadataError } = await supabase.auth.admin.updateUserById(
+          vetId,
+          {
+            user_metadata: {
+              ...currentMetadata,
+              vet_status: status,
+              is_approved_vet: status === 'approved'
+            }
+          }
+        );
 
+        if (metadataError) {
+          console.error('Error updating user metadata:', metadataError);
+          // Continue anyway since the profile was updated
+        } else {
+          console.log('Successfully updated user metadata');
+        }
+      } else if (userError) {
+        console.error('Error fetching user for metadata update:', userError);
+      }
+      
+      // Refresh the data to show the updated status
+      await fetchData();
+      
       toast({
-        title: `Vet ${status}`,
+        title: `Vet ${status === 'approved' ? 'Approved' : 'Rejected'}`,
         description: `The veterinarian has been ${status} successfully.`,
       });
-
-      // Refresh all data after approval
-      fetchData();
-    } catch (error: any) {
-      console.error('Error updating vet status:', error);
+      
+      // Exit review mode if we were in it
+      if (reviewMode) {
+        setReviewMode(false);
+      }
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update vet status';
+      console.error('Error updating vet status:', errorMessage);
       toast({
         title: 'Error',
-        description: error.message || 'Failed to update vet status',
+        description: errorMessage,
         variant: 'destructive',
       });
     } finally {
@@ -335,11 +415,12 @@ const SuperAdminDashboard = () => {
         title: 'User Status Updated',
         description: `User status changed to ${newStatus}`,
       });
-    } catch (error: any) {
-      console.error('Error updating user status:', error);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update user status';
+      console.error('Error updating user status:', errorMessage);
       toast({
         title: 'Error',
-        description: error.message,
+        description: errorMessage,
         variant: 'destructive',
       });
     }
@@ -372,41 +453,41 @@ const SuperAdminDashboard = () => {
     );
   };
 
-  const handleUserClick = (user: any) => {
-    // Ensure user has all required fields before opening modal
-    const processedUser = {
+  const handleUserClick = (user: SupabaseUserProfile) => {
+    // Add user_type if not present to ensure compatibility with UserDetailsModal
+    const enrichedUser = {
       ...user,
-      id: user.id || '',
-      full_name: user.full_name || 'Unknown',
-      email: user.email || '',
-      user_type: user.user_type || 'pet_owner',
-      status: user.status || 'active'
+      user_type: user.user_type || 'pet_owner'
     };
-    
-    setSelectedUser(processedUser);
+    setSelectedUser(enrichedUser);
     setIsUserModalOpen(true);
   };
 
-  const handleVetClick = (vet: any) => {
-    // Check if we have a corresponding user profile first
+  const handleVetClick = (vet: SupabaseVetProfile) => {
+    // Find the corresponding user profile for this vet
     const vetUser = users.find(user => user.id === vet.id);
+    
     if (vetUser) {
-      // Use the full user profile if available
-      setSelectedUser({
+      // Combine vet and user data for the modal
+      const combinedData = {
         ...vetUser,
         ...vet,
         user_type: 'vet',
-        full_name: `${vet.first_name} ${vet.last_name}`
-      });
+        // Ensure required fields for UserDetailsModal are present
+        full_name: `${vet.first_name} ${vet.last_name}`,
+        // Convert nullable fields to undefined where needed
+        updated_at: vetUser.updated_at || new Date().toISOString()
+      };
+      
+      setSelectedUser(combinedData as SupabaseUserProfile & Partial<SupabaseVetProfile>);
+      setIsUserModalOpen(true);
     } else {
-      // Fallback to just the vet profile data
-      setSelectedUser({
-        ...vet,
-        user_type: 'vet',
-        full_name: `${vet.first_name} ${vet.last_name}`
+      toast({
+        title: 'Error',
+        description: 'Could not find user profile for this vet',
+        variant: 'destructive',
       });
     }
-    setIsUserModalOpen(true);
   };
 
   const handleUserModalClose = () => {
@@ -419,10 +500,11 @@ const SuperAdminDashboard = () => {
   };
 
   // Apply search filter to users
-  const filteredUsers = users.filter(user => 
-    (user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredUsers = users.filter((user: SupabaseUserProfile) => 
+    ((user.full_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.email || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
     (user.user_type && user.user_type.toLowerCase().includes(searchTerm.toLowerCase())))
+    && (filterStatus === 'all' || user.user_type === filterStatus)
   );
 
   // Get counts for different user types - ensure we're checking if user_type exists
@@ -746,14 +828,14 @@ const SuperAdminDashboard = () => {
                             {appointment.start_time} - {appointment.end_time}
                           </TableCell>
                           <TableCell>
-                            {appointment.pet_owner?.full_name || 'Unknown Owner'}
+                            {appointment.profiles?.full_name || 'Unknown Owner'}
                           </TableCell>
                           <TableCell>{appointment.pets?.name || 'Unknown Pet'}</TableCell>
                           <TableCell>
                             Dr. {appointment.vet_profiles?.first_name} {appointment.vet_profiles?.last_name}
                           </TableCell>
                           <TableCell className="capitalize">{appointment.consultation_type}</TableCell>
-                          <TableCell>{getStatusBadge(appointment.status)}</TableCell>
+                          <TableCell>{getStatusBadge(appointment.status || 'pending')}</TableCell>
                         </TableRow>
                       ))
                     )}
@@ -794,7 +876,7 @@ const SuperAdminDashboard = () => {
                       transactions.map((transaction) => (
                         <TableRow key={transaction.id}>
                           <TableCell>
-                            {new Date(transaction.created_at).toLocaleDateString()}
+                            {transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : 'Unknown'}
                           </TableCell>
                           <TableCell>
                             ${transaction.amount}
@@ -813,12 +895,14 @@ const SuperAdminDashboard = () => {
           </TabsContent>
         </Tabs>
 
-        <UserDetailsModal
-          user={selectedUser}
-          isOpen={isUserModalOpen}
-          onClose={handleUserModalClose}
-          onUserUpdated={handleUserUpdated}
-        />
+        {selectedUser && (
+          <UserDetailsModal
+            user={selectedUser as unknown as UserProfile & Partial<VetProfile>}
+            isOpen={isUserModalOpen}
+            onClose={handleUserModalClose}
+            onUserUpdated={handleUserUpdated}
+          />
+        )}
       </main>
     </div>
   );

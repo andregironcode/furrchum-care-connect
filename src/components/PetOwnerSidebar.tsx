@@ -101,9 +101,9 @@ const PetOwnerSidebar = () => {
                       transition-colors p-4 rounded-md
                     `}
                   >
-                    <Link to={item.path} className="flex items-center gap-3">
-                      <item.icon className={`h-5 w-5 ${item.isActive ? "text-primary" : "text-gray-500"}`} />
-                      <span className="text-base">{item.title}</span>
+                    <Link to={item.path} className="flex items-center gap-3 rounded-lg px-3 py-2 text-gray-500 transition-all hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-50">
+                      <item.icon className="h-4 w-4" />
+                      <span>{item.title}</span>
                     </Link>
                   </SidebarMenuButton>
                 </SidebarMenuItem>

@@ -92,6 +92,11 @@ const App = () => {
                   <MyPetsPage />
                 </RouteGuard>
               } />
+              <Route path="/add-pet" element={
+                <RouteGuard>
+                  <MyPetsPage />
+                </RouteGuard>
+              } />
               <Route path="/my-vets" element={
                 <RouteGuard>
                   <MyVetsPage />
@@ -120,6 +125,11 @@ const App = () => {
               
               {/* New Booking and Payment Routes */}
               <Route path="/booking/:vetId" element={
+                <RouteGuard>
+                  <BookingPage />
+                </RouteGuard>
+              } />
+              <Route path="/booking" element={
                 <RouteGuard>
                   <BookingPage />
                 </RouteGuard>

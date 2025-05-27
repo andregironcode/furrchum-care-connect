@@ -1,17 +1,18 @@
-
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Alert, AlertDescription } from "@/components/ui/alert";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { Loader2, ArrowLeft, MapPin, Calendar, CheckCircle, Phone, Mail, FileText, Images } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Separator } from '@/components/ui/separator';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Calendar, Clock, MapPin, Phone, Mail, Star, Video, User, FileText, Download, Eye, ArrowLeft, CheckCircle, Loader2, Images } from 'lucide-react';
+import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
+import { format } from 'date-fns';
 import Navbar from '@/components/Navbar';
-import { supabase } from "@/integrations/supabase/client";
-import { useAuth } from "@/context/AuthContext";
-import { toast } from "sonner";
-import { format } from "date-fns";
+import { downloadFile, openFile } from '@/utils/supabaseStorage';
 
 interface VetProfile {
   id: string;
@@ -31,6 +32,7 @@ interface VetProfile {
   clinic_location: string;
   clinic_images: string[];
   license_url: string;
+  license_document_url?: string;
   offers_video_calls: boolean;
   offers_in_person: boolean;
 }
@@ -63,14 +65,7 @@ const VetDetailsPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    if (vetId) {
-      fetchVetDetails();
-      fetchVetAvailability();
-    }
-  }, [vetId]);
-
-  const fetchVetDetails = async () => {
+  const fetchVetDetails = useCallback(async () => {
     try {
       setLoading(true);
       if (!vetId) return;
@@ -113,9 +108,9 @@ const VetDetailsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [vetId]);
 
-  const fetchVetAvailability = async () => {
+  const fetchVetAvailability = useCallback(async () => {
     try {
       if (!vetId) return;
       setLoading(true);
@@ -134,9 +129,9 @@ const VetDetailsPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [vetId]);
 
-  const handleBookNow = (id: string) => {
+  const handleBookNow = useCallback((id: string) => {
     if (!user) {
       toast.error("Please login to book a consultation", {
         action: {
@@ -147,7 +142,14 @@ const VetDetailsPage = () => {
       return;
     }
     navigate(`/booking/${id}`);
-  };
+  }, [user, navigate]);
+
+  useEffect(() => {
+    if (vetId) {
+      fetchVetDetails();
+      fetchVetAvailability();
+    }
+  }, [vetId, fetchVetDetails, fetchVetAvailability]);
 
   if (loading) {
     return (
@@ -248,12 +250,7 @@ const VetDetailsPage = () => {
                       <span>{vet.years_experience || 5} years experience</span>
                     </div>
                     
-                    {vet.phone && (
-                      <div className="flex items-center">
-                        <Phone className="h-5 w-5 text-blue-500 mr-2" />
-                        <span>{vet.phone}</span>
-                      </div>
-                    )}
+                    {/* Phone number removed for privacy */}
                     
                     {vet.zip_code && (
                       <div className="flex items-center">
@@ -318,6 +315,40 @@ const VetDetailsPage = () => {
                       )}
                     </div>
                   </div>
+                  
+                  {(vet.license_url || vet.license_document_url) && (
+                    <>
+                      <Separator className="my-4" />
+                      <div>
+                        <h3 className="text-lg font-semibold mb-3 flex items-center">
+                          <FileText className="h-5 w-5 mr-2" />
+                          License Document
+                        </h3>
+                        <div className="flex space-x-3 mt-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            onClick={() => openFile(vet.license_document_url || vet.license_url || '')}
+                          >
+                            <Eye size={16} className="mr-2" />
+                            View License
+                          </Button>
+                          
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="flex items-center text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                            onClick={() => downloadFile(vet.license_document_url || vet.license_url || '', 'vet-license-document')}
+                          >
+                            <Download size={16} className="mr-2" />
+                            Download License
+                          </Button>
+                        </div>
+                      </div>
+                    </>
+                  )}
+
 
                   {vet.clinic_images && vet.clinic_images.length > 0 && (
                     <>
