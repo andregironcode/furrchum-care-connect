@@ -357,11 +357,27 @@ const SuperAdminDashboard = () => {
         ...(status === 'approved' ? { approved_at: new Date().toISOString() } : {})
       };
       
-      // Update the database
+      // Update the database - ensure we're using the correct table and field names
       const { error: updateError } = await supabase
         .from('vet_profiles')
         .update(updateData)
         .eq('id', vetId);
+        
+      // Verify the update was successful by fetching the updated record
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('vet_profiles')
+        .select('approval_status')
+        .eq('id', vetId)
+        .single();
+        
+      if (verifyError) {
+        console.error('Error verifying update:', verifyError);
+      } else {
+        console.log('Verification data:', verifyData);
+        if (verifyData?.approval_status !== status) {
+          console.warn(`Update verification failed: expected ${status} but got ${verifyData?.approval_status}`);
+        }
+      }
       
       if (updateError) {
         console.error('Error updating vet profile:', updateError);
@@ -419,6 +435,28 @@ const SuperAdminDashboard = () => {
       setUsers(prevUsers => 
         prevUsers.map(user => 
           user.id === userId ? { ...user } : user
+        )
+      );
+      
+      toast({
+        title: 'Status Updated',
+        description: `User status has been updated to ${newStatus}.`,
+      });
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update user status';
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle logout
   const handleLogout = async () => {
     await supabase.auth.signOut();
     navigate('/login');
