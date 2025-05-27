@@ -20,14 +20,16 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, LogOut, Search, User, Calendar, CheckCircle, XCircle, AlertCircle, RefreshCw, Users, CreditCard, Clock, Filter, UserCheck, UserX, FileText } from 'lucide-react';
+import { Loader2, LogOut, Search, User, Calendar, CheckCircle, XCircle, AlertCircle, RefreshCw, Users, CreditCard, Clock, Filter, UserCheck, UserX, FileText, LayoutGrid, List } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 // Temporarily comment out until UserDetailsModal is fixed
 // import UserDetailsModal from '@/components/UserDetailsModal';
 import VetApprovalCard from '@/components/VetApprovalCard';
+import VetDetailsModal from '@/components/VetDetailsModal';
 import { UserProfile, VetProfile, Appointment, Transaction } from '@/types/profiles';
+import { downloadFile, openFile } from '@/utils/supabaseStorage';
 
 // Interface definitions
 interface AppointmentWithDetails {
@@ -132,10 +134,17 @@ const SuperAdminDashboard = () => {
   const [filterStatus, setFilterStatus] = useState<'all' | 'pet_owner' | 'vet' | 'admin'>('all');
   const [vetApprovalFilter, setVetApprovalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   
-  // Modal state
-  const [selectedUser, setSelectedUser] = useState<(SupabaseUserProfile & Partial<SupabaseVetProfile>) | null>(null);
-  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  // State for review mode
   const [reviewMode, setReviewMode] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<SupabaseUserProfile | null>(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  
+  // State for vet details modal
+  const [selectedVet, setSelectedVet] = useState<SupabaseVetProfile | null>(null);
+  const [isVetModalOpen, setIsVetModalOpen] = useState(false);
+  
+  // View mode for vets (cards or table)
+  const [activeView, setActiveView] = useState<'cards' | 'table'>('cards');
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -514,23 +523,15 @@ const SuperAdminDashboard = () => {
   
   // Handle vet click
   const handleVetClick = (vet: SupabaseVetProfile) => {
-    // Find the corresponding user profile
-    const userProfile = users.find(user => user.id === vet.id);
-    
-    if (userProfile) {
-      // Combine user profile with vet profile
-      setSelectedUser({
-        ...userProfile,
-        ...vet
-      });
-      setIsUserModalOpen(true);
-    } else {
-      toast({
-        title: 'User Not Found',
-        description: 'Could not find the user profile for this vet.',
-        variant: 'destructive',
-      });
-    }
+    // Set the selected vet and open the modal
+    setSelectedVet(vet);
+    setIsVetModalOpen(true);
+  };
+  
+  // Handle vet modal close
+  const handleVetModalClose = () => {
+    setIsVetModalOpen(false);
+    setSelectedVet(null);
   };
   
   // Get status badge
@@ -813,21 +814,44 @@ const SuperAdminDashboard = () => {
                     </CardDescription>
                   </div>
                   
-                  <Select 
-                    value={vetApprovalFilter} 
-                    onValueChange={(value) => setVetApprovalFilter(value as any)}
-                  >
-                    <SelectTrigger className="w-[180px]">
-                      <Filter className="w-4 h-4 mr-2" />
-                      <SelectValue placeholder="Filter by status" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="all">All Status</SelectItem>
-                      <SelectItem value="pending">Pending</SelectItem>
-                      <SelectItem value="approved">Approved</SelectItem>
-                      <SelectItem value="rejected">Rejected</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center border rounded-md overflow-hidden">
+                      <Button
+                        variant={activeView === 'cards' ? 'default' : 'ghost'}
+                        size="sm"
+                        className="rounded-none"
+                        onClick={() => setActiveView('cards')}
+                      >
+                        <LayoutGrid className="h-4 w-4 mr-1" />
+                        Cards
+                      </Button>
+                      <Button
+                        variant={activeView === 'table' ? 'default' : 'ghost'}
+                        size="sm"
+                        className="rounded-none"
+                        onClick={() => setActiveView('table')}
+                      >
+                        <List className="h-4 w-4 mr-1" />
+                        Table
+                      </Button>
+                    </div>
+                    
+                    <Select 
+                      value={vetApprovalFilter} 
+                      onValueChange={(value) => setVetApprovalFilter(value as any)}
+                    >
+                      <SelectTrigger className="w-[180px]">
+                        <Filter className="w-4 h-4 mr-2" />
+                        <SelectValue placeholder="Filter by status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All Status</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </CardHeader>
               <CardContent>
@@ -839,7 +863,7 @@ const SuperAdminDashboard = () => {
                   <div className="text-center text-muted-foreground py-8">
                     No veterinarians found
                   </div>
-                ) : (
+                ) : activeView === 'cards' ? (
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredVets.map((vet) => (
                       <VetApprovalCard
@@ -864,6 +888,66 @@ const SuperAdminDashboard = () => {
                       />
                     ))}
                   </div>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Specialization</TableHead>
+                        <TableHead>Experience</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Registered</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredVets.map((vet) => (
+                        <TableRow key={vet.id}>
+                          <TableCell className="font-medium">
+                            Dr. {vet.first_name} {vet.last_name}
+                          </TableCell>
+                          <TableCell>{vet.specialization || 'Not specified'}</TableCell>
+                          <TableCell>{vet.years_experience ? `${vet.years_experience} years` : 'Not specified'}</TableCell>
+                          <TableCell>{getStatusBadge(vet.approval_status || 'pending')}</TableCell>
+                          <TableCell>
+                            {new Date(vet.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleVetClick(vet)}
+                              >
+                                View Details
+                              </Button>
+                              
+                              {(vet.approval_status === 'pending' || !vet.approval_status) && (
+                                <>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-green-600 hover:text-green-700"
+                                    onClick={() => handleVetApproval(vet.id, 'approved')}
+                                  >
+                                    Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-red-600 hover:text-red-700"
+                                    onClick={() => handleVetApproval(vet.id, 'rejected')}
+                                  >
+                                    Reject
+                                  </Button>
+                                </>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 )}
               </CardContent>
             </Card>
@@ -1001,6 +1085,11 @@ const SuperAdminDashboard = () => {
               </div>
             </div>
           </div>
+        )}
+        
+        {/* Vet Details Modal */}
+        {selectedVet && isVetModalOpen && (
+          <VetDetailsModal vet={selectedVet} onClose={handleVetModalClose} />
         )}
       </main>
     </div>

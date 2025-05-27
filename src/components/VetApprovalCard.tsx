@@ -215,6 +215,14 @@ const VetApprovalCard: React.FC<VetApprovalCardProps> = ({
         {vetProfile.approval_status === 'pending' ? (
           <>
             <Button 
+              onClick={() => onView(vetProfile.id)}
+              variant="outline"
+              className="w-full sm:w-auto"
+            >
+              View Details
+            </Button>
+            
+            <Button 
               onClick={() => {
                 if (showFeedback) {
                   onApprove(vetProfile.id, feedback);
