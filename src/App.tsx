@@ -32,6 +32,13 @@ import SuperAdminAuth from "./pages/SuperAdminAuth";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import SuperAdminGuard from "./components/SuperAdminGuard";
 
+// Policy Pages
+import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
+import TermsConditionsPage from "./pages/TermsConditionsPage";
+import RefundPolicyPage from "./pages/RefundPolicyPage";
+import DisclaimerPage from "./pages/DisclaimerPage";
+import AdditionalPoliciesPage from "./pages/AdditionalPoliciesPage";
+
 const App = () => {
   // Move queryClient inside the component
   const queryClient = new QueryClient();
@@ -52,6 +59,13 @@ const App = () => {
               <Route path="/auth" element={<Auth />} />
               <Route path="/test-whereby" element={<WherebyTest />} />
               <Route path="/vet-details/:vetId" element={<VetDetailsPage />} />
+              
+              {/* Policy Pages */}
+              <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
+              <Route path="/terms-conditions" element={<TermsConditionsPage />} />
+              <Route path="/refund-policy" element={<RefundPolicyPage />} />
+              <Route path="/disclaimer" element={<DisclaimerPage />} />
+              <Route path="/additional-policies" element={<AdditionalPoliciesPage />} />
               <Route path="/test-video-call" element={<TestVideoCallPage />} />
               
               {/* Super Admin Routes */}

@@ -14,19 +14,106 @@ import UserDetailsModal from '@/components/UserDetailsModal';
 import VetApprovalCard from '@/components/VetApprovalCard';
 import { UserProfile, VetProfile, Appointment, Transaction } from '@/types/profiles';
 
+// Extended types for the component
+interface AppointmentWithDetails {
+  id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  consultation_type: string;
+  status: string;
+  notes: string | null;
+  pet_id: string | null;
+  pet_owner_id: string;
+  vet_id: string;
+  created_at: string;
+  updated_at?: string;
+  payment_status?: string;
+  meeting_url?: string;
+  vet_profiles?: {
+    first_name: string;
+    last_name: string;
+  } | null;
+  pets?: {
+    name: string;
+    type?: string;
+    owner_id?: string;
+  } | null;
+  profiles?: {
+    full_name: string | null;
+    email?: string | null;
+    phone_number?: string | null;
+  } | null;
+}
+
+// Make properties nullable to match Supabase response
+type SupabaseVetProfile = {
+  id: string;
+  user_id: string;
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  phone_number?: string | null;
+  specialization?: string | null;
+  years_experience?: number | null;
+  about?: string | null;
+  clinic_location?: string | null;
+  zip_code?: string | null;
+  availability?: string | null;
+  license_number?: string | null;
+  license_document?: string | null;
+  approval_status?: string | null;
+  approved_at?: string | null;
+  approved_by?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  rating?: number | null;
+  consultation_fee?: number | null;
+  profile_image?: string | null;
+  clinic_images?: string[] | null;
+};
+
+type SupabaseUserProfile = {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  full_name: string | null;
+  email?: string | null;
+  phone_number?: string | null;
+  user_type: string;
+  status?: string | null;
+  address?: string | null;
+  image_url?: string | null;
+};
+
+type SupabaseTransaction = {
+  id: string;
+  booking_id: string | null;
+  amount: number;
+  currency: string | null;
+  status: string;
+  payment_method: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
+  user_id?: string | null;
+  transaction_reference?: string | null;
+  description?: string | null;
+};
+
 // Use the imported types from profiles.ts
 
 const SuperAdminDashboard = () => {
-  const [vets, setVets] = useState<VetProfile[]>([]);
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [vets, setVets] = useState<SupabaseVetProfile[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
+  const [transactions, setTransactions] = useState<SupabaseTransaction[]>([]);
+  const [users, setUsers] = useState<SupabaseUserProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedUser, setSelectedUser] = useState<UserProfile | null>(null);
+  const [selectedUser, setSelectedUser] = useState<any>(null);
   const [isUserModalOpen, setIsUserModalOpen] = useState(false);
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pet_owner' | 'vet' | 'admin'>('all');
+  const [vetApprovalFilter, setVetApprovalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   const [reviewMode, setReviewMode] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -39,7 +126,7 @@ const SuperAdminDashboard = () => {
     try {
       setLoading(true);
       
-      // Fetch pending vets
+      // Fetch all vets
       const { data: vetsData, error: vetsError } = await supabase
         .from('vet_profiles')
         .select('*')
@@ -59,48 +146,15 @@ const SuperAdminDashboard = () => {
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('bookings')
         .select(`
-          id,
-          booking_date,
-          start_time,
-          end_time,
-          consultation_type,
-          status,
-          notes,
-          created_at,
-          vet_id,
-          pet_id,
-          pet_owner_id,
-          vet_profiles!inner(first_name, last_name),
-          pets!inner(name, owner_id)
+          *,
+          vet_profiles:vet_id(first_name, last_name),
+          pets:pet_id(name, type, owner_id)
         `)
         .order('created_at', { ascending: false });
 
       if (appointmentsError) {
         console.error('Appointments error:', appointmentsError);
         throw appointmentsError;
-      }
-
-      // Fetch pet owner details for appointments
-      let enhancedAppointments: AppointmentWithDetails[] = [];
-      if (appointmentsData && appointmentsData.length > 0) {
-        const ownerIds = [...new Set(appointmentsData.map(apt => apt.pet_owner_id))];
-        
-        const { data: ownersData, error: ownersError } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', ownerIds);
-
-        if (ownersError) {
-          console.error('Owners error:', ownersError);
-          throw ownersError;
-        }
-
-        const ownersMap = new Map(ownersData?.map(owner => [owner.id, owner]) || []);
-
-        enhancedAppointments = appointmentsData.map(apt => ({
-          ...apt,
-          pet_owner: ownersMap.get(apt.pet_owner_id)
-        }));
       }
 
       // Fetch all transactions
@@ -111,10 +165,31 @@ const SuperAdminDashboard = () => {
 
       if (transactionsError) throw transactionsError;
 
-      setVets(vetsData || []);
-      setUsers(usersData || []);
-      setAppointments(enhancedAppointments);
-      setTransactions(transactionsData || []);
+      // Process the data to match our types
+      const processedVets = vetsData ? vetsData.map(vet => ({
+        ...vet,
+        user_id: vet.user_id || vet.id // Ensure user_id exists
+      })) : [];
+      
+      const processedUsers = usersData || [];
+      const processedAppointments = appointmentsData || [];
+      const processedTransactions = transactionsData || [];
+
+      // Filter users by type for statistics
+      const petOwners = processedUsers.filter(user => user.user_type === 'pet_owner');
+      const veterinarians = processedUsers.filter(user => user.user_type === 'vet');
+      
+      // Set state with the processed data
+      setVets(processedVets as SupabaseVetProfile[]);
+      setUsers(processedUsers as SupabaseUserProfile[]);
+      setAppointments(processedAppointments as AppointmentWithDetails[]);
+      setTransactions(processedTransactions as SupabaseTransaction[]);
+
+      // Log counts for debugging
+      console.log('Pet Owners:', petOwners.length);
+      console.log('Vets:', veterinarians.length);
+      console.log('Appointments:', processedAppointments.length);
+      console.log('Transactions:', processedTransactions.length);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       setError(error.message);
@@ -342,6 +417,109 @@ const SuperAdminDashboard = () => {
             <TabsTrigger value="appointments">All Appointments</TabsTrigger>
             <TabsTrigger value="transactions">All Transactions</TabsTrigger>
           </TabsList>
+          
+          <TabsContent value="users">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>User Management</CardTitle>
+                  <CardDescription>
+                    Manage all users on the platform. Filter by user type or search by name.
+                  </CardDescription>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <div className="flex items-center space-x-2 bg-background rounded-md border px-3 py-2">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <input
+                      type="text"
+                      placeholder="Search users..."
+                      className="bg-transparent border-none focus:outline-none text-sm w-40 md:w-64"
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Button
+                      variant={filterStatus === 'all' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterStatus('all')}
+                      className="text-xs"
+                    >
+                      All
+                    </Button>
+                    <Button
+                      variant={filterStatus === 'pet_owner' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterStatus('pet_owner')}
+                      className="text-xs"
+                    >
+                      Pet Owners
+                    </Button>
+                    <Button
+                      variant={filterStatus === 'vet' ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setFilterStatus('vet')}
+                      className="text-xs"
+                    >
+                      Vets
+                    </Button>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>User Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {filteredUsers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No users found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredUsers
+                        .filter(user => filterStatus === 'all' || user.user_type === filterStatus)
+                        .map((user) => (
+                          <TableRow key={user.id}>
+                            <TableCell>{user.full_name || 'Unknown'}</TableCell>
+                            <TableCell>{user.email || '-'}</TableCell>
+                            <TableCell>
+                              <Badge variant={user.user_type === 'pet_owner' ? 'outline' : 'secondary'}>
+                                {user.user_type === 'pet_owner' ? 'Pet Owner' : 
+                                 user.user_type === 'vet' ? 'Veterinarian' : 
+                                 user.user_type === 'admin' ? 'Admin' : user.user_type}
+                              </Badge>
+                            </TableCell>
+                            <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
+                            <TableCell>
+                              {new Date(user.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleUserClick(user)}
+                              >
+                                View Details
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
 
           <TabsContent value="vets">
             <Card>
