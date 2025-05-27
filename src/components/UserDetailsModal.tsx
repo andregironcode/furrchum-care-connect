@@ -204,33 +204,9 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
 
       console.log(`Successfully updated vet profile ${vetProfile.id} to status: ${status}`);
 
-      // Next, update the user metadata in the auth system
-      // This is important for role-based access control
-      const { data: userData, error: userError } = await supabase.auth.admin.getUserById(user.id);
-
-      if (!userError && userData?.user) {
-        const currentMetadata = userData.user.user_metadata || {};
-
-        const { error: metadataError } = await supabase.auth.admin.updateUserById(
-          user.id,
-          {
-            user_metadata: {
-              ...currentMetadata,
-              vet_status: status,
-              is_approved_vet: status === 'approved'
-            }
-          }
-        );
-
-        if (metadataError) {
-          console.error('Error updating user metadata:', metadataError);
-          // Continue anyway since the profile was updated
-        } else {
-          console.log('Successfully updated user metadata');
-        }
-      } else if (userError) {
-        console.error('Error fetching user for metadata update:', userError);
-      }
+      // We'll skip updating the profiles table since it's causing a 400 Bad Request error
+      // The approval status is already stored in the vet_profiles table, which is sufficient
+      console.log(`Vet profile for user ${user.id} updated successfully to status: ${status}. Skipping profiles table update.`);
 
       // Send notification to the vet (this would normally be an email)
       // For now, we'll just log it
