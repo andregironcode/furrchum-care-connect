@@ -338,6 +338,32 @@ const SuperAdminDashboard = () => {
   useEffect(() => {
     fetchData();
   }, []);
+  // Force refresh data from the database
+  const forceRefreshData = async () => {
+    setLoading(true);
+    setIsRefreshing(true);
+    console.log('Forcing data refresh...');
+    
+    try {
+      // Clear local state
+      setVets([]);
+      
+      // Wait a moment to ensure database consistency
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Fetch fresh data
+      await fetchData();
+      
+      console.log('Data refresh complete');
+    } catch (error) {
+      console.error('Error during forced refresh:', error);
+      setError('Failed to refresh data');
+    } finally {
+      setIsRefreshing(false);
+      setLoading(false);
+    }
+  };
+  
   // Handle vet approval/rejection
   const handleVetApproval = async (vetId: string, status: 'approved' | 'rejected') => {
     try {
@@ -357,13 +383,21 @@ const SuperAdminDashboard = () => {
         ...(status === 'approved' ? { approved_at: new Date().toISOString() } : {})
       };
       
-      // Update the database - ensure we're using the correct table and field names
+      // Update the database
       const { error: updateError } = await supabase
         .from('vet_profiles')
         .update(updateData)
         .eq('id', vetId);
         
-      // Verify the update was successful by fetching the updated record
+      if (updateError) {
+        console.error('Error updating vet profile:', updateError);
+        throw new Error(`Error updating vet profile: ${updateError.message || 'Unknown error'}`);
+      }
+      
+      // Add a small delay to ensure database consistency
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Verify the update was successful
       const { data: verifyData, error: verifyError } = await supabase
         .from('vet_profiles')
         .select('approval_status')
@@ -376,15 +410,10 @@ const SuperAdminDashboard = () => {
         console.log('Verification data:', verifyData);
         if (verifyData?.approval_status !== status) {
           console.warn(`Update verification failed: expected ${status} but got ${verifyData?.approval_status}`);
+        } else {
+          console.log('Update verification successful!');
         }
       }
-      
-      if (updateError) {
-        console.error('Error updating vet profile:', updateError);
-        throw new Error(`Error updating vet profile: ${updateError.message}`);
-      }
-      
-      console.log(`Successfully updated vet ${vetId} status to ${status}`);
       
       // Update local state
       setVets(prevVets => {
@@ -405,6 +434,11 @@ const SuperAdminDashboard = () => {
         title: `Vet ${status === 'approved' ? 'Approved' : 'Rejected'}`,
         description: `The veterinarian has been ${status === 'approved' ? 'approved' : 'rejected'} successfully.`,
       });
+      
+      // Fetch data again to ensure we have the latest state
+      setTimeout(() => {
+        fetchData();
+      }, 1000);
       
       // Exit review mode if we were in it
       if (reviewMode) {
@@ -451,42 +485,7 @@ const SuperAdminDashboard = () => {
         description: errorMessage,
         variant: 'destructive',
       });
-    } finally {
-      setLoading(false);
     }
-  };
-  
-  // Handle logout
-  const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/login');
-  };
-  
-  // Get status badge
-  const getStatusBadge = (status: string) => {
-    const statusLower = status?.toLowerCase();
-    
-    if (statusLower === 'approved') {
-      return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
-    }
-    
-    if (statusLower === 'rejected') {
-      return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
-    }
-    
-    if (statusLower === 'pending') {
-      return <Badge className="bg-amber-100 text-amber-800">Pending</Badge>;
-    }
-    
-    if (statusLower === 'completed') {
-      return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
-    }
-    
-    if (statusLower === 'cancelled') {
-      return <Badge className="bg-gray-100 text-gray-800">Cancelled</Badge>;
-    }
-    
-    return <Badge className="bg-gray-100 text-gray-800">{status || 'Unknown'}</Badge>;
   };
   
   // Handle user click
@@ -516,13 +515,46 @@ const SuperAdminDashboard = () => {
     }
   };
   
-  // Handle user modal close
-  const handleUserModalClose = () => {
-    setIsUserModalOpen(false);
-    setSelectedUser(null);
+  // Get status badge
+  const getStatusBadge = (status: string) => {
+    const statusLower = status?.toLowerCase();
+    
+    if (statusLower === 'approved') {
+      return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
+    }
+    
+    if (statusLower === 'rejected') {
+      return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
+    }
+    
+    if (statusLower === 'pending') {
+      return <Badge className="bg-amber-100 text-amber-800">Pending</Badge>;
+    }
+    
+    if (statusLower === 'completed') {
+      return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
+    }
+    
+    if (statusLower === 'cancelled') {
+      return <Badge className="bg-gray-100 text-gray-800">Cancelled</Badge>;
+    }
+    
+    return <Badge className="bg-gray-100 text-gray-800">{status || 'Unknown'}</Badge>;
   };
   
-  // Handle user updated
+  // Handle user modal close
+  
+// Handle document view
+const handleViewDocument = async (url: string) => {
+await supabase.auth.signOut();
+navigate('/login');
+};
+  
+// Handle logout
+const handleLogout = async () => {
+await supabase.auth.signOut();
+navigate('/login');
+};
   const handleUserUpdated = () => {
     fetchData();
   };
