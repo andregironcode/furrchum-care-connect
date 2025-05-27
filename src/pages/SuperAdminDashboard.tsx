@@ -49,7 +49,7 @@ interface AppointmentWithDetails {
 // Make properties nullable to match Supabase response
 type SupabaseVetProfile = {
   id: string;
-  user_id: string;
+  user_id?: string;
   first_name: string;
   last_name: string;
   email?: string | null;
@@ -125,24 +125,38 @@ const SuperAdminDashboard = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
+      console.log('Fetching data for SuperAdmin dashboard...');
       
-      // Fetch all vets
+      // Fetch all vets with detailed logging
+      console.log('Fetching vet profiles...');
       const { data: vetsData, error: vetsError } = await supabase
         .from('vet_profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (vetsError) throw vetsError;
+      if (vetsError) {
+        console.error('Error fetching vet profiles:', vetsError);
+        throw vetsError;
+      }
+      console.log('Vet profiles fetched:', vetsData?.length || 0, 'records');
+      console.log('Sample vet data:', vetsData?.[0]);
 
-      // Fetch all users from profiles
+      // Fetch all users from profiles with detailed logging
+      console.log('Fetching user profiles...');
       const { data: usersData, error: usersError } = await supabase
         .from('profiles')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (usersError) throw usersError;
+      if (usersError) {
+        console.error('Error fetching user profiles:', usersError);
+        throw usersError;
+      }
+      console.log('User profiles fetched:', usersData?.length || 0, 'records');
+      console.log('Sample user data:', usersData?.[0]);
 
       // Fetch all appointments with detailed information
+      console.log('Fetching appointments...');
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('bookings')
         .select(`
@@ -153,31 +167,99 @@ const SuperAdminDashboard = () => {
         .order('created_at', { ascending: false });
 
       if (appointmentsError) {
-        console.error('Appointments error:', appointmentsError);
+        console.error('Error fetching appointments:', appointmentsError);
         throw appointmentsError;
       }
+      console.log('Appointments fetched:', appointmentsData?.length || 0, 'records');
+      console.log('Sample appointment data:', appointmentsData?.[0]);
 
       // Fetch all transactions
+      console.log('Fetching transactions...');
       const { data: transactionsData, error: transactionsError } = await supabase
         .from('transactions')
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (transactionsError) throw transactionsError;
+      if (transactionsError) {
+        console.error('Error fetching transactions:', transactionsError);
+        throw transactionsError;
+      }
+      console.log('Transactions fetched:', transactionsData?.length || 0, 'records');
+      console.log('Sample transaction data:', transactionsData?.[0]);
 
       // Process the data to match our types
-      const processedVets = vetsData ? vetsData.map(vet => ({
-        ...vet,
-        user_id: vet.user_id || vet.id // Ensure user_id exists
-      })) : [];
+      console.log('Processing data...');
       
-      const processedUsers = usersData || [];
+      // Process vet data - ensure we have the right structure
+      const processedVets = vetsData ? vetsData.map((vet: any) => {
+        // Ensure each vet has the required fields
+        return {
+          ...vet,
+          id: vet.id || '',
+          user_id: vet.user_id || vet.id || '',
+          first_name: vet.first_name || '',
+          last_name: vet.last_name || '',
+          created_at: vet.created_at || new Date().toISOString(),
+          approval_status: vet.approval_status || 'pending'
+        };
+      }) : [];
+      console.log('Processed vets:', processedVets.length);
+      
+      // Process user data - ensure all required fields are present
+      const processedUsers = usersData ? usersData.map((user: any) => {
+        // Ensure each user has the required fields
+        const processedUser = {
+          ...user,
+          id: user.id || '',
+          full_name: user.full_name || `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Unknown',
+          email: user.email || '',
+          created_at: user.created_at || new Date().toISOString(),
+          updated_at: user.updated_at || new Date().toISOString(),
+          status: user.status || 'active'
+        };
+        
+        // If user_type is missing, try to determine it
+        if (!user.user_type) {
+          // Check if this user is a vet
+          const isVet = processedVets.some(vet => vet.user_id === user.id);
+          if (isVet) {
+            processedUser.user_type = 'vet';
+          } else {
+            // Default to pet_owner if not a vet
+            processedUser.user_type = 'pet_owner';
+          }
+        }
+        
+        return processedUser;
+      }) : [];
+      
+      // Add any vets that might not be in the users list
+      processedVets.forEach((vet: any) => {
+        const vetExists = processedUsers.some(user => user.id === vet.user_id);
+        if (!vetExists && vet.user_id) {
+          processedUsers.push({
+            id: vet.user_id,
+            full_name: `${vet.first_name} ${vet.last_name}`,
+            email: vet.email || '',
+            user_type: 'vet',
+            created_at: vet.created_at,
+            updated_at: vet.updated_at || vet.created_at,
+            status: 'active'
+          });
+        }
+      });
+      
+      console.log('Processed users:', processedUsers.length);
+      
       const processedAppointments = appointmentsData || [];
       const processedTransactions = transactionsData || [];
 
       // Filter users by type for statistics
       const petOwners = processedUsers.filter(user => user.user_type === 'pet_owner');
       const veterinarians = processedUsers.filter(user => user.user_type === 'vet');
+      
+      console.log('Pet Owners count:', petOwners.length);
+      console.log('Vets count:', veterinarians.length);
       
       // Set state with the processed data
       setVets(processedVets as SupabaseVetProfile[]);
@@ -186,10 +268,12 @@ const SuperAdminDashboard = () => {
       setTransactions(processedTransactions as SupabaseTransaction[]);
 
       // Log counts for debugging
-      console.log('Pet Owners:', petOwners.length);
-      console.log('Vets:', veterinarians.length);
-      console.log('Appointments:', processedAppointments.length);
-      console.log('Transactions:', processedTransactions.length);
+      console.log('Final counts:');
+      console.log('- Users:', processedUsers.length);
+      console.log('- Pet Owners:', petOwners.length);
+      console.log('- Vets:', veterinarians.length);
+      console.log('- Appointments:', processedAppointments.length);
+      console.log('- Transactions:', processedTransactions.length);
     } catch (error: any) {
       console.error('Error fetching data:', error);
       setError(error.message);
@@ -288,8 +372,18 @@ const SuperAdminDashboard = () => {
     );
   };
 
-  const handleUserClick = (user: UserProfile) => {
-    setSelectedUser(user);
+  const handleUserClick = (user: any) => {
+    // Ensure user has all required fields before opening modal
+    const processedUser = {
+      ...user,
+      id: user.id || '',
+      full_name: user.full_name || 'Unknown',
+      email: user.email || '',
+      user_type: user.user_type || 'pet_owner',
+      status: user.status || 'active'
+    };
+    
+    setSelectedUser(processedUser);
     setIsUserModalOpen(true);
   };
 
@@ -324,13 +418,16 @@ const SuperAdminDashboard = () => {
     fetchData(); // Refresh data when user is updated
   };
 
+  // Apply search filter to users
   const filteredUsers = users.filter(user => 
-    user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.user_type.toLowerCase().includes(searchTerm.toLowerCase())
+    (user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user.user_type && user.user_type.toLowerCase().includes(searchTerm.toLowerCase())))
   );
 
-  const petOwners = filteredUsers.filter(user => user.user_type === 'pet_owner');
-  const vetUsers = filteredUsers.filter(user => user.user_type === 'vet');
+  // Get counts for different user types - ensure we're checking if user_type exists
+  const petOwners = users.filter(user => user.user_type === 'pet_owner');
+  const vetUsers = users.filter(user => user.user_type === 'vet');
 
   if (loading) {
     return (
@@ -370,9 +467,9 @@ const SuperAdminDashboard = () => {
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{users.length}</div>
+              <div className="text-2xl font-bold">{users.length || 0}</div>
               <p className="text-xs text-muted-foreground">
-                {petOwners.length} pet owners, {vetUsers.length} vets
+                {petOwners.length || 0} pet owners, {vetUsers.length || 0} vets
               </p>
             </CardContent>
           </Card>
@@ -384,7 +481,7 @@ const SuperAdminDashboard = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {vets.filter(vet => vet.approval_status === 'pending').length}
+                {vets.filter(vet => vet.approval_status === 'pending').length || 0}
               </div>
             </CardContent>
           </Card>
@@ -395,7 +492,11 @@ const SuperAdminDashboard = () => {
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{appointments.length}</div>
+              <div className="text-2xl font-bold">{appointments.length || 0}</div>
+              <p className="text-xs text-muted-foreground">
+                {appointments.filter(apt => apt.status === 'confirmed').length || 0} confirmed, 
+                {appointments.filter(apt => apt.status === 'pending').length || 0} pending
+              </p>
             </CardContent>
           </Card>
 
@@ -405,7 +506,10 @@ const SuperAdminDashboard = () => {
               <CreditCard className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
-              <div className="text-2xl font-bold">{transactions.length}</div>
+              <div className="text-2xl font-bold">{transactions.length || 0}</div>
+              <p className="text-xs text-muted-foreground">
+                {transactions.filter(tx => tx.status === 'completed').length || 0} completed
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -487,33 +591,43 @@ const SuperAdminDashboard = () => {
                       </TableRow>
                     ) : (
                       filteredUsers
-                        .filter(user => filterStatus === 'all' || user.user_type === filterStatus)
-                        .map((user) => (
-                          <TableRow key={user.id}>
-                            <TableCell>{user.full_name || 'Unknown'}</TableCell>
-                            <TableCell>{user.email || '-'}</TableCell>
-                            <TableCell>
-                              <Badge variant={user.user_type === 'pet_owner' ? 'outline' : 'secondary'}>
-                                {user.user_type === 'pet_owner' ? 'Pet Owner' : 
-                                 user.user_type === 'vet' ? 'Veterinarian' : 
-                                 user.user_type === 'admin' ? 'Admin' : user.user_type}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
-                            <TableCell>
-                              {new Date(user.created_at).toLocaleDateString()}
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={() => handleUserClick(user)}
-                              >
-                                View Details
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
+                        .filter(user => {
+                          // Log each user to debug
+                          console.log('Filtering user:', user);
+                          return filterStatus === 'all' || user.user_type === filterStatus;
+                        })
+                        .map((user) => {
+                          // Format the user type display
+                          const userTypeDisplay = user.user_type === 'pet_owner' ? 'Pet Owner' : 
+                                                user.user_type === 'vet' ? 'Veterinarian' : 
+                                                user.user_type === 'admin' ? 'Admin' : 
+                                                user.user_type || 'Unknown';
+                          
+                          return (
+                            <TableRow key={user.id}>
+                              <TableCell>{user.full_name || 'Unknown'}</TableCell>
+                              <TableCell>{user.email || '-'}</TableCell>
+                              <TableCell>
+                                <Badge variant={user.user_type === 'pet_owner' ? 'outline' : 'secondary'}>
+                                  {userTypeDisplay}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
+                              <TableCell>
+                                {user.created_at ? new Date(user.created_at).toLocaleDateString() : '-'}
+                              </TableCell>
+                              <TableCell>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => handleUserClick(user)}
+                                >
+                                  View Details
+                                </Button>
+                              </TableCell>
+                            </TableRow>
+                          );
+                        })
                     )}
                   </TableBody>
                 </Table>
