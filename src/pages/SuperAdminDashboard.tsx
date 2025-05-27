@@ -543,18 +543,41 @@ const SuperAdminDashboard = () => {
   };
   
   // Handle user modal close
+  const handleUserModalClose = () => {
+    setIsUserModalOpen(false);
+    setSelectedUser(null);
+  };
   
-// Handle document view
-const handleViewDocument = async (url: string) => {
-await supabase.auth.signOut();
-navigate('/login');
-};
+  // Handle document view
+  const handleViewDocument = async (url: string) => {
+    if (!url) {
+      toast({
+        title: 'Error',
+        description: 'No document URL provided',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      console.log('Opening document:', url);
+      await openFile(url);
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to open document';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    }
+  };
   
-// Handle logout
-const handleLogout = async () => {
-await supabase.auth.signOut();
-navigate('/login');
-};
+  // Handle logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    localStorage.removeItem('superAdminAuth');
+    navigate('/superadmin/auth');
+  };
   const handleUserUpdated = () => {
     fetchData();
   };
