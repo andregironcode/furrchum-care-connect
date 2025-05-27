@@ -7,7 +7,7 @@ const Footer = () => {
   return (
     <footer className="bg-gray-100 border-t border-gray-200 py-8">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-8 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-5 gap-8 mb-8">
           {/* Column 1: Logo and About */}
           <div className="col-span-1">
             <div className="flex items-center mb-4">
@@ -117,6 +117,41 @@ const Footer = () => {
                 </Link>
               </li>
             </ul>
+          </div>
+          
+          {/* Column 5: Contact Details */}
+          <div className="col-span-1">
+            <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-4">Contact Us</h3>
+            <div className="space-y-3">
+              <div>
+                <p className="text-sm text-gray-600">
+                  <span className="block font-medium">Address:</span>
+                  <span className="block">DCG04/ 2114-17,</span>
+                  <span className="block">DLF Corporate Greens,</span>
+                  <span className="block">Sector 74A,</span>
+                  <span className="block">Gurgaon - 122004,</span>
+                  <span className="block">Haryana, INDIA</span>
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">
+                  <span className="block font-medium">Phone:</span>
+                  <a href="tel:+918700608887" className="text-gray-600 hover:text-gray-900 transition-colors">+91 8700608887</a>
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">
+                  <span className="block font-medium">Email:</span>
+                  <a href="mailto:info@furrchum.com" className="text-gray-600 hover:text-gray-900 transition-colors">info@furrchum.com</a>
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-600">
+                  <span className="block font-medium">For investors:</span>
+                  <a href="mailto:investorcare@furrchum.com" className="text-gray-600 hover:text-gray-900 transition-colors">investorcare@furrchum.com</a>
+                </p>
+              </div>
+            </div>
           </div>
         </div>
         

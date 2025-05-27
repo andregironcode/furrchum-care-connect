@@ -103,9 +103,6 @@ const MyVetsPage = () => {
                   <SidebarTrigger />
                   <h1 className="text-2xl font-bold">My Veterinarians</h1>
                 </div>
-                <Button className="bg-primary hover:bg-primary-600">
-                  <Plus className="mr-2 h-4 w-4" /> Find New Vet
-                </Button>
               </div>
             </header>
             

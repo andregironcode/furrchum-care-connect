@@ -98,29 +98,58 @@ const MyPetsPage = () => {
     
     setIsDeleting(true);
     try {
-      // If there's a photo, delete it first
-      const pet = pets.find(p => p.id === petId);
-      if (pet?.photo_url) {
-        await supabase
-          .storage
-          .from('pet_photos')
-          .remove([pet.photo_url]);
-      }
+      // First check if this pet has any associated bookings
+      const { data: bookingsData, error: bookingsError } = await supabase
+        .from('bookings')
+        .select('id')
+        .eq('pet_id', petId)
+        .limit(1);
       
-      const { error } = await supabase
-        .from('pets')
-        .delete()
-        .eq('id', petId);
+      if (bookingsError) throw bookingsError;
+      
+      // If pet has bookings, use a soft delete approach (update status to 'inactive')
+      if (bookingsData && bookingsData.length > 0) {
+        const { error: updateError } = await supabase
+          .from('pets')
+          .update({ status: 'inactive' })
+          .eq('id', petId);
         
-      if (error) throw error;
-      
-      // Update local state
-      setPets(pets.filter(pet => pet.id !== petId));
-      toast({
-        title: "Pet Deleted",
-        description: "Your pet has been successfully removed.",
-      });
-      
+        if (updateError) throw updateError;
+        
+        // Update local state
+        setPets(pets.map(pet => 
+          pet.id === petId ? { ...pet, status: 'inactive' } : pet
+        ));
+        
+        toast({
+          title: "Pet Archived",
+          description: "Your pet has been archived because it has appointment history. You can still view its records but won't see it in active pets list.",
+        });
+      } else {
+        // No bookings, proceed with hard delete
+        // If there's a photo, delete it first
+        const pet = pets.find(p => p.id === petId);
+        if (pet?.photo_url) {
+          await supabase
+            .storage
+            .from('pet_photos')
+            .remove([pet.photo_url]);
+        }
+        
+        const { error } = await supabase
+          .from('pets')
+          .delete()
+          .eq('id', petId);
+          
+        if (error) throw error;
+        
+        // Update local state
+        setPets(pets.filter(pet => pet.id !== petId));
+        toast({
+          title: "Pet Deleted",
+          description: "Your pet has been successfully removed.",
+        });
+      }
     } catch (error: any) {
       console.error('Error deleting pet:', error);
       toast({
@@ -502,7 +531,9 @@ const PetCard = ({ pet, onDelete, onViewDetails }: { pet: Pet; onDelete: () => v
           </div>
           <div>
             <p className="text-sm text-gray-500">Status</p>
-            <p className="font-medium text-green-500">{pet.status || 'Healthy'}</p>
+            <p className={`font-medium ${pet.status === 'inactive' ? 'text-red-500' : 'text-green-500'}`}>
+              {pet.status === 'inactive' ? 'Inactive' : (pet.status || 'Healthy')}
+            </p>
           </div>
         </div>
         {(pet.medical_history || pet.allergies || pet.medication) && (

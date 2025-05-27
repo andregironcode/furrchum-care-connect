@@ -316,38 +316,7 @@ const VetDetailsPage = () => {
                     </div>
                   </div>
                   
-                  {(vet.license_url || vet.license_document_url) && (
-                    <>
-                      <Separator className="my-4" />
-                      <div>
-                        <h3 className="text-lg font-semibold mb-3 flex items-center">
-                          <FileText className="h-5 w-5 mr-2" />
-                          License Document
-                        </h3>
-                        <div className="flex space-x-3 mt-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                            onClick={() => openFile(vet.license_document_url || vet.license_url || '')}
-                          >
-                            <Eye size={16} className="mr-2" />
-                            View License
-                          </Button>
-                          
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="flex items-center text-blue-600 hover:text-blue-800 hover:bg-blue-50"
-                            onClick={() => downloadFile(vet.license_document_url || vet.license_url || '', 'vet-license-document')}
-                          >
-                            <Download size={16} className="mr-2" />
-                            Download License
-                          </Button>
-                        </div>
-                      </div>
-                    </>
-                  )}
+
 
 
                   {vet.clinic_images && vet.clinic_images.length > 0 && (

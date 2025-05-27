@@ -51,7 +51,7 @@ const AppointmentsPage = () => {
   const [pets, setPets] = useState<Record<string, Pet>>({});
   const [vets, setVets] = useState<Record<string, Vet>>({});
   const [loadingBookings, setLoadingBookings] = useState(true);
-  const [date, setDate] = useState<Date | undefined>(undefined); // Default to undefined to show all appointments
+  const [date, setDate] = useState<Date | undefined>(undefined);
   const [selectedAppointment, setSelectedAppointment] = useState<Booking | null>(null);
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
 
@@ -60,8 +60,6 @@ const AppointmentsPage = () => {
     // Get unique pet IDs and vet IDs
     const petIds = [...new Set(bookings.map(booking => booking.pet_id).filter(id => id))];
     const vetIds = [...new Set(bookings.map(booking => booking.vet_id).filter(id => id))];
-    
-    console.log('Fetching data for pets:', petIds, 'and vets:', vetIds);
     
     // Fetch pets
     if (petIds.length > 0) {
@@ -88,7 +86,6 @@ const AppointmentsPage = () => {
               owner_id: pet.owner_id
             };
           });
-          console.log('Fetched pets:', petsData.length, 'pet records');
           setPets(petsRecord);
         }
       } catch (error) {
@@ -106,7 +103,7 @@ const AppointmentsPage = () => {
         try {
           const { data: vetsData, error } = await supabase
             .from('vet_profiles')
-            .select('id, first_name, last_name, specialization, phone, zip_code, about')
+            .select('id, first_name, last_name, specialization')
             .in('id', vetIds);
             
           if (error) {
@@ -114,66 +111,19 @@ const AppointmentsPage = () => {
             throw error;
           }
             
-          if (vetsData && vetsData.length > 0) {
+          if (vetsData) {
             const vetsRecord: Record<string, Vet> = {};
             vetsData.forEach(vet => {
-              vetsRecord[vet.id] = vet as Vet;
+              vetsRecord[vet.id] = vet;
             });
-            console.log('Fetched vets:', vetsData.length, 'vet records');
             setVets(vetsRecord);
-          } else if (retries < maxRetries) {
-            // If no vets found, retry with profiles table which might have the basic info
-            retries++;
-            console.log(`No vets found, retrying with profiles table (attempt ${retries})`);
-            
-            const { data: profilesData, error: profilesError } = await supabase
-              .from('profiles')
-              .select('id, full_name')
-              .in('id', vetIds);
-              
-            if (profilesError) {
-              console.error('Error fetching profiles:', profilesError);
-              throw profilesError;
-            }
-            
-            if (profilesData && profilesData.length > 0) {
-              const vetsRecord: Record<string, Vet> = {};
-              profilesData.forEach(profile => {
-                // Skip any invalid profiles
-                if (!profile || !profile.id) return;
-                if (profile && profile.id) {
-                  // Split full name into first and last if possible
-                  let firstName = 'Doctor';
-                  let lastName = '';
-                  
-                  if (profile.full_name) {
-                    const nameParts = profile.full_name.split(' ');
-                    firstName = nameParts[0] || 'Doctor';
-                    lastName = nameParts.slice(1).join(' ') || '';
-                  }
-                  
-                  vetsRecord[profile.id] = {
-                    id: profile.id,
-                    first_name: firstName,
-                    last_name: lastName,
-                    full_name: profile.full_name || 'Doctor',
-                    specialization: null,
-                    phone: null,
-                    zip_code: null,
-                    about: null
-                  };
-                }
-              });
-              console.log('Fetched profiles as fallback:', profilesData.length, 'profile records');
-              setVets(vetsRecord);
-            }
           }
         } catch (error) {
-          console.error('Error in vet fetch attempt:', error);
+          console.error('Error fetching vets:', error);
           if (retries < maxRetries) {
             retries++;
-            console.log(`Retrying vet fetch (attempt ${retries})`);
-            await fetchVetData();
+            console.log(`Retrying vet data fetch (${retries}/${maxRetries})...`);
+            await fetchVetData(); // Retry
           } else {
             toast.error('Failed to load veterinarian information');
           }
@@ -184,142 +134,84 @@ const AppointmentsPage = () => {
     }
   }, []);
 
-  // Define fetchBookings with useCallback
-  const fetchBookings = useCallback(async () => {
-    try {
-      setLoadingBookings(true);
-      const formattedDate = date ? format(date, 'yyyy-MM-dd') : null;
-
-      let query = supabase
-        .from('bookings')
-        .select('*')
-        .eq('pet_owner_id', user?.id || '');
-
-      // Only filter by date if a date is selected
-      if (formattedDate) {
-        query = query.eq('booking_date', formattedDate);
-      }
-
-      const { data, error } = await query;
-
-      if (error) {
-        console.error('Error fetching bookings:', error);
-        throw error;
-      }
-      
-      if (data && data.length > 0) {
-        console.log('Fetched bookings:', data);
-        setBookings(data as Booking[]);
-        await fetchPetsAndVets(data as Booking[]);
-      } else {
-        console.log('No bookings found' + (formattedDate ? ' for date: ' + formattedDate : ''));
-        setBookings([]);
-      }
-    } catch (error) {
-      console.error('Error fetching bookings:', error);
-      toast.error('Failed to load appointments');
-    } finally {
-      setLoadingBookings(false);
-    }
-  }, [user, date, fetchPetsAndVets]);
-
-  // Use useEffect with the proper dependencies
+  // Fetch bookings and filter by date
   useEffect(() => {
-    if (user) {
+    if (!isLoading && user) {
+      const fetchBookings = async () => {
+        setLoadingBookings(true);
+        try {
+          let query = supabase
+            .from('bookings')
+            .select('*')
+            .eq('pet_owner_id', user.id)
+            .order('booking_date', { ascending: false })
+            .order('start_time', { ascending: true });
+          
+          // If a date filter is applied, filter by that date
+          if (date) {
+            const formattedDate = format(date, 'yyyy-MM-dd');
+            query = query.eq('booking_date', formattedDate);
+          }
+          
+          const { data, error } = await query;
+          
+          if (error) throw error;
+          
+          const bookingsData = data as Booking[];
+          setBookings(bookingsData);
+          
+          // Fetch associated pets and vets
+          await fetchPetsAndVets(bookingsData);
+        } catch (error: any) {
+          console.error('Error fetching bookings:', error);
+          toast.error('Failed to load your appointments');
+        } finally {
+          setLoadingBookings(false);
+        }
+      };
+      
       fetchBookings();
     }
-  }, [user, fetchBookings]);
-
-  const handleCancelAppointment = useCallback(async (bookingId: string) => {
+  }, [isLoading, user, date, fetchPetsAndVets]);
+  
+  // Handle appointment cancellation
+  const handleCancelAppointment = useCallback(async (appointmentId: string) => {
+    if (!user || !appointmentId) return;
+    
     try {
-      setLoadingBookings(true);
+      // Update the booking status to 'cancelled'
       const { error } = await supabase
         .from('bookings')
         .update({ status: 'cancelled' })
-        .eq('id', bookingId);
-
-      if (error) {
-        console.error('Error cancelling appointment:', error);
-        toast.error('Failed to cancel appointment');
-        throw error;
-      }
-
-      toast.success('Appointment cancelled successfully');
+        .eq('id', appointmentId)
+        .eq('pet_owner_id', user.id); // Ensure the booking belongs to this user
       
-      // Refresh bookings
-      fetchBookings();
-    } catch (error) {
+      if (error) throw error;
+      
+      // Update the local state
+      setBookings(prevBookings => 
+        prevBookings.map(booking => 
+          booking.id === appointmentId 
+            ? { ...booking, status: 'cancelled' } 
+            : booking
+        )
+      );
+      
+      // Close the details modal if it's open
+      if (isDetailsModalOpen && selectedAppointment?.id === appointmentId) {
+        setIsDetailsModalOpen(false);
+      }
+      
+      toast.success('Appointment cancelled successfully');
+    } catch (error: any) {
       console.error('Error cancelling appointment:', error);
       toast.error('Failed to cancel appointment');
-    } finally {
-      setLoadingBookings(false);
-      // Close modal if open
-      setIsDetailsModalOpen(false);
     }
-  }, [fetchBookings]);
-
+  }, [user, isDetailsModalOpen, selectedAppointment]);
+  
+  // Handle opening the appointment details modal
   const openAppointmentDetails = useCallback((booking: Booking) => {
-    // For video calls, try to attach meeting info from localStorage before opening modal
-    if (booking.consultation_type === 'video_call') {
-      // Enhanced meeting lookup strategy - try multiple formats
-      let meetingData: string | null = null;
-      let meetingKeyUsed = '';
-      
-      // 1. Try by ID first
-      const meetingKeyById = `meeting-${booking.id}`;
-      meetingData = localStorage.getItem(meetingKeyById);
-      if (meetingData) meetingKeyUsed = meetingKeyById;
-      
-      // 2. Try by date-time-vet combination
-      if (!meetingData) {
-        const dateTimeKey = `meeting-${booking.booking_date}-${booking.start_time.replace(':', '')}-${booking.vet_id}`;
-        meetingData = localStorage.getItem(dateTimeKey);
-        if (meetingData) meetingKeyUsed = dateTimeKey;
-      }
-      
-      // 3. Try searching all meeting keys for any matches
-      if (!meetingData) {
-        // Look for any keys that might be relevant to this booking
-        Object.keys(localStorage).forEach(key => {
-          if (key.startsWith('meeting-') && !meetingData) {
-            try {
-              const data = JSON.parse(localStorage.getItem(key) || '{}');
-              // Check if the data matches our booking (by date and time)
-              if (data.bookingDate === booking.booking_date && 
-                  data.startTime === booking.start_time) {
-                console.log('Found meeting by date and time match:', key);
-                meetingData = localStorage.getItem(key);
-                if (meetingData) meetingKeyUsed = key;
-              }
-            } catch (e) {
-              // Ignore parsing errors
-            }
-          }
-        });
-      }
-      
-      console.log('Looking for meeting data for booking:', {
-        id: booking.id,
-        key: meetingKeyUsed,
-        found: !!meetingData
-      });
-      
-      if (meetingData) {
-        try {
-          const parsedData = JSON.parse(meetingData);
-          // Attach meeting info directly to the booking object
-          booking.meeting_url = parsedData.roomUrl;
-          booking.host_meeting_url = parsedData.hostRoomUrl;
-          booking.meeting_id = parsedData.meetingId;
-          console.log('Attached meeting data to booking:', {
-            meetingUrl: booking.meeting_url,
-            hostUrl: booking.host_meeting_url
-          });
-        } catch (e) {
-          console.error('Error parsing meeting data:', e);
-        }
-      }
-    }
+    if (!booking) return;
     
     setSelectedAppointment(booking);
     setIsDetailsModalOpen(true);
@@ -353,59 +245,59 @@ const AppointmentsPage = () => {
 
   return (
     <SidebarProvider>
-      <div className="grid lg:grid-cols-[240px_1fr] h-screen">
+      <div className="min-h-screen flex w-full bg-background">
         <PetOwnerSidebar />
-
-        <div className="flex-1 flex flex-col">
-          <SidebarInset className="p-4 md:p-6">
-            <div className="flex items-center gap-2 mb-4 lg:hidden">
-              <SidebarTrigger>
-                <Button variant="outline" size="icon" className="h-8 w-8">
-                  <span className="sr-only">Toggle Sidebar</span>
-                </Button>
-              </SidebarTrigger>
-            </div>
-            
-            <header className="flex flex-col md:flex-row md:items-center md:justify-between mb-6 gap-4">
-              <div className="pl-0 md:pl-0">
-                <h1 className="text-2xl font-bold tracking-tight">My Appointments</h1>
-                <p className="text-muted-foreground">
-                  View and manage your veterinary appointments
-                </p>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <Popover>
-                  <PopoverTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className={cn(
-                        "justify-start text-left font-normal",
-                        !date && "text-muted-foreground"
-                      )}
-                    >
-                      <CalendarIcon className="mr-2 h-4 w-4" />
-                      {date ? format(date, "PPP") : "Filter by date"}
+        <SidebarInset className="lg:pl-0">
+          <div className="flex flex-col h-full">
+            {/* Header */}
+            <header className="sticky top-0 z-10 bg-background border-b">
+              <div className="container flex h-16 items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <SidebarTrigger />
+                  <h1 className="text-xl font-semibold">My Appointments</h1>
+                </div>
+                
+                {/* Date Filter */}
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "justify-start text-left font-normal",
+                          !date && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {date ? format(date, "PPP") : "Filter by date"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  {date && (
+                    <Button variant="ghost" onClick={clearDateFilter} size="sm">
+                      Clear filter
                     </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0">
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
-                {date && (
-                  <Button variant="ghost" onClick={clearDateFilter} size="sm">
-                    Clear filter
-                  </Button>
-                )}
+                  )}
+                </div>
               </div>
             </header>
-
-            <main>
+            
+            {/* Main Content */}
+            <main className="flex-1 container mx-auto px-4 py-8">
+              <div className="mb-4">
+                <p className="text-muted-foreground">
+                  View and manage your veterinary appointments for your pets
+                </p>
+              </div>
+              
               {loadingBookings ? (
                 <div className="flex items-center justify-center h-64">
                   <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -429,111 +321,184 @@ const AppointmentsPage = () => {
                   </CardContent>
                 </Card>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {bookings.map((booking) => (
-                    <Card key={booking.id} className="h-full">
-                      <CardHeader>
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <CardTitle>
-                              {pets[booking.pet_id] ? `${pets[booking.pet_id].name} - ${pets[booking.pet_id].species || pets[booking.pet_id].type || 'Pet'}` : "Your Pet"}
-                            </CardTitle>
-                            <CardDescription>
-                              With Dr. {vets[booking.vet_id] ? 
+                <div className="bg-white border rounded-lg overflow-hidden">
+                  {/* Table Header */}
+                  <div className="bg-muted/20 border-b">
+                    <div className="grid grid-cols-12 gap-4 items-center py-3 px-6 text-sm font-medium hidden md:grid">
+                      <div className="col-span-2">Pet</div>
+                      <div className="col-span-2">Veterinarian</div>
+                      <div className="col-span-2">Date & Time</div>
+                      <div className="col-span-2">Type</div>
+                      <div className="col-span-2">Status</div>
+                      <div className="col-span-2 text-right">Actions</div>
+                    </div>
+                  </div>
+                  
+                  {/* Table Body */}
+                  <div>
+                    {bookings.map((booking) => (
+                      <div key={booking.id} className="border-b last:border-0">
+                        {/* Desktop View */}
+                        <div className="hidden md:grid grid-cols-12 gap-4 items-center px-6 py-4 hover:bg-muted/10 transition-colors">
+                          <div className="col-span-2">
+                            <div className="font-medium">
+                              {pets[booking.pet_id] ? pets[booking.pet_id].name : "Your Pet"}
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                              {pets[booking.pet_id] ? (pets[booking.pet_id].species || pets[booking.pet_id].type || 'Pet') : ''}
+                            </div>
+                          </div>
+                          
+                          <div className="col-span-2">
+                            <div>
+                              Dr. {vets[booking.vet_id] ? 
                                 (vets[booking.vet_id].full_name ? 
                                   vets[booking.vet_id].full_name : 
                                   `${vets[booking.vet_id].first_name || ''} ${vets[booking.vet_id].last_name || ''}`.trim()) : 
                                 "Your Veterinarian"}
-                            </CardDescription>
+                            </div>
                           </div>
-                          <Badge variant={getStatusBadgeVariant(booking.status)}>{booking.status}</Badge>
-                        </div>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <div className="grid grid-cols-2 gap-4">
-                          <div>
-                            <h3 className="text-sm font-medium">Date</h3>
-                            <p className="text-lg">{booking.booking_date}</p>
-                          </div>
-                          <div>
-                            <h3 className="text-sm font-medium">Time</h3>
-                            <p className="text-lg">{booking.start_time.slice(0, 5)}</p>
-                          </div>
-                        </div>
-                        <div>
-                          <h3 className="text-sm font-medium">Type</h3>
-                          <p className="text-base capitalize">{booking.consultation_type}</p>
-                        </div>
-                        {booking.notes && (
-                          <div>
-                            <h3 className="text-sm font-medium">Notes</h3>
-                            <p className="text-base">{booking.notes}</p>
-                          </div>
-                        )}
-                        <div className="flex justify-between items-center pt-2">
-                          <Button
-                            variant="secondary"
-                            size="sm"
-                            onClick={() => openAppointmentDetails(booking)}
-                            className="flex items-center gap-1 w-full"
-                          >
-                            <Eye className="h-4 w-4" /> View Details
-                          </Button>
                           
-                          {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                          <div className="col-span-2">
+                            <div>{booking.booking_date}</div>
+                            <div className="text-sm text-muted-foreground">{booking.start_time.slice(0, 5)}</div>
+                          </div>
+                          
+                          <div className="col-span-2 capitalize">
+                            {booking.consultation_type.replace('_', ' ')}
+                          </div>
+                          
+                          <div className="col-span-2">
+                            <Badge variant={getStatusBadgeVariant(booking.status)} className="capitalize">
+                              {booking.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="col-span-2 flex justify-end gap-2">
                             <Button
-                              variant="destructive"
+                              variant="secondary"
                               size="sm"
-                              onClick={() => handleCancelAppointment(booking.id)}
-                              className="ml-2"
+                              onClick={() => openAppointmentDetails(booking)}
+                              className="flex items-center gap-1 text-white"
                             >
-                              Cancel
+                              <Eye className="h-4 w-4" /> Details
                             </Button>
-                          )}
+                            
+                            {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleCancelAppointment(booking.id)}
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </div>
                         </div>
-                      </CardContent>
-                    </Card>
-                  ))}
+                        
+                        {/* Mobile View */}
+                        <div className="md:hidden p-4 space-y-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <div className="font-medium">
+                                {pets[booking.pet_id] ? pets[booking.pet_id].name : "Your Pet"}
+                                <span className="text-muted-foreground text-sm ml-1">
+                                  ({pets[booking.pet_id] ? (pets[booking.pet_id].species || pets[booking.pet_id].type || 'Pet') : ''})
+                                </span>
+                              </div>
+                              <div className="text-sm">
+                                Dr. {vets[booking.vet_id] ? 
+                                  (vets[booking.vet_id].full_name ? 
+                                    vets[booking.vet_id].full_name : 
+                                    `${vets[booking.vet_id].first_name || ''} ${vets[booking.vet_id].last_name || ''}`.trim()) : 
+                                  "Your Veterinarian"}
+                              </div>
+                            </div>
+                            <Badge variant={getStatusBadgeVariant(booking.status)} className="capitalize">
+                              {booking.status}
+                            </Badge>
+                          </div>
+                          
+                          <div className="grid grid-cols-3 gap-4 text-sm">
+                            <div>
+                              <div className="text-muted-foreground">Date</div>
+                              <div>{booking.booking_date}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Time</div>
+                              <div>{booking.start_time.slice(0, 5)}</div>
+                            </div>
+                            <div>
+                              <div className="text-muted-foreground">Type</div>
+                              <div className="capitalize">{booking.consultation_type.replace('_', ' ')}</div>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 mt-2">
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              onClick={() => openAppointmentDetails(booking)}
+                              className="flex items-center gap-1 flex-1 text-white"
+                            >
+                              <Eye className="h-4 w-4" /> Details
+                            </Button>
+                            
+                            {(booking.status === 'pending' || booking.status === 'confirmed') && (
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => handleCancelAppointment(booking.id)}
+                                className="flex-1"
+                              >
+                                Cancel
+                              </Button>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
             </main>
-          </SidebarInset>
-        </div>
-
-        {/* Appointment Details Modal */}
-        {selectedAppointment && (
-          <AppointmentDetailsModal
-            isOpen={isDetailsModalOpen}
-            onClose={() => setIsDetailsModalOpen(false)}
-            appointment={{
-              id: selectedAppointment.id,
-              booking_date: selectedAppointment.booking_date,
-              start_time: selectedAppointment.start_time,
-              end_time: selectedAppointment.end_time,
-              consultation_type: selectedAppointment.consultation_type,
-              notes: selectedAppointment.notes || null, // Convert undefined to null for compatibility
-              status: selectedAppointment.status,
-              pet_id: selectedAppointment.pet_id,
-              vet_id: selectedAppointment.vet_id,
-              meeting_id: selectedAppointment.meeting_id,
-              meeting_url: selectedAppointment.meeting_url,
-              host_meeting_url: selectedAppointment.host_meeting_url
-            }}
-            pet={pets[selectedAppointment.pet_id] || {
-              id: selectedAppointment.pet_id,
-              name: 'Your Pet',
-              species: 'Pet',
-              breed: null,
-              owner_id: user?.id || ''
-            }}
-            vet={vets[selectedAppointment.vet_id] || {
-              id: selectedAppointment.vet_id,
-              full_name: 'Your Veterinarian'
-            }}
-            onCancelAppointment={handleCancelAppointment}
-          />
-        )}
+          </div>
+        </SidebarInset>
       </div>
+
+      {/* Appointment Details Modal */}
+      {selectedAppointment && (
+        <AppointmentDetailsModal
+          isOpen={isDetailsModalOpen}
+          onClose={() => setIsDetailsModalOpen(false)}
+          appointment={{
+            id: selectedAppointment.id,
+            booking_date: selectedAppointment.booking_date,
+            start_time: selectedAppointment.start_time,
+            end_time: selectedAppointment.end_time,
+            consultation_type: selectedAppointment.consultation_type,
+            notes: selectedAppointment.notes || null, // Convert undefined to null for compatibility
+            status: selectedAppointment.status,
+            pet_id: selectedAppointment.pet_id,
+            vet_id: selectedAppointment.vet_id,
+            meeting_id: selectedAppointment.meeting_id,
+            meeting_url: selectedAppointment.meeting_url,
+            host_meeting_url: selectedAppointment.host_meeting_url
+          }}
+          pet={pets[selectedAppointment.pet_id] || {
+            id: selectedAppointment.pet_id,
+            name: 'Your Pet',
+            species: 'Pet',
+            breed: null,
+            owner_id: user?.id || ''
+          }}
+          vet={vets[selectedAppointment.vet_id] || {
+            id: selectedAppointment.vet_id,
+            full_name: 'Your Veterinarian'
+          }}
+          onCancelAppointment={handleCancelAppointment}
+        />
+      )}
     </SidebarProvider>
   );
 };
