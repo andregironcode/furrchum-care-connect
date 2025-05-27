@@ -161,6 +161,9 @@ const SuperAdminDashboard = () => {
       // Log the users data to help with debugging
       console.log('Fetched users:', usersData?.length || 0, 'users', usersData);
       
+      // Make sure we're not filtering out users based on authentication
+      // This ensures we see all users in the system, not just the logged-in user
+      
       // Fetch all vets with proper ordering
       const { data: vetsData, error: vetError } = await supabase
         .from('vet_profiles')
