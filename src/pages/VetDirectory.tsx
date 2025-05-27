@@ -43,15 +43,15 @@ interface Vet {
   languages: string[];
   image: string;
   location?: Coordinate;
-  zipCode?: string;
+  zipCode?: string | null;
   distance?: number;
-  about?: string;
-  phone?: string;
-  clinic_location?: string;
-  offers_video_calls?: boolean;
-  offers_in_person?: boolean;
-  license_url?: string;
-  clinic_images?: string[];
+  about?: string | null;
+  phone?: string | null;
+  clinic_location?: string | null;
+  offers_video_calls?: boolean | null;
+  offers_in_person?: boolean | null;
+  license_url?: string | null;
+  clinic_images?: string[] | null;
 }
 
 // Calculate distance between two points using Haversine formula
@@ -100,6 +100,7 @@ const VetDirectory = () => {
         const { data, error } = await supabase
           .from('vet_profiles')
           .select('*')
+          .eq('approval_status', 'approved')
           .order('created_at', { ascending: false });
           
         if (error) throw error;
@@ -120,7 +121,7 @@ const VetDirectory = () => {
               experience: vet.years_experience || 0,
               rating: vet.rating || 4.5,
               fee: vet.consultation_fee || 50,
-              availability: vet.availability || 'Available Soon',
+              availability: vet.approval_status === 'approved' ? (vet.availability || 'Available Now') : 'Available Soon',
               languages: vet.languages || ['English'],
               image: vet.image_url || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&auto=format&fit=crop',
               zipCode: vet.zip_code,
