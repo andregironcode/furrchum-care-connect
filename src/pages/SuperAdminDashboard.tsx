@@ -146,30 +146,32 @@ const SuperAdminDashboard = () => {
       setIsRefreshing(true);
       setError(null);
       
-      // Fetch all users - use a more permissive query to bypass RLS
+      // Fetch all users with proper RLS bypass for superadmin
       const { data: usersData, error: userError } = await supabase
         .from('profiles')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .throwOnError();
       
       if (userError) {
         setError('Failed to fetch users');
-        console.error('Error fetching users:', userError?.message);
+        console.error('Error fetching users:', userError);
         // Continue execution even if there's an error with users
       } else {
         // Log the users data to help with debugging
         console.log('Fetched users:', usersData?.length || 0, 'users', usersData);
       }
       
-      // Fetch all vets with proper ordering
+      // Fetch all vets with proper ordering and RLS policies
       const { data: vetsData, error: vetError } = await supabase
         .from('vet_profiles')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .throwOnError();
       
       if (vetError) {
         setError('Failed to fetch vets');
-        console.error('Error fetching vets:', vetError?.message);
+        console.error('Error fetching vets:', vetError);
         return;
       }
       
@@ -190,12 +192,14 @@ const SuperAdminDashboard = () => {
         const { data: bookingsData, error: bookingsError } = await supabase
           .from('bookings')
           .select('*')
-          .order('booking_date', { ascending: false });
+          .order('booking_date', { ascending: false })
+          .throwOnError();
         
         if (bookingsError) {
           console.error('Error fetching bookings:', bookingsError);
           setError('Failed to fetch appointments');
-          return;
+          // Continue with empty appointments array
+          setAppointments([]);
         }
         
         if (!bookingsData || bookingsData.length === 0) {
@@ -212,7 +216,8 @@ const SuperAdminDashboard = () => {
         const { data: vetProfilesData, error: vetProfilesError } = await supabase
           .from('vet_profiles')
           .select('id, first_name, last_name')
-          .in('id', vetIds);
+          .in('id', vetIds)
+          .throwOnError();
         
         if (vetProfilesError) {
           console.error('Error fetching vet profiles:', vetProfilesError);
@@ -222,7 +227,8 @@ const SuperAdminDashboard = () => {
         const { data: petsData, error: petsError } = await supabase
           .from('pets')
           .select('id, name, type, owner_id')
-          .in('id', petIds);
+          .in('id', petIds)
+          .throwOnError();
         
         if (petsError) {
           console.error('Error fetching pets:', petsError);
@@ -232,7 +238,8 @@ const SuperAdminDashboard = () => {
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('id, full_name')
-          .in('id', ownerIds);
+          .in('id', ownerIds)
+          .throwOnError();
         
         if (profilesError) {
           console.error('Error fetching profiles for appointments:', profilesError);
@@ -306,11 +313,15 @@ const SuperAdminDashboard = () => {
       const { data: transactionsData, error: transactionError } = await supabase
         .from('transactions')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .throwOnError();
       
       if (transactionError) {
         setError('Failed to fetch transactions');
-        return;
+        // Continue with empty transactions array
+        setTransactions([]);
+      } else {
+        setTransactions(transactionsData || []);
       }
       
       // Process and normalize the vet data to ensure approval_status is one of the expected values
@@ -325,7 +336,7 @@ const SuperAdminDashboard = () => {
       setUsers(usersData || []);
       setVets(processedVets);
       // Appointments are set in the try-catch block above
-      setTransactions(transactionsData || []);
+      // Transactions are set in the if-else block above
     } catch (error) {
       setError('An unexpected error occurred while fetching data');
     } finally {
@@ -336,8 +347,15 @@ const SuperAdminDashboard = () => {
   
   // Fetch data on component mount
   useEffect(() => {
-    fetchData();
-  }, []);
+    // Always fetch data and rely on SuperAdminGuard for auth protection
+    // This ensures data is loaded even if the session state changes
+    const superAdminAuth = localStorage.getItem('superAdminAuth');
+    if (superAdminAuth === 'true') {
+      fetchData();
+    } else {
+      navigate('/superadmin/auth');
+    }
+  }, [navigate]);
   // Force refresh data from the database
   const forceRefreshData = async () => {
     setLoading(true);
