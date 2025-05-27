@@ -19,10 +19,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, LogOut, Search, User, Calendar, CheckCircle, XCircle, AlertCircle, RefreshCw, Users, CreditCard, Clock, Filter, UserCheck, UserX, FileText } from 'lucide-react';
+import { Loader2, LogOut, Search, User, Calendar, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+} from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 // Temporarily comment out until UserDetailsModal is fixed
 // import UserDetailsModal from '@/components/UserDetailsModal';
@@ -154,7 +153,6 @@ const SuperAdminDashboard = () => {
       
       if (userError) {
         setError('Failed to fetch users');
-        console.error('Error fetching users:', userError?.message);
         return;
       }
       
@@ -549,11 +547,6 @@ const SuperAdminDashboard = () => {
     
     return matchesSearch;
   });
-  
-  // Filter vets by approval status (with null safety)
-  const pendingVets = vets.filter(vet => (vet.approval_status || '').toLowerCase() === 'pending');
-  const approvedVets = vets.filter(vet => (vet.approval_status || '').toLowerCase() === 'approved');
-  const rejectedVets = vets.filter(vet => (vet.approval_status || '').toLowerCase() === 'rejected');
   
   // Render component
   return (

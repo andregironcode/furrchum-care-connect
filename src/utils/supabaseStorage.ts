@@ -7,6 +7,26 @@ import { supabase } from '@/integrations/supabase/client';
  */
 export const parseSupabaseUrl = (url: string): { bucketName: string; filePath: string } => {
   try {
+    // Handle empty or invalid URLs
+    if (!url) {
+      return { bucketName: 'vet_profiles', filePath: '' };
+    }
+
+    // Fix for malformed URLs with "object/sign/object/public" pattern
+    if (url.includes('object/sign/object/public')) {
+      // Extract the path after 'public'
+      const parts = url.split('public/');
+      if (parts.length > 1) {
+        // The first part of the path after 'public/' is usually the bucket name
+        const pathAfterPublic = parts[1].split('/');
+        if (pathAfterPublic.length > 1) {
+          const bucketName = pathAfterPublic[0];
+          const filePath = pathAfterPublic.slice(1).join('/');
+          return { bucketName, filePath };
+        }
+      }
+    }
+    
     // Handle different Supabase URL formats
     if (url.includes('storage.googleapis.com') || url.includes('supabase.co/storage')) {
       // Parse the URL to extract the bucket name and file path
@@ -52,6 +72,15 @@ export const parseSupabaseUrl = (url: string): { bucketName: string; filePath: s
       return { 
         bucketName: 'vet_profiles', 
         filePath: parts[parts.length - 1] 
+      };
+    }
+
+    // Handle license URLs specifically
+    if (url.includes('licenses/')) {
+      const parts = url.split('licenses/');
+      return {
+        bucketName: 'vet_profiles',
+        filePath: 'licenses/' + parts[parts.length - 1]
       };
     }
   } catch (error) {
