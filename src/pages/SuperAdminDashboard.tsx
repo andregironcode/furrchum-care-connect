@@ -158,6 +158,9 @@ const SuperAdminDashboard = () => {
         return;
       }
       
+      // Log the users data to help with debugging
+      console.log('Fetched users:', usersData?.length || 0, 'users');
+      
       // Fetch all vets with proper ordering
       const { data: vetsData, error: vetError } = await supabase
         .from('vet_profiles')
@@ -213,14 +216,15 @@ const SuperAdminDashboard = () => {
           console.error('Error fetching pets:', petsError);
         }
         
-        // Fetch user profiles
+        // Fetch user profiles for appointments
         const { data: profilesData, error: profilesError } = await supabase
           .from('profiles')
           .select('id, full_name, email, phone_number')
           .in('id', ownerIds);
         
         if (profilesError) {
-          console.error('Error fetching profiles:', profilesError);
+          console.error('Error fetching profiles for appointments:', profilesError);
+          // Continue execution even if there's an error
         }
         
         // Create lookup maps for faster access
@@ -679,8 +683,8 @@ const SuperAdminDashboard = () => {
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.full_name || 'Unknown'}</TableCell>
                           <TableCell>{user.email || 'No email'}</TableCell>
-                          <TableCell className="capitalize">{user.user_type}</TableCell>
-                          <TableCell>{getStatusBadge(user.user_type === 'active' ? 'active' : 'inactive')}</TableCell>
+                          <TableCell className="capitalize">{user.user_type || 'Unknown'}</TableCell>
+                          <TableCell>{getStatusBadge(user.status || 'active')}</TableCell>
                           <TableCell>
                             {new Date(user.created_at).toLocaleDateString()}
                           </TableCell>
