@@ -3,9 +3,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
-import { CheckCircle, XCircle, AlertCircle, Clock, ExternalLink, FileText } from 'lucide-react';
+import { CheckCircle, XCircle, AlertCircle, Clock, ExternalLink, FileText, Download, Eye } from 'lucide-react';
 import { VetProfile } from '@/types/profiles';
 import { formatDistanceToNow } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 interface VetApprovalCardProps {
   vetProfile: VetProfile;
@@ -24,6 +26,8 @@ const VetApprovalCard: React.FC<VetApprovalCardProps> = ({
 }) => {
   const [feedback, setFeedback] = useState('');
   const [showFeedback, setShowFeedback] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
   
   const getStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase();
@@ -48,6 +52,210 @@ const VetApprovalCard: React.FC<VetApprovalCardProps> = ({
       return formatDistanceToNow(new Date(dateString), { addSuffix: true });
     } catch (error) {
       return 'Unknown';
+    }
+  };
+  
+  // Function to parse a Supabase URL and extract bucket and file path
+  const parseSupabaseUrl = (url: string) => {
+    try {
+      // Handle different Supabase URL formats
+      if (url.includes('storage.googleapis.com') || url.includes('supabase.co/storage')) {
+        // Parse the URL to extract the bucket name and file path
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/');
+        
+        // Find the bucket name in the URL path
+        let bucketName = 'vet_profiles';
+        let filePath = '';
+        
+        // Check if this is a public URL or a signed URL format
+        if (pathParts.includes('public')) {
+          // Format: /storage/v1/object/public/[bucket]/[filepath]
+          const publicIndex = pathParts.indexOf('public');
+          if (publicIndex !== -1 && publicIndex + 1 < pathParts.length) {
+            bucketName = pathParts[publicIndex + 1];
+            filePath = pathParts.slice(publicIndex + 2).join('/');
+          }
+        } else if (pathParts.includes('sign')) {
+          // Format: /storage/v1/object/sign/[bucket]/[filepath]
+          const signIndex = pathParts.indexOf('sign');
+          if (signIndex !== -1 && signIndex + 1 < pathParts.length) {
+            bucketName = pathParts[signIndex + 1];
+            filePath = pathParts.slice(signIndex + 2).join('/');
+          }
+        }
+        
+        console.log(`Extracted bucket: ${bucketName}, file path: ${filePath}`);
+        return { bucketName, filePath };
+      }
+    } catch (error) {
+      console.error('Error parsing Supabase URL:', error);
+    }
+    
+    // Default fallback
+    return { bucketName: 'vet_profiles', filePath: url.split('/').pop() || '' };
+  };
+  
+  // Function to handle viewing the license document
+  const viewDocument = async (url: string) => {
+    if (!url) {
+      toast({
+        title: "Error",
+        description: "Document URL is not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      console.log('Opening document URL:', url);
+      
+      // Parse the URL to extract bucket and file path
+      const { bucketName, filePath } = parseSupabaseUrl(url);
+      
+      if (!filePath) {
+        // If we couldn't extract the path properly, try opening directly
+        window.open(url, '_blank');
+        return;
+      }
+      
+      console.log(`Using bucket: ${bucketName}, file path: ${filePath}`);
+      
+      // Create a signed URL with Supabase
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(filePath, 60); // 60 seconds expiry
+      
+      if (error) {
+        console.error('Error creating signed URL:', error);
+        // Try direct access as fallback
+        window.open(url, '_blank');
+        return;
+      }
+      
+      if (data?.signedUrl) {
+        console.log('Opening signed URL:', data.signedUrl);
+        window.open(data.signedUrl, '_blank');
+      } else {
+        // Try direct access as fallback
+        window.open(url, '_blank');
+      }
+    } catch (error) {
+      console.error('Error opening document:', error);
+      toast({
+        title: "Error Opening Document",
+        description: error instanceof Error ? error.message : "Failed to open the document",
+        variant: "destructive",
+      });
+      
+      // Try direct access as a last resort
+      window.open(url, '_blank');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  
+  // Function to handle downloading the license document
+  const downloadDocument = async (url: string) => {
+    if (!url) {
+      toast({
+        title: "Error",
+        description: "Document URL is not available",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsLoading(true);
+    try {
+      console.log('Downloading document URL:', url);
+      
+      // Parse the URL to extract bucket and file path
+      const { bucketName, filePath } = parseSupabaseUrl(url);
+      
+      if (!filePath) {
+        toast({
+          title: "Error",
+          description: "Could not parse the document URL",
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      console.log(`Using bucket: ${bucketName}, file path: ${filePath}`);
+      
+      // Create a signed URL with Supabase
+      const { data, error } = await supabase.storage
+        .from(bucketName)
+        .createSignedUrl(filePath, 60); // 60 seconds expiry
+      
+      if (error) {
+        console.error('Error creating signed URL for download:', error);
+        
+        // Try direct download as fallback
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filePath.split('/').pop() || 'license-document';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        toast({
+          title: "Notice",
+          description: "Attempting direct download instead",
+        });
+        return;
+      }
+      
+      if (data?.signedUrl) {
+        // Create a temporary anchor element to trigger the download
+        const a = document.createElement('a');
+        a.href = data.signedUrl;
+        a.download = filePath.split('/').pop() || 'license-document';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        toast({
+          title: "Success",
+          description: "Document download started",
+        });
+      } else {
+        // Try direct download as fallback
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filePath.split('/').pop() || 'license-document';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        toast({
+          title: "Notice",
+          description: "Attempting direct download instead",
+        });
+      }
+    } catch (error) {
+      console.error('Error downloading document:', error);
+      toast({
+        title: "Error Downloading Document",
+        description: error instanceof Error ? error.message : "Failed to download the document",
+        variant: "destructive",
+      });
+      
+      // Try direct download as a last resort
+      try {
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = url.split('/').pop() || 'license-document';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      } catch (e) {
+        console.error('Failed even with direct download:', e);
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -87,17 +295,34 @@ const VetApprovalCard: React.FC<VetApprovalCardProps> = ({
           </div>
         </div>
         
-        {vetProfile.license_document_url && (
-          <div className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800">
-            <FileText size={16} />
-            <a 
-              href={vetProfile.license_document_url} 
-              target="_blank" 
-              rel="noreferrer"
-              className="flex items-center"
-            >
-              View License Document <ExternalLink size={14} className="ml-1" />
-            </a>
+        {(vetProfile.license_document_url || vetProfile.license_url) && (
+          <div className="flex flex-col space-y-2">
+            <p className="text-sm font-medium text-gray-700">License Document</p>
+            <div className="flex space-x-3">
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                onClick={() => viewDocument(vetProfile.license_document_url || vetProfile.license_url || '')}
+                disabled={isLoading}
+              >
+                <Eye size={16} className="mr-2" />
+                View
+                {isLoading && <span className="ml-2 animate-spin">⟳</span>}
+              </Button>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center text-blue-600 hover:text-blue-800 hover:bg-blue-50"
+                onClick={() => downloadDocument(vetProfile.license_document_url || vetProfile.license_url || '')}
+                disabled={isLoading}
+              >
+                <Download size={16} className="mr-2" />
+                Download
+                {isLoading && <span className="ml-2 animate-spin">⟳</span>}
+              </Button>
+            </div>
           </div>
         )}
         

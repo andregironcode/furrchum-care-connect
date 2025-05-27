@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -10,6 +10,14 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import { CheckCircle, XCircle, Calendar, Clock, AlertCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -89,10 +97,11 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
   };
 
   const handleVetApproval = async (status: 'approved' | 'rejected', feedback?: string) => {
-    if (!vetProfile) return;
+    if (!vetProfile || !user) return;
 
     try {
       setLoading(true);
+      console.log(`Updating vet profile ${vetProfile.id} to status: ${status}`);
 
       const updateData: any = {
         approval_status: status,
@@ -105,16 +114,49 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
         updateData.rejection_reason = feedback;
       }
 
-      const { error } = await supabase
+      // First, update the vet profile
+      const { error: profileError } = await supabase
         .from('vet_profiles')
         .update(updateData)
         .eq('id', vetProfile.id);
 
-      if (error) throw error;
+      if (profileError) {
+        console.error('Error updating vet profile:', profileError);
+        throw profileError;
+      }
+
+      console.log(`Successfully updated vet profile ${vetProfile.id} to status: ${status}`);
+
+      // Next, update the user metadata in the auth system
+      // This is important for role-based access control
+      // Cast user to any to access user_metadata which might not be in the type definition
+      const userData = user as any;
+      const currentMetadata = userData.user_metadata || {};
+      
+      const { error: userError } = await supabase.auth.admin.updateUserById(
+        user.id,
+        {
+          user_metadata: {
+            ...currentMetadata,
+            vet_status: status,
+            is_approved_vet: status === 'approved'
+          }
+        }
+      );
+
+      if (userError) {
+        console.error('Error updating user metadata:', userError);
+        // Continue even if this fails, as the profile update is more important
+      } else {
+        console.log(`Successfully updated user metadata for ${user.id}`);
+      }
 
       // Send notification to the vet (this would normally be an email)
       // For now, we'll just log it
       console.log(`Notification to vet ${vetProfile.id}: Your account has been ${status}${feedback ? ` with feedback: ${feedback}` : ''}`);
+
+      // Refresh the vet profile data to confirm changes
+      await fetchUserDetails();
 
       toast({
         title: `Vet ${status === 'approved' ? 'Approved' : 'Rejected'}`,
@@ -122,7 +164,6 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
       });
 
       if (onUserUpdated) onUserUpdated();
-      onClose();
 
       // Reset rejection form state
       setRejectionFeedback('');
@@ -153,7 +194,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
     );
   };
 
-  const openDocument = (url: string) => {
+  const openDocument = async (url: string) => {
     if (!url) {
       toast({
         title: "Error",
@@ -163,7 +204,76 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
       return;
     }
 
-    window.open(url, '_blank');
+    try {
+      console.log('Opening document URL:', url);
+      
+      // Check if this is a Supabase storage URL
+      if (url.includes('storage.googleapis.com') || url.includes('supabase.co/storage')) {
+        // Parse the URL to extract the bucket name and file path
+        const urlObj = new URL(url);
+        const pathParts = urlObj.pathname.split('/');
+        
+        // Find the bucket name in the URL path
+        let bucketName = 'vet_profiles';
+        let filePath = '';
+        
+        // Check if this is a public URL or a signed URL format
+        if (pathParts.includes('public')) {
+          // Format: /storage/v1/object/public/[bucket]/[filepath]
+          const publicIndex = pathParts.indexOf('public');
+          if (publicIndex !== -1 && publicIndex + 1 < pathParts.length) {
+            bucketName = pathParts[publicIndex + 1];
+            filePath = pathParts.slice(publicIndex + 2).join('/');
+          }
+        } else if (pathParts.includes('sign')) {
+          // Format: /storage/v1/object/sign/[bucket]/[filepath]
+          const signIndex = pathParts.indexOf('sign');
+          if (signIndex !== -1 && signIndex + 1 < pathParts.length) {
+            bucketName = pathParts[signIndex + 1];
+            filePath = pathParts.slice(signIndex + 2).join('/');
+          }
+        }
+        
+        console.log(`Extracted bucket: ${bucketName}, file path: ${filePath}`);
+        
+        if (!filePath) {
+          // If we couldn't extract the path properly, try opening directly
+          window.open(url, '_blank');
+          return;
+        }
+        
+        // For Supabase storage URLs, we need to get a signed URL
+        const { data, error } = await supabase.storage
+          .from(bucketName)
+          .createSignedUrl(filePath, 60); // 60 seconds expiry
+        
+        if (error) {
+          console.error('Error creating signed URL:', error);
+          // Try direct access as fallback
+          window.open(url, '_blank');
+          return;
+        }
+        
+        if (data?.signedUrl) {
+          console.log('Opening signed URL:', data.signedUrl);
+          window.open(data.signedUrl, '_blank');
+          return;
+        }
+      }
+      
+      // If it's not a Supabase URL or we couldn't get a signed URL, try opening directly
+      window.open(url, '_blank');
+    } catch (error) {
+      console.error('Error opening document:', error);
+      toast({
+        title: "Error Opening Document",
+        description: error instanceof Error ? error.message : "Failed to open the document",
+        variant: "destructive",
+      });
+      
+      // Try direct access as a last resort
+      window.open(url, '_blank');
+    }
   };
 
   if (!user) return null;
@@ -371,11 +481,67 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  const link = document.createElement('a');
-                                  link.href = vetProfile.license_url;
-                                  link.download = `${vetProfile.first_name}_${vetProfile.last_name}_license.pdf`;
-                                  link.click();
+                                onClick={async () => {
+                                  try {
+                                    if (!vetProfile.license_url) {
+                                      toast({
+                                        title: "Error",
+                                        description: "Document URL is not available",
+                                        variant: "destructive",
+                                      });
+                                      return;
+                                    }
+                                    
+                                    console.log('Downloading document from URL:', vetProfile.license_url);
+                                    
+                                    // Check if this is a Supabase storage URL
+                                    if (vetProfile.license_url.includes('storage.googleapis.com') || 
+                                        vetProfile.license_url.includes('supabase.co/storage')) {
+                                      // Get the file name from the URL
+                                      const fileName = vetProfile.license_url.split('/').pop() || 'license.pdf';
+                                      
+                                      // For Supabase storage URLs, we need to get a signed URL
+                                      const { data, error } = await supabase.storage
+                                        .from('vet-documents') // Replace with your actual bucket name
+                                        .createSignedUrl(fileName, 60); // 60 seconds expiry
+                                      
+                                      if (error) {
+                                        console.error('Error creating signed URL for download:', error);
+                                        throw new Error('Could not access the document for download');
+                                      }
+                                      
+                                      if (data?.signedUrl) {
+                                        console.log('Downloading from signed URL:', data.signedUrl);
+                                        
+                                        // Fetch the file and download it
+                                        const response = await fetch(data.signedUrl);
+                                        const blob = await response.blob();
+                                        const downloadUrl = URL.createObjectURL(blob);
+                                        
+                                        const link = document.createElement('a');
+                                        link.href = downloadUrl;
+                                        link.download = `${vetProfile.first_name}_${vetProfile.last_name}_license.pdf`;
+                                        link.click();
+                                        
+                                        // Clean up
+                                        URL.revokeObjectURL(downloadUrl);
+                                        return;
+                                      }
+                                    }
+                                    
+                                    // If it's not a Supabase URL or we couldn't get a signed URL, try downloading directly
+                                    const link = document.createElement('a');
+                                    link.href = vetProfile.license_url;
+                                    link.download = `${vetProfile.first_name}_${vetProfile.last_name}_license.pdf`;
+                                    link.click();
+                                  } catch (error) {
+                                    console.error('Error downloading document:', error);
+                                    toast({
+                                      title: "Error Downloading Document",
+                                      description: error instanceof Error ? error.message : "Failed to download the document",
+                                      variant: "destructive",
+                                    });
+                                  }
                                 }}
                                 className="bg-white"
                               >

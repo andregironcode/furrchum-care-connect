@@ -1,5 +1,6 @@
 import React from 'react';
 import Navbar from '@/components/Navbar';
+import Footer from '@/components/Footer';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
@@ -8,7 +9,7 @@ const AdditionalPoliciesPage = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen flex flex-col">
       <Navbar />
       <div className="max-w-4xl mx-auto px-4 py-10">
         <Button 
@@ -170,6 +171,7 @@ const AdditionalPoliciesPage = () => {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 };

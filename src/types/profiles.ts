@@ -28,7 +28,7 @@ export interface VetProfile {
   license_expiry?: string;
   specialty?: string;
   experience_years?: number;
-  consultation_fee?: number;
+  consultation_fee?: number | null;
   education?: string;
   address?: string;
   city?: string;
@@ -44,11 +44,22 @@ export interface VetProfile {
   approved_by?: string;
   rejection_reason?: string;
   license_document_url?: string;
+  license_url?: string; // Added for compatibility with existing code
   clinic_name?: string;
   clinic_address?: string;
   availability?: Record<string, unknown>;
   consultation_modes?: string[];
   is_available?: boolean;
+  about?: string;
+  specialization?: string;
+  years_experience?: number;
+  languages?: string[];
+  clinic_location?: string;
+  offers_in_person?: boolean;
+  offers_video_calls?: boolean;
+  clinic_images?: string[];
+  location?: any;
+  image_url?: string;
 }
 
 // Type for appointment/booking data
