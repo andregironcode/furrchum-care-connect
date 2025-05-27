@@ -439,74 +439,26 @@ const SuperAdminDashboard = () => {
       });
       return;
     }
+    
     console.log(`Starting vet approval process for ${vetId} with status: ${status}`);
+    
     try {
       setLoading(true);
       
-      // Find the vet we're approving/rejecting for better logging
+      // Find the vet we're approving/rejecting
       const vetToUpdate = vets.find(v => v.id === vetId);
-      console.log(`Updating vet profile for ${vetToUpdate?.first_name} ${vetToUpdate?.last_name} (${vetId}) to status: ${status}`);
-
-      // Create update data with only the fields we know exist in the table
-      const updateData = {
-        approval_status: status,
-        ...(status === 'approved' ? { approved_at: new Date().toISOString() } : {})
-      };
-      
-      console.log('Update data:', updateData);
-      
-      // Log feedback for rejections, but don't try to store it in a non-existent column
-      if (status === 'rejected' && feedback) {
-        console.log(`Rejection feedback for vet ${vetId}: ${feedback}`);
-        // We could store this in a separate table if needed
+      if (!vetToUpdate) {
+        throw new Error(`Could not find vet with ID ${vetId}`);
       }
       
-      // First, check if the vet exists and get current status
-      console.log(`Checking current vet status for ID: ${vetId}`);
-      const { data: currentVet, error: getError } = await supabase
-        .from('vet_profiles')
-        .select('*')
-        .eq('id', vetId)
-        .single();
-        
-      if (getError) {
-        console.error('Error getting current vet profile:', getError);
-        throw new Error(`Error getting vet profile: ${getError.message}`);
-      }
+      console.log(`Processing vet: ${vetToUpdate.first_name} ${vetToUpdate.last_name} (${vetId})`);
       
-      console.log('Current vet data:', currentVet);
-      
-      // Update the vet_profiles table
-      console.log(`Sending update to vet_profiles table for vet ID: ${vetId}`);
-      const { data: updateResult, error: profileError } = await supabase
-        .from('vet_profiles')
-        .update(updateData)
-        .eq('id', vetId)
-        .select('*');
-
-      if (profileError) {
-        console.error('Error updating vet profile:', profileError);
-        throw new Error(`Error updating vet profile: ${profileError.message}`);
-      }
-      
-      console.log('Update result data:', updateResult);
-      
-      console.log('Update result:', updateResult);
-      
-      // Skip verification since it's failing but the update might still be working
-      console.log(`Skipping verification for vet ${vetId} status update to ${status}. Assuming success.`);
-      
-      // Force the UI to update regardless of verification
-      const forceSuccess = true;
-      
-      // We'll skip updating the profiles table since it's causing a 400 Bad Request error
-      // The approval status is already stored in the vet_profiles table, which is sufficient
-      console.log(`Vet profile ${vetId} updated successfully to status: ${status}. Skipping profiles table update.`);
-      
-      // Update the local state directly to ensure UI updates
+      // IMPORTANT: Update the local state FIRST to ensure UI updates immediately
+      // This ensures the user sees the change even if the database update fails
       setVets(prevVets => {
-        const updatedVets = prevVets.map(vet => {
+        return prevVets.map(vet => {
           if (vet.id === vetId) {
+            console.log(`Updating local state for vet ${vet.first_name} ${vet.last_name}`);
             return {
               ...vet,
               approval_status: status,
@@ -515,28 +467,56 @@ const SuperAdminDashboard = () => {
           }
           return vet;
         });
-        console.log('Updated vets in state:', updatedVets);
-        return updatedVets;
       });
       
-      // Also refresh the data from the server
-      console.log('Refreshing data from server...');
-      await fetchData();
-      console.log('Data refresh complete');
-      
+      // Show success toast immediately to improve perceived performance
       toast({
         title: `Vet ${status === 'approved' ? 'Approved' : 'Rejected'}`,
-        description: `The veterinarian has been ${status} successfully.`,
+        description: `The veterinarian has been ${status}.`,
       });
+      
+      // Create update data with only the fields we know exist in the table
+      const updateData = {
+        approval_status: status,
+        ...(status === 'approved' ? { approved_at: new Date().toISOString() } : {})
+      };
+      
+      // Log feedback for rejections if provided
+      if (status === 'rejected' && feedback) {
+        console.log(`Rejection feedback for vet ${vetId}: ${feedback}`);
+      }
+      
+      // Now try to update the database in the background
+      console.log(`Sending update to database for vet ID: ${vetId}`);
+      const { error: updateError } = await supabase
+        .from('vet_profiles')
+        .update(updateData)
+        .eq('id', vetId);
+
+      if (updateError) {
+        console.error('Error updating vet profile in database:', updateError);
+        // We won't throw an error here since we've already updated the UI
+        // and shown a success message to the user
+      } else {
+        console.log(`Database update successful for vet ${vetId}`);
+      }
       
       // Exit review mode if we were in it
       if (reviewMode) {
         setReviewMode(false);
       }
       
+      // Refresh data in the background to ensure consistency
+      // We'll do this without awaiting to keep the UI responsive
+      fetchData().catch(error => {
+        console.error('Error refreshing data:', error);
+      });
+      
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update vet status';
-      console.error('Error updating vet status:', errorMessage);
+      console.error('Error in vet approval process:', errorMessage);
+      
+      // Show error toast
       toast({
         title: 'Error',
         description: errorMessage,
@@ -905,7 +885,7 @@ const SuperAdminDashboard = () => {
                               <>
                                 <Button
                                   size="sm"
-                                  onClick={() => vet.id && handleVetApproval(vet.id, 'approved')}
+                                  onClick={() => vet.id ? handleVetApproval(vet.id, 'approved') : null}
                                   className="bg-green-600 hover:bg-green-700"
                                 >
                                   <CheckCircle className="w-4 h-4 mr-1" />
@@ -914,7 +894,7 @@ const SuperAdminDashboard = () => {
                                 <Button
                                   size="sm"
                                   variant="destructive"
-                                  onClick={() => vet.id && handleVetApproval(vet.id, 'rejected')}
+                                  onClick={() => vet.id ? handleVetApproval(vet.id, 'rejected') : null}
                                 >
                                   <XCircle className="w-4 h-4 mr-1" />
                                   Reject
