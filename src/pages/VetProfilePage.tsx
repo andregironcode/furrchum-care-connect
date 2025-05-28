@@ -163,7 +163,7 @@ const VetProfilePage = () => {
     specialization: z.string().min(1, { message: 'Specialization is required' }),
     about: z.string().min(1, { message: 'About section is required' }),
     consultation_fee: z.number().min(0, { message: 'Consultation fee must be 0 or greater' }),
-    image_url: z.string().optional().or(z.literal('')),
+    image_url: z.string().min(1, { message: 'Profile image is required' }),
     years_experience: z.number().min(0, { message: 'Years of experience must be 0 or greater' }).int({ message: 'Must be a whole number' }),
     phone: z.string().min(10, { message: 'Phone number must be at least 10 digits' }).max(15, { message: 'Phone number is too long' }),
     gender: z.string().min(1, { message: 'Gender is required' }),
@@ -1053,7 +1053,16 @@ ALTER TABLE vet_profiles
                             }} 
                             className="space-y-6">
                             <div className="flex flex-col items-center mb-4">
-                              <div className="relative w-40 h-40 mb-4">
+                              <div className="space-y-2 w-full">
+                                <Label className="text-sm font-medium">
+                                  Profile Image <span className="text-red-500">*</span>
+                                </Label>
+                                <p className="text-sm text-muted-foreground">
+                                  Upload a professional photo of yourself. This will be visible to pet owners.
+                                </p>
+                              </div>
+                              
+                              <div className="relative w-40 h-40 mb-4 mt-4">
                                 <Avatar className="w-full h-full">
                                   {imagePreview ? (
                                     <AvatarImage 
@@ -1062,7 +1071,7 @@ ALTER TABLE vet_profiles
                                       className="object-cover"
                                     />
                                   ) : (
-                                    <AvatarFallback className="text-4xl">
+                                    <AvatarFallback className="text-4xl bg-gray-100">
                                       {form.getValues("first_name")?.charAt(0) || ''}
                                       {form.getValues("last_name")?.charAt(0) || ''}
                                     </AvatarFallback>
@@ -1070,7 +1079,7 @@ ALTER TABLE vet_profiles
                                 </Avatar>
                                 <Label
                                   htmlFor="profile-image"
-                                  className="absolute bottom-0 right-0 p-2 bg-primary rounded-full cursor-pointer shadow-md"
+                                  className="absolute bottom-0 right-0 p-2 bg-primary rounded-full cursor-pointer shadow-md hover:bg-primary/90 transition-colors"
                                 >
                                   <Camera className="h-5 w-5 text-white" />
                                 </Label>
@@ -1082,9 +1091,36 @@ ALTER TABLE vet_profiles
                                   className="hidden"
                                 />
                               </div>
-                              {selectedImage && (
-                                <p className="text-sm text-muted-foreground">{selectedImage.name}</p>
+                              
+                              {selectedImage ? (
+                                <div className="text-center">
+                                  <p className="text-sm text-green-600 font-medium">{selectedImage.name}</p>
+                                  <p className="text-xs text-muted-foreground mt-1">Image ready to upload</p>
+                                </div>
+                              ) : (
+                                <div className="text-center">
+                                  <p className="text-sm text-muted-foreground">Click the camera icon to upload your photo</p>
+                                  <p className="text-xs text-muted-foreground mt-1">Supported formats: JPG, JPEG, PNG</p>
+                                </div>
                               )}
+                              
+                              {/* Show validation error for image_url field */}
+                              <FormField
+                                control={form.control}
+                                name="image_url"
+                                render={({ field, fieldState }) => (
+                                  <FormItem className="w-full mt-2">
+                                    <FormControl>
+                                      <Input {...field} type="hidden" />
+                                    </FormControl>
+                                    {fieldState.error && (
+                                      <FormMessage className="text-center">
+                                        {fieldState.error.message}
+                                      </FormMessage>
+                                    )}
+                                  </FormItem>
+                                )}
+                              />
                             </div>
                             
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
