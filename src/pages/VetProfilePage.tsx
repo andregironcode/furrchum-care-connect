@@ -710,7 +710,7 @@ const VetProfilePage = () => {
                             </div>
                             <div>
                               <h3 className="text-sm font-medium">Consultation Fee</h3>
-                              <p className="text-lg">${profile?.consultation_fee || 0}</p>
+                              <p className="text-lg">₹{profile?.consultation_fee || 0}</p>
                             </div>
                           </div>
 
@@ -1018,7 +1018,7 @@ const VetProfilePage = () => {
                                 name="consultation_fee"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Consultation Fee ($)</FormLabel>
+                                    <FormLabel>Consultation Fee (₹)</FormLabel>
                                     <FormControl>
                                       <Input 
                                         type="number" 

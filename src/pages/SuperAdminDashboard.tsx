@@ -1038,7 +1038,7 @@ const SuperAdminDashboard = () => {
                             {transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : 'Unknown'}
                           </TableCell>
                           <TableCell>
-                            ${transaction.amount}
+                            ₹{transaction.amount}
                           </TableCell>
                           <TableCell>{transaction.currency}</TableCell>
                           <TableCell>{getStatusBadge(transaction.status)}</TableCell>

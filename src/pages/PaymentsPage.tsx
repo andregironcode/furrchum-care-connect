@@ -305,7 +305,7 @@ const PaymentCard = ({ payment }: { payment: any }) => {
             <div className="text-sm text-gray-500">
               {format(new Date(payment.date), 'MMM dd, yyyy')}
             </div>
-            <CardTitle className="text-xl">${payment.amount.toFixed(2)}</CardTitle>
+            <CardTitle className="text-xl">₹{payment.amount.toFixed(2)}</CardTitle>
           </div>
           <div className={`px-2 py-1 rounded-md text-xs font-medium 
             ${isPending ? 'bg-orange-100 text-orange-800' : 'bg-green-100 text-green-800'}`}>

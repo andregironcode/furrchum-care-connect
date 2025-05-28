@@ -333,7 +333,7 @@ const VetDirectory = () => {
                   
                   <div className="flex items-center mb-3 text-sm text-slate-700">
                     <span className="mr-3">{vet.experience} years exp.</span>
-                    <span>${vet.fee}/consultation</span>
+                    <span>₹{vet.fee}/consultation</span>
                   </div>
                   
                   {/* Consultation Types */}

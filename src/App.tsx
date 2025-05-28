@@ -38,6 +38,7 @@ import TermsConditionsPage from "./pages/TermsConditionsPage";
 import RefundPolicyPage from "./pages/RefundPolicyPage";
 import DisclaimerPage from "./pages/DisclaimerPage";
 import AdditionalPoliciesPage from "./pages/AdditionalPoliciesPage";
+import ContactPage from "./pages/ContactPage";
 
 const App = () => {
   // Move queryClient inside the component
@@ -66,6 +67,7 @@ const App = () => {
               <Route path="/refund-policy" element={<RefundPolicyPage />} />
               <Route path="/disclaimer" element={<DisclaimerPage />} />
               <Route path="/additional-policies" element={<AdditionalPoliciesPage />} />
+              <Route path="/contact" element={<ContactPage />} />
               <Route path="/test-video-call" element={<TestVideoCallPage />} />
               
               {/* Super Admin Routes */}
