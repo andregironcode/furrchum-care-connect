@@ -26,62 +26,79 @@ const DisclaimerPage = () => {
         <div className="prose max-w-none">
           <p className="text-gray-600 mb-6">Last Updated: May 27, 2025</p>
           
-          <h2 className="text-xl font-semibold mt-8 mb-4">1. General Information</h2>
-          <p>
-            The information provided on FurrChum Care Connect is for general informational and educational purposes only. It is not intended to be a substitute for professional veterinary advice, diagnosis, or treatment. Always seek the advice of a qualified veterinarian with any questions you may have regarding your pet's health condition.
-          </p>
-
-          <h2 className="text-xl font-semibold mt-8 mb-4">2. Not Emergency Care</h2>
-          <p>
-            FurrChum Care Connect is not designed to address emergency or urgent veterinary care needs. If your pet is experiencing a medical emergency, please contact your local emergency veterinary clinic immediately or call your regular veterinarian. Signs of a potential emergency include but are not limited to:
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">1. Nature of Services</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>Difficulty breathing or choking</li>
-            <li>Severe bleeding or trauma</li>
-            <li>Inability to urinate or defecate</li>
-            <li>Ingestion of toxic substances</li>
-            <li>Seizures or collapse</li>
-            <li>Severe pain or distress</li>
-            <li>Persistent vomiting or diarrhea</li>
+            <li>Furrchum provides a digital platform for pet parents to discover, compare, and book licensed veterinary professionals.</li>
+            <li>We act solely as an intermediary and do not own, manage, employ, or control any veterinarian listed on the platform.</li>
+            <li>We do not offer medical advice, treatment, or prescriptions.</li>
           </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">3. Telehealth Limitations</h2>
-          <p>
-            Telehealth consultations have inherent limitations compared to in-person veterinary examinations. Our platform enables communication between pet owners and licensed veterinarians, but:
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">2. No Medical Guarantee</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>Veterinarians cannot perform physical examinations through telehealth</li>
-            <li>Certain conditions cannot be diagnosed or treated without in-person testing</li>
-            <li>The quality of the consultation may be affected by technical issues or the quality of information provided</li>
+            <li>Furrchum does not guarantee the quality, effectiveness, or success of any consultation or treatment provided by veterinarians.</li>
+            <li>All health decisions should be made between the vet and the pet parent.</li>
+            <li>Furrchum shall not be held responsible for injury, misdiagnosis, or complications arising from services provided by listed professionals.</li>
           </ul>
-          <p>
-            Our veterinarians will advise when an in-person visit is necessary for proper diagnosis and treatment.
-          </p>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">4. No Veterinarian-Client-Patient Relationship</h2>
-          <p>
-            In some jurisdictions, a valid Veterinarian-Client-Patient Relationship (VCPR) may be required for certain veterinary services, including prescribing medications. The establishment of a VCPR may require an in-person examination. FurrChum Care Connect does not guarantee that a VCPR will be established through our telehealth services, and this may limit the services that can be provided in your jurisdiction.
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">3. Third-Party Vet Verification</h2>
+          <ul className="list-disc pl-6 mb-4">
+            <li>All vets are listed based on KYC checks, licenses, or self-declared profiles.</li>
+            <li>Furrchum is not liable for false, outdated, or inaccurate information uploaded by vets.</li>
+          </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">5. Accuracy of Information</h2>
-          <p>
-            While we strive to provide accurate and up-to-date information, we make no representations or warranties of any kind, express or implied, about the completeness, accuracy, reliability, suitability, or availability of the information, products, services, or related graphics contained on our platform for any purpose.
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">4. Content Disclaimer</h2>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Any blogs, health tips, or articles on the site are for informational purposes only and should not be treated as medical guidance.</li>
+          </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">6. Third-Party Content</h2>
-          <p>
-            Our platform may contain links to third-party websites or content. These links are provided for your convenience only. We have no control over the content of those sites or resources and accept no responsibility for them or for any loss or damage that may arise from your use of them.
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">5. Liability Waiver</h2>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Furrchum, its founders, employees, and affiliates shall not be liable for indirect, incidental, or consequential damages arising from the use of the platform.</li>
+          </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">7. Professional Judgment</h2>
-          <p>
-            The veterinarians providing services through FurrChum Care Connect exercise their own professional judgment when providing advice. The opinions expressed by our veterinarians do not represent the views of FurrChum Care Connect as an organization.
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">6. User Conduct Policy</h2>
+          <h3 className="text-lg font-medium mt-6 mb-3">6.1 Acceptable Use</h3>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Users must provide accurate information during registration and while booking appointments.</li>
+            <li>Any use of misleading, false, or fraudulent information is strictly prohibited.</li>
+            <li>Users must interact respectfully with veterinarians and Furrchum support staff.</li>
+          </ul>
+          
+          <h3 className="text-lg font-medium mt-6 mb-3">6.2 Prohibited Conduct</h3>
+          <ul className="list-disc pl-6 mb-4">
+            <li>No impersonation of other users, vets, or team members.</li>
+            <li>No offensive language, harassment, spam, or threats.</li>
+            <li>No posting of irrelevant, promotional, or misleading reviews.</li>
+            <li>Any misuse of appointment slots or referral systems will result in immediate action.</li>
+          </ul>
+          
+          <h3 className="text-lg font-medium mt-6 mb-3">6.3 Enforcement</h3>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Users found violating conduct policies may face temporary suspension, permanent ban, or legal action, depending on the severity.</li>
+            <li>Furrchum reserves the right to monitor and remove content that violates these rules.</li>
+          </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">8. Limitation of Liability</h2>
-          <p>
-            To the maximum extent permitted by applicable law, FurrChum Care Connect and its affiliates, officers, employees, agents, partners, and licensors will not be liable for any direct, indirect, incidental, special, consequential, or punitive damages, including without limitation, loss of profits, data, use, goodwill, or other intangible losses, resulting from your access to or use of or inability to access or use the services.
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">7. Children & Minor Use Policy</h2>
+          <h3 className="text-lg font-medium mt-6 mb-3">7.1 Age Restriction</h3>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Users must be 18 years or older to create an account and book appointments on Furrchum.</li>
+          </ul>
+          
+          <h3 className="text-lg font-medium mt-6 mb-3">7.2 Parental Supervision</h3>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Bookings made on behalf of a minor or by a minor (under 18) must be done under supervision of a parent or legal guardian.</li>
+            <li>The supervising adult assumes full responsibility for the appointment and any resulting treatment decisions.</li>
+          </ul>
+          
+          <h3 className="text-lg font-medium mt-6 mb-3">7.3 Compliance</h3>
+          <ul className="list-disc pl-6 mb-4">
+            <li>If we become aware that a user is under 18 and using the platform independently, we may suspend or delete the account until verification is provided.</li>
+          </ul>
+
+          <h2 className="text-xl font-semibold mt-8 mb-4">8. Legal Jurisdiction</h2>
+          <ul className="list-disc pl-6 mb-4">
+            <li>All legal matters are subject to the jurisdiction of New Delhi.</li>
+          </ul>
 
           <h2 className="text-xl font-semibold mt-8 mb-4">9. Changes to This Disclaimer</h2>
           <p>

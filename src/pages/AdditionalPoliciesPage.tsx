@@ -25,137 +25,99 @@ const AdditionalPoliciesPage = () => {
           <h1 className="text-3xl font-bold mb-6 text-slate-900">Additional Policies</h1>
           
           <div className="prose max-w-none text-slate-700">
-            <p className="font-medium text-lg">Last Updated: May 26, 2025</p>
+            <p className="font-medium text-lg">Last Updated: May 28, 2025</p>
             
             <section className="mt-8">
-              <h2 className="text-xl font-semibold mb-4 text-slate-800">Cookie Policy</h2>
-              <p>
-                FurrChum Care Connect uses cookies and similar technologies to enhance your browsing experience, analyze site traffic, and personalize content. By using our website, you consent to our use of cookies in accordance with this policy.
-              </p>
+              <h2 className="text-xl font-semibold mb-4 text-slate-800">5. User Conduct Policy</h2>
               
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">What Are Cookies</h3>
-              <p>
-                Cookies are small text files that are stored on your device when you visit a website. They are widely used to make websites work more efficiently and provide information to the website owners.
-              </p>
-              
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">How We Use Cookies</h3>
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">5.1 Acceptable Use</h3>
               <ul className="list-disc ml-6 space-y-2">
-                <li>
-                  <strong>Essential Cookies:</strong> These cookies are necessary for the website to function properly and cannot be switched off in our systems.
-                </li>
-                <li>
-                  <strong>Performance Cookies:</strong> These cookies allow us to count visits and traffic sources so we can measure and improve the performance of our site.
-                </li>
-                <li>
-                  <strong>Functional Cookies:</strong> These cookies enable enhanced functionality and personalization, such as remembering your preferences.
-                </li>
-                <li>
-                  <strong>Targeting Cookies:</strong> These cookies may be set through our site by our advertising partners to build a profile of your interests.
-                </li>
+                <li>Users must provide accurate information during registration and while booking appointments.</li>
+                <li>Any use of misleading, false, or fraudulent information is strictly prohibited.</li>
+                <li>Users must interact respectfully with veterinarians and Furrchum support staff.</li>
               </ul>
               
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">Managing Cookies</h3>
-              <p>
-                Most web browsers allow you to control cookies through their settings. You can typically find these settings in the "Options" or "Preferences" menu of your browser. To understand these settings, the following links may be helpful:
-              </p>
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">5.2 Prohibited Conduct</h3>
               <ul className="list-disc ml-6 space-y-2">
-                <li>Cookie settings in Chrome</li>
-                <li>Cookie settings in Firefox</li>
-                <li>Cookie settings in Safari</li>
-                <li>Cookie settings in Edge</li>
+                <li>No impersonation of other users, vets, or team members.</li>
+                <li>No offensive language, harassment, spam, or threats.</li>
+                <li>No posting of irrelevant, promotional, or misleading reviews.</li>
+                <li>Any misuse of appointment slots or referral systems will result in immediate action.</li>
+              </ul>
+              
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">5.3 Enforcement</h3>
+              <ul className="list-disc ml-6 space-y-2">
+                <li>Users found violating conduct policies may face temporary suspension, permanent ban, or legal action, depending on the severity.</li>
+                <li>Furrchum reserves the right to monitor and remove content that violates these rules.</li>
               </ul>
             </section>
 
             <section className="mt-6">
-              <h2 className="text-xl font-semibold mb-4 text-slate-800">Appointment Scheduling Policy</h2>
-              <p>
-                FurrChum Care Connect aims to facilitate convenient and efficient appointments between pet owners and veterinarians. Our appointment scheduling policy is designed to ensure a smooth experience for all parties.
-              </p>
+              <h2 className="text-xl font-semibold mb-4 text-slate-800">6. Children & Minor Use Policy</h2>
               
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">Scheduling Appointments</h3>
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">6.1 Age Restriction</h3>
               <ul className="list-disc ml-6 space-y-2">
-                <li>Appointments can be scheduled up to 30 days in advance.</li>
-                <li>Pet owners should provide accurate information about their pet's condition to help veterinarians prepare for the consultation.</li>
-                <li>Emergency consultations are subject to veterinarian availability and may incur additional fees.</li>
+                <li>Users must be 18 years or older to create an account and book appointments on Furrchum.</li>
               </ul>
               
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">Rescheduling</h3>
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">6.2 Parental Supervision</h3>
               <ul className="list-disc ml-6 space-y-2">
-                <li>Appointments can be rescheduled up to 4 hours before the scheduled time without penalty.</li>
-                <li>Rescheduling is subject to veterinarian availability.</li>
-              </ul>
-            </section>
-
-            <section className="mt-6">
-              <h2 className="text-xl font-semibold mb-4 text-slate-800">Veterinarian Verification Policy</h2>
-              <p>
-                To ensure the quality and safety of services provided through our platform, all veterinarians on FurrChum Care Connect undergo a thorough verification process.
-              </p>
-              
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">Verification Requirements</h3>
-              <ul className="list-disc ml-6 space-y-2">
-                <li>Valid veterinary license issued by the appropriate regulatory body</li>
-                <li>Proof of professional liability insurance</li>
-                <li>Verification of professional credentials and education</li>
-                <li>Background check</li>
-                <li>Professional references</li>
+                <li>Bookings made on behalf of a minor or by a minor (under 18) must be done under supervision of a parent or legal guardian.</li>
+                <li>The supervising adult assumes full responsibility for the appointment and any resulting treatment decisions.</li>
               </ul>
               
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">Ongoing Verification</h3>
-              <p>
-                Veterinarians on our platform must maintain their credentials and provide updated information as required. We conduct periodic reviews to ensure compliance with our standards.
-              </p>
-            </section>
-
-            <section className="mt-6">
-              <h2 className="text-xl font-semibold mb-4 text-slate-800">Pet Owner Conduct Policy</h2>
-              <p>
-                To maintain a respectful and productive environment, we expect pet owners using our platform to adhere to certain standards of conduct.
-              </p>
-              
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">Expected Conduct</h3>
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">6.3 Compliance</h3>
               <ul className="list-disc ml-6 space-y-2">
-                <li>Provide accurate and complete information about your pet's health condition.</li>
-                <li>Treat veterinarians and staff with respect and courtesy.</li>
-                <li>Attend scheduled appointments on time or provide timely notice of cancellation.</li>
-                <li>Follow payment policies and fulfill financial obligations promptly.</li>
-                <li>Adhere to the platform's terms of service and other policies.</li>
-              </ul>
-              
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">Prohibited Conduct</h3>
-              <ul className="list-disc ml-6 space-y-2">
-                <li>Harassment, abuse, or disrespectful treatment of veterinarians or staff.</li>
-                <li>Provision of false or misleading information.</li>
-                <li>Attempt to use the platform for purposes other than pet healthcare.</li>
-                <li>Sharing of account credentials or allowing unauthorized access to your account.</li>
+                <li>If we become aware that a user is under 18 and using the platform independently, we may suspend or delete the account until verification is provided.</li>
               </ul>
             </section>
 
             <section className="mt-6">
-              <h2 className="text-xl font-semibold mb-4 text-slate-800">Data Retention Policy</h2>
-              <p>
-                FurrChum Care Connect retains pet health records and consultation data to provide ongoing care and maintain regulatory compliance.
-              </p>
+              <h2 className="text-xl font-semibold mb-4 text-slate-800">7. Platform Downtime & Service Modification Policy</h2>
               
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">Retention Periods</h3>
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">7.1 Scheduled Maintenance</h3>
               <ul className="list-disc ml-6 space-y-2">
-                <li><strong>Pet Health Records:</strong> Retained for 7 years from the last consultation.</li>
-                <li><strong>Account Information:</strong> Retained as long as the account is active and for a period of 2 years after account closure.</li>
-                <li><strong>Payment Information:</strong> Retained for 7 years to comply with financial regulations.</li>
-                <li><strong>Communication Records:</strong> Retained for 3 years from the date of communication.</li>
+                <li>Furrchum may conduct scheduled maintenance, during which parts of the platform may be temporarily unavailable.</li>
+                <li>Such updates will be communicated in advance wherever possible.</li>
               </ul>
               
-              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">Data Access and Deletion</h3>
-              <p>
-                Pet owners can request access to their data or deletion of their account by contacting our support team. Please note that certain data may be retained as required by law even after account deletion.
-              </p>
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">7.2 Emergency Downtime</h3>
+              <ul className="list-disc ml-6 space-y-2">
+                <li>The platform may experience emergency or unscheduled downtime due to technical issues.</li>
+                <li>In such cases, Furrchum is not liable for missed appointments or delays caused by internet outages, server failure, or force majeure.</li>
+              </ul>
+              
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">7.3 Service Changes</h3>
+              <ul className="list-disc ml-6 space-y-2">
+                <li>We reserve the right to modify features, interface, or tools to improve performance or user experience.</li>
+              </ul>
             </section>
 
             <section className="mt-6">
-              <h2 className="text-xl font-semibold mb-4 text-slate-800">Modifications to These Policies</h2>
-              <p>
-                FurrChum Care Connect reserves the right to modify these Additional Policies at any time. Changes will be effective immediately upon posting to our website. It is your responsibility to review these policies periodically for changes.
-              </p>
+              <h2 className="text-xl font-semibold mb-4 text-slate-800">8. Anti-Fraud & Security Disclosure Policy</h2>
+              
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">8.1 Reporting Fraud</h3>
+              <ul className="list-disc ml-6 space-y-2">
+                <li>Users and vets are encouraged to report suspicious activity to info@furrchum.com with relevant details.</li>
+              </ul>
+              
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">8.2 Zero Tolerance</h3>
+              <ul className="list-disc ml-6 space-y-2">
+                <li>Referral abuse, fake bookings, or fee manipulation will result in instant suspension of the user or vet account.</li>
+                <li>Furrchum reserves the right to investigate and withhold payouts during fraud review.</li>
+              </ul>
+              
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">8.3 Investigation & Resolution</h3>
+              <ul className="list-disc ml-6 space-y-2">
+                <li>Fraud reports are acknowledged within 24 hours and investigated within 5–7 business days.</li>
+                <li>Final resolution may involve refund, delisting, or permanent account removal.</li>
+              </ul>
+              
+              <h3 className="text-lg font-medium mt-4 mb-2 text-slate-800">8.4 Security Commitments</h3>
+              <ul className="list-disc ml-6 space-y-2">
+                <li>We follow secure encryption, token-based authentication, and data minimization to prevent data breaches.</li>
+                <li>All sensitive activity is monitored to detect threats in real-time.</li>
+              </ul>
             </section>
 
             <section className="mt-6">

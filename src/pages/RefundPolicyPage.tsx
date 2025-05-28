@@ -21,105 +21,58 @@ const RefundPolicyPage = () => {
           Back
         </Button>
 
-        <h1 className="text-3xl font-bold mb-6">Refund Policy</h1>
+        <h1 className="text-3xl font-bold mb-6">Refund & Cancellation Policy</h1>
         
         <div className="prose max-w-none">
-          <p className="text-gray-600 mb-6">Last Updated: May 27, 2025</p>
+          <p className="text-gray-600 mb-6">Last Updated: May 28, 2025</p>
           
-          <h2 className="text-xl font-semibold mt-8 mb-4">1. Introduction</h2>
-          <p>
-            This Refund Policy outlines the terms and conditions for refunds on services provided by FurrChum Care Connect. We strive to ensure your satisfaction with our telehealth veterinary services, and this policy is designed to be fair and transparent.
-          </p>
-
-          <h2 className="text-xl font-semibold mt-8 mb-4">2. Consultation Refunds</h2>
-          
-          <h3 className="text-lg font-medium mt-6 mb-3">2.1 Cancellation Before Consultation</h3>
-          <p>
-            If you cancel a scheduled consultation at least 24 hours before the appointment time, you will receive a full refund of the consultation fee.
-          </p>
-          <p>
-            Cancellations made less than 24 hours before the scheduled appointment time may be eligible for a partial refund of 50% of the consultation fee, subject to review.
-          </p>
-          
-          <h3 className="text-lg font-medium mt-6 mb-3">2.2 Technical Issues</h3>
-          <p>
-            If a consultation cannot be completed due to technical issues on our platform, you will be offered either:
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">3.1 For Pet Parents</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>A full refund of the consultation fee, or</li>
-            <li>Rescheduling of the consultation at no additional cost</li>
+            <li>Full refund if the appointment is canceled 12+ hours in advance.</li>
+            <li>50% refund for cancellations between 4–12 hours before the appointment.</li>
+            <li>No refund for cancellations made within 4 hours of the scheduled time.</li>
+            <li>No refunds if the user fails to attend the appointment (no-show) unless evidence of technical failure is provided.</li>
           </ul>
-          <p>
-            Technical issues must be reported to our customer support team within 2 hours of the scheduled consultation time to be eligible for a refund.
-          </p>
-          
-          <h3 className="text-lg font-medium mt-6 mb-3">2.3 Veterinarian No-Show</h3>
-          <p>
-            If a veterinarian fails to attend a scheduled consultation without prior notice, you will receive a full refund of the consultation fee and may be offered a discount on your next booking as compensation for the inconvenience.
-          </p>
-          
-          <h3 className="text-lg font-medium mt-6 mb-3">2.4 Unsatisfactory Service</h3>
-          <p>
-            If you are dissatisfied with the quality of a consultation, you may request a refund by contacting our customer support team within 48 hours of the completed consultation. Each request will be evaluated on a case-by-case basis.
-          </p>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">3. Subscription Refunds</h2>
-          
-          <h3 className="text-lg font-medium mt-6 mb-3">3.1 Cancellation of Subscription</h3>
-          <p>
-            If you cancel a subscription plan, refunds will be processed as follows:
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">3.2 For Veterinarians</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>Cancellation within 7 days of purchase: Full refund if no services have been used</li>
-            <li>Cancellation after 7 days: Prorated refund based on the unused portion of the subscription period</li>
+            <li>If a veterinarian cancels any confirmed appointment, the pet parent will receive a 100% refund.</li>
+            <li>Repeated cancellations or no-shows by the veterinarian may result in temporary suspension or permanent delisting.</li>
+            <li>Veterinarians must notify the platform of emergency cancellations at least 2 hours in advance, where possible.</li>
           </ul>
           
-          <h3 className="text-lg font-medium mt-6 mb-3">3.2 Automatic Renewals</h3>
-          <p>
-            For subscription plans with automatic renewal, you may request a refund within 7 days of an automatic renewal if you did not intend to continue the subscription. After 7 days, refunds for automatic renewals will be subject to the standard cancellation policy.
-          </p>
-
-          <h2 className="text-xl font-semibold mt-8 mb-4">4. Refund Process</h2>
-          <p>
-            To request a refund, please contact our customer support team through one of the following methods:
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">3.3 Platform-Initiated Cancellations</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>Email: support@furrchum.com</li>
-            <li>Phone: +1 (123) 456-7890</li>
-            <li>In-app chat support</li>
-          </ul>
-          <p>
-            Please include the following information in your refund request:
-          </p>
-          <ul className="list-disc pl-6 mb-4">
-            <li>Your full name and email address associated with your account</li>
-            <li>Date and time of the consultation or subscription purchase</li>
-            <li>Reason for requesting a refund</li>
-            <li>Any relevant details or documentation supporting your request</li>
+            <li>In the event of technical glitches, payment errors, or profile misrepresentations, Furrchum reserves the right to cancel appointments with full refund to the user.</li>
           </ul>
           
-          <h3 className="text-lg font-medium mt-6 mb-3">4.1 Processing Time</h3>
-          <p>
-            Refund requests are typically processed within 3-5 business days. Once approved, the refund will be issued to the original payment method used for the purchase. Depending on your payment provider, it may take an additional 5-10 business days for the refunded amount to appear in your account.
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">3.4 Processing Time</h2>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Refunds will be initiated within 5–7 business days via the original method of payment.</li>
+            <li>Refunds may reflect in the user's account depending on bank processing time (may take up to 10 days total).</li>
+            <li>Any delays should be reported to info@furrchum.com.</li>
+          </ul>
+          
+          <h2 className="text-xl font-semibold mt-8 mb-4">3.5 Exceptions</h2>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Sudden unavailability due to medical or personal emergencies of the vet may be considered with supporting proof.</li>
+            <li>Natural disasters, power outages, or uncontrollable external events will be treated as force majeure.</li>
+            <li>In such cases, full refunds will be issued regardless of user or vet involvement.</li>
+          </ul>
+          
+          <h2 className="text-xl font-semibold mt-8 mb-4">3.6 Escalations</h2>
+          <ul className="list-disc pl-6 mb-4">
+            <li>Refund disputes must be raised within 3 working days from the scheduled appointment.</li>
+            <li>Furrchum's support team will investigate and make a final decision within 7 working days.</li>
+          </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">5. Exceptions</h2>
+          <h2 className="text-xl font-semibold mt-8 mb-4">Contact Us</h2>
           <p>
-            FurrChum Care Connect reserves the right to deny refund requests that do not comply with this policy or in cases of suspected fraudulent activity. We may also make exceptions to this policy at our discretion in extenuating circumstances.
-          </p>
-
-          <h2 className="text-xl font-semibold mt-8 mb-4">6. Changes to This Refund Policy</h2>
-          <p>
-            We may update this Refund Policy from time to time to reflect changes in our practices or for other operational, legal, or regulatory reasons. We will notify you of any material changes by posting the updated Refund Policy on this page with a new effective date.
-          </p>
-
-          <h2 className="text-xl font-semibold mt-8 mb-4">7. Contact Us</h2>
-          <p>
-            If you have any questions or concerns about this Refund Policy, please contact us at:
+            If you have any questions or concerns about this Refund & Cancellation Policy, please contact us at:
           </p>
           <p className="mb-8">
-            Email: billing@furrchum.com<br />
-            Address: 1234 Pet Avenue, San Francisco, CA 94107
+            Email: info@furrchum.com<br />
+            Address: New Delhi, India
           </p>
         </div>
       </main>

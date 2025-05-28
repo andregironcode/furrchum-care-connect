@@ -21,95 +21,72 @@ const PrivacyPolicyPage = () => {
           Back
         </Button>
 
-        <h1 className="text-3xl font-bold mb-6">Privacy Policy</h1>
+        <h1 className="text-3xl font-bold mb-6">Privacy Policy (India Compliant)</h1>
         
         <div className="prose max-w-none">
-          <p className="text-gray-600 mb-6">Last Updated: May 27, 2025</p>
+          <p className="text-gray-600 mb-6">Effective Date: 29/05/2025</p>
           
-          <h2 className="text-xl font-semibold mt-8 mb-4">1. Introduction</h2>
+          <h2 className="text-xl font-semibold mt-8 mb-4">Introduction</h2>
           <p>
-            FurrChum Care Connect ("we," "our," or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you visit our website and use our telehealth services for veterinary care.
-          </p>
-          <p>
-            Please read this Privacy Policy carefully. By accessing or using our services, you acknowledge that you have read, understood, and agree to be bound by all the terms outlined in this Privacy Policy.
+            Furrchum ("we", "our", "us") is committed to protecting the privacy of our users — both pet parents and veterinarians — who use our platform to book and manage veterinary services. This Privacy Policy outlines how we collect, use, share, and protect your personal information in compliance with the IT Act, 2000 and relevant data protection rules.
           </p>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">2. Information We Collect</h2>
-          <p>We may collect the following types of information:</p>
-          <h3 className="text-lg font-medium mt-6 mb-3">2.1 Personal Information</h3>
+          <h2 className="text-xl font-semibold mt-8 mb-4">1.1 Information We Collect</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>Contact information (name, email address, phone number)</li>
-            <li>Account credentials (username, password)</li>
-            <li>Billing and payment information</li>
-            <li>Pet information (name, breed, age, medical history)</li>
-            <li>Veterinarian information (for vet users)</li>
-            <li>Profile pictures and other content you choose to upload</li>
+            <li>Personal data: Full name, email ID, mobile number, location</li>
+            <li>Pet details: Name, species, breed, age, sex, medical history</li>
+            <li>Account data: Username, encrypted password, profile photo</li>
+            <li>Booking & payment details: Appointment history, consultation fees, transaction ID, UPI or card info (via third-party gateway)</li>
+            <li>Technical data: IP address, device type, browser type, access time, cookies</li>
           </ul>
 
-          <h3 className="text-lg font-medium mt-6 mb-3">2.2 Usage Information</h3>
+          <h2 className="text-xl font-semibold mt-8 mb-4">1.2 Purpose of Data Usage</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>Device information (IP address, browser type, operating system)</li>
-            <li>Log data (pages visited, time spent on pages, referring URLs)</li>
-            <li>Location data (if permitted by your device settings)</li>
-            <li>Telehealth session information</li>
+            <li>To register and manage your user or vet profile</li>
+            <li>To facilitate appointment scheduling and confirmations</li>
+            <li>To send notifications, reminders, and important updates</li>
+            <li>To process payments and generate invoices</li>
+            <li>To personalize platform experience based on usage</li>
+            <li>For legal compliance, audit, fraud detection, and dispute resolution</li>
           </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">3. How We Use Your Information</h2>
-          <p>We may use the information we collect for various purposes, including:</p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">1.3 Data Sharing and Disclosure</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>Providing and maintaining our services</li>
-            <li>Processing payments and transactions</li>
-            <li>Connecting pet owners with veterinarians</li>
-            <li>Sending service-related communications</li>
-            <li>Improving and personalizing our services</li>
-            <li>Analyzing usage patterns and trends</li>
-            <li>Protecting against fraudulent or unauthorized activity</li>
-            <li>Complying with legal obligations</li>
+            <li>Shared with veterinarians only when booking is made</li>
+            <li>Shared with payment providers (Razorpay, PayU, etc.) for processing</li>
+            <li>Never sold or rented to third parties for marketing</li>
+            <li>Shared with government authorities only upon legal request</li>
           </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">4. Sharing Your Information</h2>
-          <p>We may share your information with:</p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">1.4 User Rights and Control</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>Veterinarians and healthcare providers as part of our telehealth services</li>
-            <li>Service providers who help us operate our platform</li>
-            <li>Payment processors to complete transactions</li>
-            <li>Legal authorities when required by law</li>
-            <li>Business partners with your consent</li>
+            <li>Right to access or update your data via your profile</li>
+            <li>Right to delete your data by emailing: info@furrchum.com</li>
+            <li>Right to withdraw consent anytime (may impact platform usage)</li>
           </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">5. Data Security</h2>
-          <p>
-            We implement appropriate technical and organizational measures to protect your personal information against unauthorized access, alteration, disclosure, or destruction. However, no method of transmission over the Internet or electronic storage is 100% secure, and we cannot guarantee absolute security.
-          </p>
-
-          <h2 className="text-xl font-semibold mt-8 mb-4">6. Your Rights</h2>
-          <p>Depending on your location, you may have the right to:</p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">1.5 Data Protection Measures</h2>
           <ul className="list-disc pl-6 mb-4">
-            <li>Access the personal information we hold about you</li>
-            <li>Correct inaccurate or incomplete information</li>
-            <li>Request deletion of your personal information</li>
-            <li>Restrict or object to certain processing activities</li>
-            <li>Request the transfer of your information to another service</li>
-            <li>Withdraw consent where processing is based on consent</li>
+            <li>SSL encryption on all personal and transaction data</li>
+            <li>Access control with role-based permissions</li>
+            <li>Secure cloud storage with daily backup and firewalls</li>
+            <li>Internal audits and data handling protocols followed by the team</li>
           </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">7. Children's Privacy</h2>
-          <p>
-            Our services are not intended for individuals under the age of 18. We do not knowingly collect personal information from children. If you believe we have collected information from a child, please contact us immediately.
-          </p>
+          <h2 className="text-xl font-semibold mt-8 mb-4">1.6 Cookies and Tracking</h2>
+          <ul className="list-disc pl-6 mb-4">
+            <li>We use cookies for website functionality, analytics, and personalization</li>
+            <li>You can disable or delete cookies from browser settings</li>
+          </ul>
 
-          <h2 className="text-xl font-semibold mt-8 mb-4">8. Changes to This Privacy Policy</h2>
+          <h2 className="text-xl font-semibold mt-8 mb-4">1.7 Grievance Redressal</h2>
           <p>
-            We may update this Privacy Policy from time to time to reflect changes in our practices or for other operational, legal, or regulatory reasons. We will notify you of any material changes by posting the updated Privacy Policy on this page with a new effective date.
+            If you believe your data has been misused or you have concerns, email us at info@furrchum.com. Our grievance officer will respond within 7 working days.
           </p>
-
-          <h2 className="text-xl font-semibold mt-8 mb-4">9. Contact Us</h2>
-          <p>
-            If you have any questions or concerns about this Privacy Policy or our data practices, please contact us at:
-          </p>
-          <p className="mb-8">
-            Email: privacy@furrchum.com<br />
-            Address: 1234 Pet Avenue, San Francisco, CA 94107
+          
+          <p className="mb-8 mt-8">
+            Email: info@furrchum.com<br />
+            Address: New Delhi, India
           </p>
         </div>
       </main>

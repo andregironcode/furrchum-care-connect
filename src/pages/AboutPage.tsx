@@ -23,7 +23,7 @@ const AboutPage = () => {
       description: "From bookings to health records, everything in one intuitive flow."
     },
     {
-      icon: Users,
+      icon: Eye,
       title: "Innovation",
       description: "Technology that solves real-world problems, not just adds features."
     },
@@ -33,7 +33,7 @@ const AboutPage = () => {
       description: "A growing network of pet lovers, professionals, and changemakers."
     },
     {
-      icon: Award,
+      icon: CheckCircle,
       title: "Ownership",
       description: "Every pet. Every consult. Every life touched — we take it personally."
     }
@@ -48,13 +48,13 @@ const AboutPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center">
             <h1 className="text-5xl font-bold text-accent-600 mb-6">
-              Furrchum is your pet's digital best friend.
+              Furrchum – Built for Pets. Engineered for Impact.
             </h1>
             <p className="text-xl text-accent-600/80 max-w-3xl mx-auto leading-relaxed mb-8">
-              And your family's new peace of mind. Join the movement. Care better. Live happier.
+              Your pet's digital best friend. And your family's new peace of mind.
             </p>
             <Button className="bg-primary hover:bg-primary/90 text-white font-medium px-8 py-3 text-lg">
-              Book Now
+              Join the movement
             </Button>
           </div>
         </div>
@@ -65,8 +65,13 @@ const AboutPage = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div>
-              <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Story</h2>
-              <h3 className="text-2xl font-semibold text-accent-600 mb-6">That moment sparked a mission</h3>
+              <h2 className="text-4xl font-bold text-accent-600 mb-6">🐾 Our Story</h2>
+              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
+                One evening, we saw a grandmother struggle to find a vet for her dog. Her family was at work, clinics were closed, and she had no way to get help.
+              </p>
+              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
+                That moment sparked a mission.
+              </p>
               <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
                 Furrchum was born to bridge the gap between pet parents and professional care — instantly, intelligently, and with love.
               </p>
@@ -95,10 +100,20 @@ const AboutPage = () => {
       <section className="py-20 bg-gradient-to-br from-cream-50 to-tan-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Mission</h2>
-            <h3 className="text-2xl font-semibold text-accent-600 mb-6">World-Class Preventive, Prescriptive & Curative Medical Practices</h3>
+            <h2 className="text-4xl font-bold text-accent-600 mb-6 text-center">🎯 Our Mission</h2>
+            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto mb-6">
+              To make veterinary care accessible, intuitive, and real-time for every pet and every family — across every corner of India.
+            </p>
+            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto mb-6">
+              Our platform empowers:
+            </p>
+            <ul className="text-xl text-accent-600/80 max-w-3xl mx-auto mb-6 list-disc pl-8">
+              <li>Pet parents to get trusted advice anytime, from anywhere</li>
+              <li>Vets to grow their reach and revenue with digital-first tools</li>
+              <li>Clinics and partners to offer modern, data-driven pet care experiences</li>
+            </ul>
             <p className="text-xl text-accent-600/80 max-w-3xl mx-auto">
-              At FurrChum, we believe every pet deserves compassionate care and every pet parent deserves peace of mind. Our mission is to make veterinary care more accessible, convenient, and stress-free—one appointment at a time.
+              We're not just digitizing bookings — we're reshaping how pet care is delivered in India and beyond.
             </p>
           </div>
         </div>
@@ -110,7 +125,7 @@ const AboutPage = () => {
           <div className="text-center mb-16">
             <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Values</h2>
             <p className="text-xl text-accent-600/80 max-w-3xl mx-auto">
-              We provide the world class services with the best Veterinary team!
+              💛 The principles that guide everything we do:
             </p>
           </div>
           
@@ -140,14 +155,15 @@ const AboutPage = () => {
               />
             </div>
             <div className="order-1 lg:order-2">
-              <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Vision</h2>
+              <h2 className="text-4xl font-bold text-accent-600 mb-6">🚀 Our Vision</h2>
               <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                To build India's most trusted digital pet care ecosystem — At FurrChum, we believe every pet deserves compassionate care and every pet parent deserves peace of mind. Our mission is to make veterinary care more accessible, convenient, and stress-free—one appointment at a time.
+                To build India's most trusted digital pet-care ecosystem — from cities to small towns, from first-time pet parents to multi-clinic vets.
               </p>
               <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                From cities to small towns, from first-time pet parents to multi-clinic vets. No pet suffers because help was too far or too late.
+                We envision a future where:
               </p>
               <ul className="text-lg text-accent-600/80 mb-6 leading-relaxed space-y-2">
+                <li>• No pet suffers because help was too far or too late</li>
                 <li>• A family in Lucknow can consult a vet in Delhi with a tap</li>
                 <li>• A vet in a Tier 2 town earns 10x visibility and income through us</li>
                 <li>• Every pet lives a longer, healthier, happier life — no matter where they live</li>
@@ -155,9 +171,16 @@ const AboutPage = () => {
               <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
                 Furrchum is not just a platform. It's a shift.
               </p>
-              <blockquote className="text-lg text-accent-600/80 italic border-l-4 border-primary pl-4">
+              <blockquote className="text-lg text-accent-600/80 italic border-l-4 border-primary pl-4 mb-6">
                 "We are transforming a fragmented, outdated vet care system into a single, accessible, intelligent network — where every paw, every meow, and every wag matters."
               </blockquote>
+              <h3 className="text-2xl font-semibold text-accent-600 mb-4">🧠 Built for Scale</h3>
+              <ul className="text-lg text-accent-600/80 mb-6 leading-relaxed space-y-2">
+                <li>• 1,000+ vets in the pipeline</li>
+                <li>• 1M+ pet parents to onboard</li>
+                <li>• Expansion into training, boarding, and wellness</li>
+                <li>• One app. One mission. One pet revolution.</li>
+              </ul>
             </div>
           </div>
         </div>
