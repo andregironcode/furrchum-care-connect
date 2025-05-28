@@ -1,192 +1,434 @@
-
+import React, { useEffect, useRef, useState } from 'react';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Card, CardContent } from '@/components/ui/card';
-import { Heart, Shield, Clock, Users, Award, CheckCircle, Eye, Target } from 'lucide-react';
+import { Heart, Shield, Clock, Users, Award, CheckCircle, Eye, Target, ArrowRight, Star, Zap, Globe, TrendingUp } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
 const AboutPage = () => {
+  const [scrollY, setScrollY] = useState(0);
+  const heroRef = useRef<HTMLDivElement>(null);
+  const storyRef = useRef<HTMLDivElement>(null);
+  const valuesRef = useRef<HTMLDivElement>(null);
+  const visionRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleScroll = () => setScrollY(window.scrollY);
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
   const values = [
     {
       icon: Heart,
       title: "Compassion",
-      description: "Pets are family. We build with heart, for every heartbeat."
+      description: "Pets are family. We build with heart, for every heartbeat.",
+      color: "from-red-400 to-pink-500",
+      bgColor: "bg-red-50"
     },
     {
       icon: Shield,
       title: "Trust",
-      description: "Only certified, vetted professionals. Zero compromise."
+      description: "Only certified, vetted professionals. Zero compromise.",
+      color: "from-blue-400 to-indigo-500",
+      bgColor: "bg-blue-50"
     },
     {
       icon: Clock,
       title: "Convenience",
-      description: "From bookings to health records, everything in one intuitive flow."
+      description: "From bookings to health records, everything in one intuitive flow.",
+      color: "from-green-400 to-emerald-500",
+      bgColor: "bg-green-50"
     },
     {
       icon: Eye,
       title: "Innovation",
-      description: "Technology that solves real-world problems, not just adds features."
+      description: "Technology that solves real-world problems, not just adds features.",
+      color: "from-purple-400 to-violet-500",
+      bgColor: "bg-purple-50"
     },
     {
       icon: Users,
       title: "Community",
-      description: "A growing network of pet lovers, professionals, and changemakers."
+      description: "A growing network of pet lovers, professionals, and changemakers.",
+      color: "from-orange-400 to-amber-500",
+      bgColor: "bg-orange-50"
     },
     {
       icon: CheckCircle,
       title: "Ownership",
-      description: "Every pet. Every consult. Every life touched — we take it personally."
+      description: "Every pet. Every consult. Every life touched — we take it personally.",
+      color: "from-teal-400 to-cyan-500",
+      bgColor: "bg-teal-50"
     }
   ];
 
+  const stats = [
+    { icon: Users, number: "10,000+", label: "Happy Pet Parents", color: "text-blue-600" },
+    { icon: Shield, number: "500+", label: "Verified Vets", color: "text-green-600" },
+    { icon: Star, number: "4.9/5", label: "Average Rating", color: "text-yellow-600" },
+    { icon: Globe, number: "50+", label: "Cities Covered", color: "text-purple-600" }
+  ];
+
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background overflow-hidden">
       <Navbar />
       
-      {/* Hero Section */}
-      <section className="relative py-20 bg-gradient-to-br from-primary-50 to-accent-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center">
-            <h1 className="text-5xl font-bold text-accent-600 mb-6">
-              Furrchum – Built for Pets. Engineered for Impact.
+      {/* Enhanced Hero Section - Reduced Height & More Subtle Colors */}
+      <section 
+        ref={heroRef}
+        className="relative h-[80vh] flex items-center justify-center bg-gradient-to-br from-slate-800 via-blue-900 to-indigo-900 overflow-hidden"
+        style={{
+          transform: `translateY(${scrollY * 0.3}px)`,
+        }}
+      >
+        {/* Subtle Animated Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-20 left-10 w-64 h-64 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse"></div>
+          <div className="absolute top-40 right-10 w-64 h-64 bg-gradient-to-r from-indigo-500/20 to-blue-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse delay-1000"></div>
+          <div className="absolute bottom-20 left-1/2 w-64 h-64 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse delay-2000"></div>
+        </div>
+
+        {/* Floating Particles */}
+        <div className="absolute inset-0">
+          {[...Array(15)].map((_, i) => (
+            <div
+              key={i}
+              className="absolute w-1 h-1 bg-white rounded-full opacity-30"
+              style={{
+                left: `${Math.random() * 100}%`,
+                top: `${Math.random() * 100}%`,
+                animationName: 'float',
+                animationDuration: `${3 + Math.random() * 4}s`,
+                animationIterationCount: 'infinite',
+                animationTimingFunction: 'ease-in-out',
+                animationDelay: `${Math.random() * 2}s`
+              }}
+            ></div>
+          ))}
+        </div>
+
+        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+          <div 
+            className="transform transition-all duration-1000 ease-out"
+            style={{
+              transform: `translateY(${Math.max(0, scrollY * 0.2 - 50)}px)`,
+              opacity: Math.max(0, 1 - scrollY * 0.002)
+            }}
+          >
+            <h1 className="text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
+              <span className="block bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent">
+                Furrchum
+              </span>
+              <span className="block text-3xl md:text-4xl mt-2 text-white/90">
+                Where Love Meets Care
+              </span>
             </h1>
-            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto leading-relaxed mb-8">
-              Your pet's digital best friend. And your family's new peace of mind.
+            <p className="text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed mb-10 font-light">
+              Revolutionizing pet healthcare with 
+              <span className="text-blue-300 font-medium"> cutting-edge technology</span> and 
+              <span className="text-indigo-300 font-medium"> boundless compassion</span>
             </p>
-            <Button className="bg-primary hover:bg-primary/90 text-white font-medium px-8 py-3 text-lg">
-              Join the movement
-            </Button>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+              <Button className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold px-10 py-3 text-lg rounded-full transform hover:scale-105 transition-all duration-300 shadow-xl">
+                Begin the Journey
+                <ArrowRight className="ml-2 h-5 w-5" />
+              </Button>
+              <Button className="bg-white/10 border border-white/30 text-white hover:bg-white/20 font-medium px-8 py-3 text-lg rounded-full backdrop-blur-sm transition-all duration-300">
+                Watch Our Story
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* Scroll Indicator */}
+        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2">
+          <div className="w-6 h-10 border-2 border-white/40 rounded-full flex justify-center">
+            <div className="w-1 h-3 bg-white/60 rounded-full mt-2 animate-bounce"></div>
           </div>
         </div>
       </section>
 
-      {/* Story Section */}
-      <section className="py-20">
+      {/* Stats Section */}
+      <section className="py-16 bg-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {stats.map((stat, index) => (
+              <div 
+                key={index}
+                className="text-center transform hover:scale-105 transition-all duration-300"
+                style={{
+                  animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
+                }}
+              >
+                <stat.icon className={`w-10 h-10 mx-auto mb-3 ${stat.color}`} />
+                <div className="text-3xl font-bold text-gray-900 mb-1">{stat.number}</div>
+                <div className="text-gray-600 font-medium text-sm">{stat.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Story Section with Parallax */}
+      <section 
+        ref={storyRef}
+        className="py-24 bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 relative overflow-hidden"
+      >
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-blue-500/5 to-indigo-500/5 transform rotate-12 scale-150"></div>
+        </div>
+        
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-            <div>
-              <h2 className="text-4xl font-bold text-accent-600 mb-6">🐾 Our Story</h2>
-              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                One evening, we saw a grandmother struggle to find a vet for her dog. Her family was at work, clinics were closed, and she had no way to get help.
-              </p>
-              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                That moment sparked a mission.
-              </p>
-              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                Furrchum was born to bridge the gap between pet parents and professional care — instantly, intelligently, and with love.
-              </p>
-              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                In today's fast-paced world, appointments get delayed, clinics stay out of reach, and the people who spend the most time with pets — parents, homemakers, caregivers — often feel powerless in emergencies.
-              </p>
-              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                We're fixing that.
-              </p>
-              <p className="text-lg text-accent-600/80 leading-relaxed">
-                Furrchum puts licensed, nearby vets in your pocket — through seamless video consultations, smart scheduling, and digital records — so care never has to wait.
-              </p>
+            <div 
+              className="transform transition-all duration-700"
+              style={{
+                transform: `translateX(${Math.max(-50, scrollY * 0.05 - 100)}px)`,
+                opacity: Math.max(0, Math.min(1, (scrollY - 300) / 300))
+              }}
+            >
+              <div className="inline-block px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-full text-sm font-medium mb-6">
+                🐾 Our Beginning
+              </div>
+              <h2 className="text-4xl font-bold text-gray-900 mb-6 leading-tight">
+                Born from a 
+                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"> moment of need</span>
+              </h2>
+              <div className="space-y-4">
+                <p className="text-lg text-gray-700 leading-relaxed">
+                  One evening, we witnessed a grandmother's desperate search for veterinary help for her beloved companion. 
+                  <span className="font-semibold text-blue-600"> That moment changed everything.</span>
+                </p>
+                <p className="text-lg text-gray-700 leading-relaxed">
+                  We realized that in our digital age, pet healthcare remained frustratingly analog. 
+                  <span className="font-semibold text-indigo-600"> Distance, time, and accessibility</span> were barriers between love and care.
+                </p>
+                <p className="text-lg text-gray-700 leading-relaxed">
+                  Furrchum was born to eliminate these barriers forever — creating an ecosystem where 
+                  <span className="font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"> 
+                    professional veterinary care is just a touch away.
+                  </span>
+                </p>
+              </div>
             </div>
-            <div className="relative">
-              <img 
-                src="/lovable-uploads/42e2d7bd-3440-457d-8a1e-fcd08a2d4014.png" 
-                alt="Veterinarian examining a husky with pet owner" 
-                className="rounded-2xl shadow-2xl w-full h-96 object-cover"
-              />
+            <div 
+              className="relative transform transition-all duration-700"
+              style={{
+                transform: `translateX(${Math.min(50, -(scrollY * 0.05 - 100))}px)`,
+                opacity: Math.max(0, Math.min(1, (scrollY - 300) / 300))
+              }}
+            >
+              <div className="relative">
+                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 to-indigo-600/20 rounded-2xl blur-lg"></div>
+                <img 
+                  src="/lovable-uploads/42e2d7bd-3440-457d-8a1e-fcd08a2d4014.png" 
+                  alt="Veterinarian caring for pet" 
+                  className="relative rounded-2xl shadow-xl w-full h-80 object-cover transform hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent rounded-2xl"></div>
+              </div>
             </div>
           </div>
         </div>
       </section>
 
       {/* Mission Section */}
-      <section className="py-20 bg-gradient-to-br from-cream-50 to-tan-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-24 bg-gradient-to-br from-slate-800 via-gray-900 to-slate-900 text-white relative overflow-hidden">
+        <div className="absolute inset-0">
+          <div className="absolute top-20 right-20 w-80 h-80 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 rounded-full filter blur-3xl"></div>
+          <div className="absolute bottom-20 left-20 w-80 h-80 bg-gradient-to-r from-indigo-600/10 to-purple-600/10 rounded-full filter blur-3xl"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-accent-600 mb-6 text-center">🎯 Our Mission</h2>
-            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto mb-6">
-              To make veterinary care accessible, intuitive, and real-time for every pet and every family — across every corner of India.
+            <div className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-full text-lg font-bold mb-6">
+              🎯 Our Mission
+            </div>
+            <h2 className="text-5xl font-bold mb-6 leading-tight">
+              Transforming 
+              <span className="bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent"> Pet Healthcare</span>
+            </h2>
+            <p className="text-xl text-white/80 max-w-4xl mx-auto leading-relaxed">
+              Making veterinary care accessible, intelligent, and instantaneous for every pet family across India and beyond.
             </p>
-            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto mb-6">
-              Our platform empowers:
-            </p>
-            <ul className="text-xl text-accent-600/80 max-w-3xl mx-auto mb-6 list-disc pl-8">
-              <li>Pet parents to get trusted advice anytime, from anywhere</li>
-              <li>Vets to grow their reach and revenue with digital-first tools</li>
-              <li>Clinics and partners to offer modern, data-driven pet care experiences</li>
-            </ul>
-            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto">
-              We're not just digitizing bookings — we're reshaping how pet care is delivered in India and beyond.
-            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {[
+              {
+                icon: Heart,
+                title: "Pet Parents",
+                description: "Trusted advice anytime, anywhere",
+                color: "from-red-500 to-pink-600"
+              },
+              {
+                icon: TrendingUp,
+                title: "Veterinarians",
+                description: "Grow reach and revenue digitally",
+                color: "from-green-500 to-blue-600"
+              },
+              {
+                icon: Zap,
+                title: "Healthcare",
+                description: "Modern, data-driven experiences",
+                color: "from-blue-500 to-indigo-600"
+              }
+            ].map((item, index) => (
+              <div 
+                key={index}
+                className="text-center p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300 transform hover:scale-105"
+              >
+                <div className={`w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-r ${item.color} flex items-center justify-center`}>
+                  <item.icon className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="text-xl font-bold mb-3">{item.title}</h3>
+                <p className="text-white/70">{item.description}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Values Section */}
-      <section className="py-20">
+      {/* Values Section with Scroll Animations */}
+      <section 
+        ref={valuesRef}
+        className="py-24 bg-white relative overflow-hidden"
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-4xl font-bold text-accent-600 mb-6">Our Values</h2>
-            <p className="text-xl text-accent-600/80 max-w-3xl mx-auto">
-              💛 The principles that guide everything we do:
-            </p>
+            <div className="inline-block px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-full text-lg font-bold mb-6">
+              💛 Our Values
+            </div>
+            <h2 className="text-5xl font-bold text-gray-900 mb-6">
+              What Drives 
+              <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Everything We Do</span>
+            </h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {values.map((value, index) => (
-              <Card key={index} className="text-center p-6 hover:shadow-lg transition-shadow">
-                <CardContent className="pt-6">
-                  <value.icon className="w-12 h-12 text-primary mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold text-accent-600 mb-3">{value.title}</h3>
-                  <p className="text-accent-600/70">{value.description}</p>
-                </CardContent>
-              </Card>
+              <div 
+                key={index}
+                className={`group relative p-6 rounded-2xl ${value.bgColor} hover:shadow-xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1`}
+                style={{
+                  animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
+                }}
+              >
+                <div className="relative z-10">
+                  <div className={`w-12 h-12 mb-4 rounded-xl bg-gradient-to-r ${value.color} flex items-center justify-center transform group-hover:rotate-6 transition-transform duration-300`}>
+                    <value.icon className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">{value.title}</h3>
+                  <p className="text-gray-700 leading-relaxed">{value.description}</p>
+                </div>
+                <div className={`absolute inset-0 bg-gradient-to-r ${value.color} opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity duration-300`}></div>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
       {/* Vision Section */}
-      <section className="py-20 bg-gradient-to-br from-primary-50 to-accent-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section 
+        ref={visionRef}
+        className="py-24 bg-gradient-to-br from-slate-800 via-blue-900 to-indigo-900 text-white relative overflow-hidden"
+      >
+        <div className="absolute inset-0">
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-blue-600/5 to-indigo-600/5 transform -rotate-12 scale-150"></div>
+        </div>
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative order-2 lg:order-1">
-              <img 
-                src="/lovable-uploads/d90a72b9-e0fd-4086-9692-b3c0a15463a7.png" 
-                alt="Professional veterinary team members" 
-                className="rounded-2xl shadow-2xl w-full h-96 object-cover"
-              />
+              <div className="relative">
+                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 to-indigo-600/20 rounded-2xl blur-lg"></div>
+                <img 
+                  src="/lovable-uploads/d90a72b9-e0fd-4086-9692-b3c0a15463a7.png" 
+                  alt="Professional veterinary team" 
+                  className="relative rounded-2xl shadow-xl w-full h-80 object-cover transform hover:scale-105 transition-transform duration-500"
+                />
+              </div>
             </div>
             <div className="order-1 lg:order-2">
-              <h2 className="text-4xl font-bold text-accent-600 mb-6">🚀 Our Vision</h2>
-              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                To build India's most trusted digital pet-care ecosystem — from cities to small towns, from first-time pet parents to multi-clinic vets.
-              </p>
-              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                We envision a future where:
-              </p>
-              <ul className="text-lg text-accent-600/80 mb-6 leading-relaxed space-y-2">
-                <li>• No pet suffers because help was too far or too late</li>
-                <li>• A family in Lucknow can consult a vet in Delhi with a tap</li>
-                <li>• A vet in a Tier 2 town earns 10x visibility and income through us</li>
-                <li>• Every pet lives a longer, healthier, happier life — no matter where they live</li>
-              </ul>
-              <p className="text-lg text-accent-600/80 mb-6 leading-relaxed">
-                Furrchum is not just a platform. It's a shift.
-              </p>
-              <blockquote className="text-lg text-accent-600/80 italic border-l-4 border-primary pl-4 mb-6">
-                "We are transforming a fragmented, outdated vet care system into a single, accessible, intelligent network — where every paw, every meow, and every wag matters."
+              <div className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-full text-lg font-bold mb-6">
+                🚀 Our Vision
+              </div>
+              <h2 className="text-4xl font-bold mb-6 leading-tight">
+                Building India's 
+                <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                  Pet Care Revolution
+                </span>
+              </h2>
+              
+              <div className="space-y-4 mb-6">
+                <p className="text-lg text-white/90 leading-relaxed">
+                  Creating a future where geographical boundaries don't limit access to quality veterinary care.
+                </p>
+                
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {[
+                    "1,000+ Partner Vets",
+                    "1M+ Pet Families",
+                    "100% Digital Records",
+                    "24/7 Care Access"
+                  ].map((item, index) => (
+                    <div key={index} className="flex items-center space-x-3">
+                      <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full"></div>
+                      <span className="text-white/80 text-sm">{item}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <blockquote className="text-lg italic text-blue-200 border-l-4 border-blue-400 pl-4 mb-6">
+                "Transforming a fragmented system into an intelligent, accessible network where every pet matters."
               </blockquote>
-              <h3 className="text-2xl font-semibold text-accent-600 mb-4">🧠 Built for Scale</h3>
-              <ul className="text-lg text-accent-600/80 mb-6 leading-relaxed space-y-2">
-                <li>• 1,000+ vets in the pipeline</li>
-                <li>• 1M+ pet parents to onboard</li>
-                <li>• Expansion into training, boarding, and wellness</li>
-                <li>• One app. One mission. One pet revolution.</li>
-              </ul>
+
+              <Button className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg">
+                Join Our Mission
+                <Star className="ml-2 h-4 w-4" />
+              </Button>
             </div>
           </div>
         </div>
       </section>
 
+      {/* Call to Action */}
+      <section className="py-16 bg-gradient-to-r from-indigo-600 via-blue-700 to-purple-700 text-white text-center">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Transform Pet Care?</h2>
+          <p className="text-lg mb-6 opacity-90">Join thousands of pet families who trust Furrchum for their companions' health</p>
+          <div className="flex flex-col sm:flex-row gap-4 justify-center">
+            <Button className="bg-white text-indigo-700 hover:bg-gray-100 font-bold px-6 py-3 rounded-full transition-all duration-300">
+              Start Your Journey
+            </Button>
+            <Button className="bg-indigo-800/50 border border-white/30 text-white hover:bg-indigo-800/70 font-medium px-6 py-3 rounded-full backdrop-blur-sm transition-all duration-300">
+              Partner With Us
+            </Button>
+          </div>
+        </div>
+      </section>
+
       <Footer />
+
+      <style>{`
+        @keyframes float {
+          0%, 100% { transform: translateY(0px); }
+          50% { transform: translateY(-10px); }
+        }
+        
+        @keyframes fadeInUp {
+          from {
+            opacity: 0;
+            transform: translateY(20px);
+          }
+          to {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+      `}</style>
     </div>
   );
 };
