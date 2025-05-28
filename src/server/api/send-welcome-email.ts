@@ -1,95 +1,24 @@
-const express = require('express');
-const cors = require('cors');
-const bodyParser = require('body-parser');
-const path = require('path');
-const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
-require('dotenv').config();
-
-// Import Resend for email functionality
-const { Resend } = require('resend');
-
-const app = express();
-const PORT = process.env.PORT || 3001;
+import type { Request, Response } from 'express';
+import { Resend } from 'resend';
 
 // Initialize Resend with API key from environment
 const resend = new Resend(process.env.VITE_RESEND_API_KEY);
 
-// Middleware
-app.use(cors({
-  origin: ['http://localhost:8081', 'http://localhost:8080'],
-  credentials: true
-}));
-app.use(bodyParser.json());
+interface WelcomeEmailRequest {
+  email: string;
+  fullName: string;
+  userType: 'pet_owner' | 'vet';
+}
 
-// Error handling middleware
-app.use((err, req, res, next) => {
-  console.error('Server error:', err);
-  res.status(500).json({
-    error: 'Internal server error',
-    message: err.message
-  });
-});
-
-// Whereby API proxy endpoint
-app.post('/api/whereby/meetings', async (req, res) => {
+export const sendWelcomeEmail = async (req: Request, res: Response) => {
   try {
-    const body = req.body;
-    const WHEREBY_API_KEY = process.env.VITE_WHEREBY_API_KEY;
-    const WHEREBY_API_URL = process.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
-
-    if (!WHEREBY_API_KEY) {
-      console.error('Missing Whereby API key in environment variables');
-      return res.status(500).json({ 
-        error: 'Server misconfiguration: Missing Whereby API key' 
-      });
+    // Validate request method
+    if (req.method !== 'POST') {
+      return res.status(405).json({ error: 'Method not allowed' });
     }
 
-    console.log('Creating Whereby meeting with request body:', JSON.stringify(body, null, 2));
-
-    const response = await fetch(`${WHEREBY_API_URL}/meetings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${WHEREBY_API_KEY}`,
-      },
-      body: JSON.stringify(body),
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      console.error('Whereby API Error:', {
-        status: response.status,
-        statusText: response.statusText,
-        error: data
-      });
-      
-      return res.status(response.status).json({ 
-        error: data.error || data.message || 'Failed to create meeting' 
-      });
-    }
-
-    // Validate expected fields in response
-    if (!data.meetingId || !data.roomUrl) {
-      console.error('Invalid response from Whereby API:', data);
-      return res.status(502).json({
-        error: 'Invalid response from Whereby API: Missing required fields'
-      });
-    }
-
-    console.log('Meeting created successfully:', JSON.stringify(data, null, 2));
-    return res.json(data);
-  } catch (error) {
-    console.error('Error in create meeting API:', error);
-    return res.status(500).json({ error: 'Internal server error: ' + (error.message || 'Unknown error') });
-  }
-});
-
-// Email API endpoint
-app.post('/api/send-welcome-email', async (req, res) => {
-  try {
     // Validate request body
-    const { email, fullName, userType } = req.body;
+    const { email, fullName, userType }: WelcomeEmailRequest = req.body;
     
     if (!email || !fullName || !userType) {
       return res.status(400).json({ 
@@ -135,13 +64,12 @@ app.post('/api/send-welcome-email', async (req, res) => {
     console.error('Server error sending welcome email:', error);
     return res.status(500).json({ 
       error: 'Internal server error', 
-      message: error.message || 'Unknown error' 
+      message: error instanceof Error ? error.message : 'Unknown error' 
     });
   }
-});
+};
 
-// Helper function to generate welcome email HTML
-function generateWelcomeEmailHTML(fullName, userType) {
+function generateWelcomeEmailHTML(fullName: string, userType: 'pet_owner' | 'vet'): string {
   const userTypeDisplay = userType === 'pet_owner' ? 'Pet Owner' : 'Veterinarian';
   const dashboardUrl = userType === 'vet' ? 'https://furrchum.pittura.tech/vet-dashboard' : 'https://furrchum.pittura.tech/dashboard';
   
@@ -213,52 +141,4 @@ function generateWelcomeEmailHTML(fullName, userType) {
     </body>
     </html>
   `;
-}
-
-// Health check endpoint
-app.get('/api/health', (req, res) => {
-  try {
-    const WHEREBY_API_KEY = process.env.VITE_WHEREBY_API_KEY;
-    const WHEREBY_API_URL = process.env.VITE_WHEREBY_API_URL || 'https://api.whereby.dev/v1';
-    
-    if (!WHEREBY_API_KEY) {
-      return res.status(500).json({ 
-        status: 'error',
-        message: 'Whereby API key is missing',
-        configured: false
-      });
-    }
-    
-    return res.json({ 
-      status: 'ok',
-      serverTime: new Date().toISOString(),
-      configured: true,
-      api: {
-        name: 'Whereby',
-        url: WHEREBY_API_URL
-      }
-    });
-  } catch (error) {
-    return res.status(500).json({ 
-      status: 'error',
-      message: error.message || 'Internal server error'
-    });
-  }
-});
-
-// For development, proxy requests to Vite dev server
-app.use((req, res, next) => {
-  if (req.path.startsWith('/api')) {
-    return next();
-  }
-  
-  // For all other requests, proxy to the Vite dev server
-  // Use a dynamic port based on environment variable or default to 8081
-  const VITE_PORT = process.env.VITE_PORT || 8081;
-  res.redirect(`http://localhost:${VITE_PORT}${req.path}`);
-});
-
-app.listen(PORT, () => {
-  console.log(`API server running on port ${PORT}`);
-  console.log(`Whereby API proxy available at http://localhost:${PORT}/api/whereby/meetings`);
-});
+} 

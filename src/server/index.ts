@@ -6,6 +6,7 @@ import wherebyRouter from './whereby';
 import { createCheckoutSession } from './api/create-checkout-session';
 import { razorpayWebhook } from './api/webhook';
 import { verifyPayment } from './api/verify-payment';
+import { sendWelcomeEmail } from './api/send-welcome-email';
 
 dotenv.config();
 
@@ -49,6 +50,9 @@ app.use('/api/webhook', express.raw({ type: 'application/json' }));
 
 // Routes
 app.use('/api/whereby', wherebyRouter);
+
+// Email routes
+app.post('/api/send-welcome-email', sendWelcomeEmail);
 
 // Razorpay payment routes
 app.post('/api/create-checkout-session', createCheckoutSession);

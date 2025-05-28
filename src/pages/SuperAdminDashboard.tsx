@@ -20,7 +20,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, LogOut, Search, User, Calendar, CheckCircle, XCircle, AlertCircle, RefreshCw, Users, CreditCard, Clock, Filter, UserCheck, UserX, FileText, LayoutGrid, List, Pill } from 'lucide-react';
+import { Loader2, LogOut, Search, User, Calendar, CheckCircle, XCircle, AlertCircle, RefreshCw, Users, CreditCard, Clock, Filter, UserCheck, UserX, FileText, LayoutGrid, List, Pill, Trash2, Download, TrendingUp, BarChart3, PieChart, Activity, DollarSign, Calendar as CalendarIcon, Stethoscope, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
@@ -30,6 +30,8 @@ import VetDetailsModal from '@/components/VetDetailsModal';
 import PrescriptionDetailsModal from '@/components/PrescriptionDetailsModal';
 import { UserProfile, VetProfile, Appointment, Transaction } from '@/types/profiles';
 import { downloadFile, openFile } from '@/utils/supabaseStorage';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart } from 'recharts';
 
 // Interface definitions
 interface AppointmentWithDetails {
@@ -150,6 +152,261 @@ interface SupabaseTransaction {
   description?: string | null;
 }
 
+// Analytics interfaces
+interface AnalyticsData {
+  overview: {
+    totalUsers: number;
+    totalVets: number;
+    totalPets: number;
+    totalAppointments: number;
+    totalPrescriptions: number;
+    totalRevenue: number;
+    pendingVetApprovals: number;
+    activeAppointments: number;
+  };
+  trends: {
+    userGrowth: Array<{ date: string; users: number; vets: number }>;
+    appointmentTrends: Array<{ date: string; appointments: number; revenue: number }>;
+    prescriptionTrends: Array<{ date: string; prescriptions: number }>;
+  };
+  distribution: {
+    userTypes: Array<{ name: string; value: number; color: string }>;
+    appointmentTypes: Array<{ name: string; value: number; color: string }>;
+    appointmentStatus: Array<{ name: string; value: number; color: string }>;
+    petTypes: Array<{ name: string; value: number; color: string }>;
+    vetSpecializations: Array<{ name: string; value: number; color: string }>;
+  };
+  performance: {
+    topVets: Array<{ name: string; appointments: number; revenue: number; rating: number }>;
+    recentActivity: Array<{ date: string; users: number; appointments: number; prescriptions: number }>;
+  };
+}
+
+// Calculate analytics data from all fetched data
+const calculateAnalytics = (
+  users: SupabaseUserProfile[],
+  vets: SupabaseVetProfile[],
+  pets: any[],
+  appointments: AppointmentWithDetails[],
+  prescriptions: SupabasePrescription[],
+  transactions: SupabaseTransaction[]
+): AnalyticsData => {
+  const now = new Date();
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+  // Calculate overview metrics
+  const totalRevenue = transactions
+    .filter(t => t.status === 'completed' || t.status === 'success')
+    .reduce((sum, t) => sum + t.amount, 0);
+
+  const pendingVetApprovals = vets.filter(v => 
+    !v.approval_status || v.approval_status === 'pending'
+  ).length;
+
+  const activeAppointments = appointments.filter(a => 
+    a.status === 'confirmed' || a.status === 'scheduled'
+  ).length;
+
+  // Calculate growth trends (last 30 days)
+  const userGrowth: Array<{ date: string; users: number; vets: number }> = [];
+  const appointmentTrends: Array<{ date: string; appointments: number; revenue: number }> = [];
+  const prescriptionTrends: Array<{ date: string; prescriptions: number }> = [];
+  
+  for (let i = 29; i >= 0; i--) {
+    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const usersCreatedByDate = users.filter(u => 
+      new Date(u.created_at).toDateString() === date.toDateString()
+    ).length;
+    
+    const vetsCreatedByDate = vets.filter(v => 
+      new Date(v.created_at).toDateString() === date.toDateString()
+    ).length;
+    
+    const appointmentsByDate = appointments.filter(a => 
+      new Date(a.booking_date).toDateString() === date.toDateString()
+    );
+    
+    const prescriptionsByDate = prescriptions.filter(p => 
+      new Date(p.prescribed_date).toDateString() === date.toDateString()
+    ).length;
+    
+    const revenueByDate = transactions
+      .filter(t => 
+        new Date(t.created_at || '').toDateString() === date.toDateString() &&
+        (t.status === 'completed' || t.status === 'success')
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    userGrowth.push({
+      date: dateStr,
+      users: usersCreatedByDate,
+      vets: vetsCreatedByDate
+    });
+
+    appointmentTrends.push({
+      date: dateStr,
+      appointments: appointmentsByDate.length,
+      revenue: revenueByDate
+    });
+
+    prescriptionTrends.push({
+      date: dateStr,
+      prescriptions: prescriptionsByDate
+    });
+  }
+
+  // Calculate distributions
+  const userTypeCount = users.reduce((acc, user) => {
+    const type = user.user_type === 'pet_owner' ? 'Pet Owners' : 'Others';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const vetCount = vets.length;
+  const userTypes = [
+    { name: 'Pet Owners', value: userTypeCount['Pet Owners'] || 0, color: '#3b82f6' },
+    { name: 'Veterinarians', value: vetCount, color: '#10b981' },
+    { name: 'Others', value: userTypeCount['Others'] || 0, color: '#f59e0b' }
+  ].filter(item => item.value > 0);
+
+  const appointmentTypeCount = appointments.reduce((acc, apt) => {
+    const type = apt.consultation_type === 'video_call' ? 'Video Call' : 'In-Person';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const appointmentTypes = Object.entries(appointmentTypeCount).map(([name, value], index) => ({
+    name,
+    value: value as number,
+    color: index === 0 ? '#8b5cf6' : '#ec4899'
+  }));
+
+  const appointmentStatusCount = appointments.reduce((acc, apt) => {
+    const status = apt.status || 'pending';
+    acc[status] = (acc[status] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const statusColors = {
+    confirmed: '#10b981',
+    completed: '#3b82f6',
+    cancelled: '#ef4444',
+    pending: '#f59e0b',
+    scheduled: '#6366f1'
+  };
+
+  const appointmentStatus = Object.entries(appointmentStatusCount).map(([name, value]) => ({
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    value: value as number,
+    color: statusColors[name as keyof typeof statusColors] || '#6b7280'
+  }));
+
+  const petTypeCount = pets.reduce((acc, pet) => {
+    const type = pet.type || 'Unknown';
+    acc[type] = (acc[type] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const petColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899'];
+  const petTypes = Object.entries(petTypeCount).map(([name, value], index) => ({
+    name: name.charAt(0).toUpperCase() + name.slice(1),
+    value: value as number,
+    color: petColors[index % petColors.length]
+  }));
+
+  const vetSpecializationCount = vets.reduce((acc, vet) => {
+    const spec = vet.specialization || 'General Practice';
+    acc[spec] = (acc[spec] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
+
+  const vetSpecializations = Object.entries(vetSpecializationCount).map(([name, value], index) => ({
+    name,
+    value: value as number,
+    color: petColors[index % petColors.length]
+  }));
+
+  // Calculate top performing vets
+  const vetPerformance = vets.map(vet => {
+    const vetAppointments = appointments.filter(a => a.vet_id === vet.id);
+    const vetRevenue = transactions
+      .filter(t => 
+        vetAppointments.some(a => a.id === t.booking_id) &&
+        (t.status === 'completed' || t.status === 'success')
+      )
+      .reduce((sum, t) => sum + t.amount, 0);
+
+    return {
+      name: `Dr. ${vet.first_name} ${vet.last_name}`,
+      appointments: vetAppointments.length,
+      revenue: vetRevenue,
+      rating: vet.rating || 0
+    };
+  });
+
+  const topVets = vetPerformance
+    .sort((a, b) => b.appointments - a.appointments)
+    .slice(0, 5);
+
+  // Calculate recent activity (last 7 days)
+  const recentActivity: Array<{ date: string; users: number; appointments: number; prescriptions: number }> = [];
+  for (let i = 6; i >= 0; i--) {
+    const date = new Date(now.getTime() - i * 24 * 60 * 60 * 1000);
+    const dateStr = date.toISOString().split('T')[0];
+    
+    const dailyUsers = users.filter(u => 
+      new Date(u.created_at).toDateString() === date.toDateString()
+    ).length;
+    
+    const dailyAppointments = appointments.filter(a => 
+      new Date(a.booking_date).toDateString() === date.toDateString()
+    ).length;
+    
+    const dailyPrescriptions = prescriptions.filter(p => 
+      new Date(p.prescribed_date).toDateString() === date.toDateString()
+    ).length;
+
+    recentActivity.push({
+      date: dateStr,
+      users: dailyUsers,
+      appointments: dailyAppointments,
+      prescriptions: dailyPrescriptions
+    });
+  }
+
+  return {
+    overview: {
+      totalUsers: users.length,
+      totalVets: vets.length,
+      totalPets: pets.length,
+      totalAppointments: appointments.length,
+      totalPrescriptions: prescriptions.length,
+      totalRevenue,
+      pendingVetApprovals,
+      activeAppointments
+    },
+    trends: {
+      userGrowth,
+      appointmentTrends,
+      prescriptionTrends
+    },
+    distribution: {
+      userTypes,
+      appointmentTypes,
+      appointmentStatus,
+      petTypes,
+      vetSpecializations
+    },
+    performance: {
+      topVets,
+      recentActivity
+    }
+  };
+};
+
 const SuperAdminDashboard = () => {
   // State for data
   const [vets, setVets] = useState<SupabaseVetProfile[]>([]);
@@ -157,6 +414,8 @@ const SuperAdminDashboard = () => {
   const [transactions, setTransactions] = useState<SupabaseTransaction[]>([]);
   const [users, setUsers] = useState<SupabaseUserProfile[]>([]);
   const [prescriptions, setPrescriptions] = useState<SupabasePrescription[]>([]);
+  const [pets, setPets] = useState<any[]>([]);
+  const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   
   // UI state
   const [searchTerm, setSearchTerm] = useState('');
@@ -166,7 +425,7 @@ const SuperAdminDashboard = () => {
   const [activeTab, setActiveTab] = useState('users');
   
   // Filters
-  const [filterStatus, setFilterStatus] = useState<'all' | 'pet_owner' | 'vet' | 'admin'>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pet_owner' | 'vet' | 'admin' | 'suspended'>('all');
   const [vetApprovalFilter, setVetApprovalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
   
   // State for review mode
@@ -181,6 +440,15 @@ const SuperAdminDashboard = () => {
   // State for prescription details modal
   const [selectedPrescription, setSelectedPrescription] = useState<SupabasePrescription | null>(null);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  
+  // State for delete confirmations
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [deleteItem, setDeleteItem] = useState<{
+    type: 'user' | 'vet' | 'appointment' | 'prescription';
+    id: string;
+    name: string;
+  } | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   // View mode for vets (cards or table)
   const [activeView, setActiveView] = useState<'cards' | 'table'>('table');
@@ -485,11 +753,41 @@ const SuperAdminDashboard = () => {
         };
       });
       
+      // Fetch all pets data for analytics
+      let petsData: any[] = [];
+      try {
+        const { data: allPetsData, error: petsError } = await supabase
+          .from('pets')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .throwOnError();
+        
+        if (petsError) {
+          console.error('Error fetching pets:', petsError);
+        } else {
+          petsData = allPetsData || [];
+        }
+      } catch (error) {
+        console.error('Error in pets fetch:', error);
+      }
+
+      // Calculate analytics data
+      const analyticsData = calculateAnalytics(
+        usersWithCounts,
+        processedVets,
+        petsData,
+        processedAppointments,
+        processedPrescriptions,
+        transactionsData || []
+      );
+      
       // Set state with fetched data
       setUsers(usersWithCounts);
       setVets(processedVets);
       setAppointments(processedAppointments);
       setPrescriptions(processedPrescriptions);
+      setPets(petsData);
+      setAnalytics(analyticsData);
       
     } catch (error) {
       setError('An unexpected error occurred while fetching data');
@@ -691,6 +989,279 @@ const SuperAdminDashboard = () => {
     setSelectedPrescription(null);
   };
   
+  // Handle delete confirmation
+  const handleDeleteClick = (type: 'user' | 'vet' | 'appointment' | 'prescription', id: string, name: string) => {
+    setDeleteItem({ type, id, name });
+    setShowDeleteConfirmation(true);
+  };
+  
+  // Handle delete confirmation close
+  const handleDeleteConfirmationClose = () => {
+    setShowDeleteConfirmation(false);
+    setDeleteItem(null);
+  };
+  
+  // Handle delete execution
+  const handleDelete = async () => {
+    if (!deleteItem) return;
+    
+    try {
+      setIsDeleting(true);
+      
+      switch (deleteItem.type) {
+        case 'user':
+          await handleDeleteUser(deleteItem.id);
+          break;
+        case 'vet':
+          await handleDeleteVet(deleteItem.id);
+          break;
+        case 'appointment':
+          await handleDeleteAppointment(deleteItem.id);
+          break;
+        case 'prescription':
+          await handleDeletePrescription(deleteItem.id);
+          break;
+      }
+      
+      toast({
+        title: 'Success',
+        description: `${deleteItem.type.charAt(0).toUpperCase() + deleteItem.type.slice(1)} deleted successfully.`,
+      });
+      
+      // Refresh data
+      await fetchData();
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete item';
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteConfirmation(false);
+      setDeleteItem(null);
+    }
+  };
+  
+  // Delete user handler
+  const handleDeleteUser = async (userId: string) => {
+    // Check for related data first
+    const [bookingsCheck, prescriptionsCheck, petsCheck] = await Promise.all([
+      supabase.from('bookings').select('id').eq('pet_owner_id', userId).limit(1),
+      supabase.from('prescriptions').select('id').eq('pet_owner_id', userId).limit(1),
+      supabase.from('pets').select('id').eq('owner_id', userId).limit(1)
+    ]);
+    
+    if (bookingsCheck.error || prescriptionsCheck.error || petsCheck.error) {
+      throw new Error('Failed to check user dependencies');
+    }
+    
+    const hasRelatedData = bookingsCheck.data.length > 0 || 
+                          prescriptionsCheck.data.length > 0 || 
+                          petsCheck.data.length > 0;
+    
+    if (hasRelatedData) {
+      // Soft delete - mark user as deleted using full_name marker
+      // First get the current user data to preserve the name
+      const { data: userData, error: fetchError } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+      
+      if (fetchError) throw new Error(fetchError.message);
+      
+      const deletedFullName = userData.full_name ? `[DELETED] ${userData.full_name}` : '[DELETED] User';
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          full_name: deletedFullName,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+      
+      if (error) throw new Error(error.message);
+    } else {
+      // Hard delete - remove user completely
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', userId);
+      
+      if (error) throw new Error(error.message);
+    }
+  };
+  
+  // Delete vet handler
+  const handleDeleteVet = async (vetId: string) => {
+    // Check for related data first
+    const [bookingsCheck, prescriptionsCheck, availabilityCheck] = await Promise.all([
+      supabase.from('bookings').select('id').eq('vet_id', vetId).limit(1),
+      supabase.from('prescriptions').select('id').eq('vet_id', vetId).limit(1),
+      supabase.from('vet_availability').select('id').eq('vet_id', vetId).limit(1)
+    ]);
+    
+    if (bookingsCheck.error || prescriptionsCheck.error || availabilityCheck.error) {
+      throw new Error('Failed to check vet dependencies');
+    }
+    
+    const hasRelatedData = bookingsCheck.data.length > 0 || 
+                          prescriptionsCheck.data.length > 0;
+    
+    if (hasRelatedData) {
+      // Soft delete - mark as rejected/inactive
+      const { error } = await supabase
+        .from('vet_profiles')
+        .update({ approval_status: 'rejected' })
+        .eq('id', vetId);
+      
+      if (error) throw new Error(error.message);
+    } else {
+      // Hard delete - remove vet completely
+      // First delete availability records
+      if (availabilityCheck.data.length > 0) {
+        const { error: availabilityError } = await supabase
+          .from('vet_availability')
+          .delete()
+          .eq('vet_id', vetId);
+          
+        if (availabilityError) throw new Error(availabilityError.message);
+      }
+      
+      // Then delete vet profile
+      const { error: vetError } = await supabase
+        .from('vet_profiles')
+        .delete()
+        .eq('id', vetId);
+      
+      if (vetError) throw new Error(vetError.message);
+      
+      // Finally delete user profile
+      const { error: profileError } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', vetId);
+      
+      if (profileError) throw new Error(profileError.message);
+    }
+  };
+  
+  // Delete appointment handler
+  const handleDeleteAppointment = async (appointmentId: string) => {
+    // Check for related transactions first
+    const { data: transactionsCheck, error: transactionsError } = await supabase
+      .from('transactions')
+      .select('id')
+      .eq('booking_id', appointmentId)
+      .limit(1);
+    
+    if (transactionsError) {
+      throw new Error('Failed to check appointment dependencies');
+    }
+    
+    if (transactionsCheck.length > 0) {
+      // Soft delete - mark as cancelled
+      const { error } = await supabase
+        .from('bookings')
+        .update({ status: 'cancelled' })
+        .eq('id', appointmentId);
+      
+      if (error) throw new Error(error.message);
+    } else {
+      // Hard delete - remove appointment completely
+      const { error } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('id', appointmentId);
+      
+      if (error) throw new Error(error.message);
+    }
+  };
+  
+  // Delete prescription handler
+  const handleDeletePrescription = async (prescriptionId: string) => {
+    // Prescriptions can usually be hard deleted as they don't have dependencies
+    const { error } = await supabase
+      .from('prescriptions')
+      .delete()
+      .eq('id', prescriptionId);
+    
+    if (error) throw new Error(error.message);
+  };
+
+  // Download prescription handler
+  const handleDownloadPrescription = (prescription: SupabasePrescription) => {
+    try {
+      // Create prescription content
+      const prescriptionContent = `
+PRESCRIPTION DETAILS
+====================
+
+Prescription ID: ${prescription.id}
+Date Prescribed: ${new Date(prescription.prescribed_date).toLocaleDateString()}
+
+PATIENT INFORMATION
+-------------------
+Pet Name: ${prescription.pet?.name || 'Unknown Pet'}
+Pet Type: ${prescription.pet?.type || 'Not specified'}${prescription.pet?.breed ? `\nBreed: ${prescription.pet.breed}` : ''}
+Owner: ${prescription.owner?.full_name || 'Unknown Owner'}
+
+VETERINARIAN INFORMATION
+------------------------
+Doctor: Dr. ${prescription.vet?.first_name || 'Unknown'} ${prescription.vet?.last_name || 'Vet'}${prescription.vet?.specialization ? `\nSpecialization: ${prescription.vet.specialization}` : ''}
+
+MEDICATION DETAILS
+------------------
+Medication Name: ${prescription.medication_name}
+Dosage: ${prescription.dosage}
+Frequency: ${prescription.frequency}
+Duration: ${prescription.duration}${prescription.diagnosis ? `\nDiagnosis: ${prescription.diagnosis}` : ''}${prescription.instructions ? `\nInstructions: ${prescription.instructions}` : ''}
+
+STATUS
+------
+Status: ${prescription.status}
+Created: ${new Date(prescription.created_at).toLocaleDateString()}
+Last Updated: ${new Date(prescription.updated_at).toLocaleDateString()}
+
+---
+Downloaded from FurrChum Care Connect Admin Panel
+Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
+      `.trim();
+
+      // Create and download file
+      const blob = new Blob([prescriptionContent], { type: 'text/plain' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      
+      // Generate filename
+      const petName = prescription.pet?.name || 'Unknown';
+      const medicationName = prescription.medication_name.replace(/[^a-zA-Z0-9]/g, '_');
+      const date = new Date(prescription.prescribed_date).toISOString().split('T')[0];
+      link.download = `Prescription_${petName}_${medicationName}_${date}.txt`;
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: 'Success',
+        description: 'Prescription downloaded successfully',
+      });
+    } catch (error) {
+      console.error('Error downloading prescription:', error);
+      toast({
+        title: 'Error',
+        description: 'Failed to download prescription',
+        variant: 'destructive',
+      });
+    }
+  };
+  
   // Get status badge
   const getStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase();
@@ -717,6 +1288,10 @@ const SuperAdminDashboard = () => {
     
     if (statusLower === 'active') {
       return <Badge className="bg-green-100 text-green-800">Active</Badge>;
+    }
+    
+    if (statusLower === 'suspended') {
+      return <Badge className="bg-orange-100 text-orange-800">Suspended</Badge>;
     }
     
     return <Badge className="bg-gray-100 text-gray-800">{status || 'Unknown'}</Badge>;
@@ -764,13 +1339,22 @@ const SuperAdminDashboard = () => {
   
   // Filter users based on search term and filter status
   const filteredUsers = users.filter(user => {
+    // Clean the full_name for search purposes
+    const cleanFullName = user.full_name?.replace(/^\[(SUSPENDED|DELETED)\] /, '') || '';
+    
     const matchesSearch = 
-      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      cleanFullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phone_number?.toLowerCase().includes(searchTerm.toLowerCase());
     
     if (filterStatus !== 'all') {
-      return matchesSearch && user.user_type === filterStatus;
+      if (filterStatus === 'suspended') {
+        // Check for suspended users (those with full_name starting with '[SUSPENDED]')
+        return matchesSearch && user.full_name?.startsWith('[SUSPENDED]');
+      } else {
+        // For other filters, exclude suspended users and check for exact match
+        return matchesSearch && !user.full_name?.startsWith('[SUSPENDED]') && user.user_type === filterStatus;
+      }
     }
     
     return matchesSearch;
@@ -840,7 +1424,7 @@ const SuperAdminDashboard = () => {
         </div>
         
         <Tabs defaultValue="users" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="users">
               <Users className="w-4 h-4 mr-2" />
               Users
@@ -861,6 +1445,10 @@ const SuperAdminDashboard = () => {
               <CreditCard className="w-4 h-4 mr-2" />
               Transactions
             </TabsTrigger>
+            <TabsTrigger value="analytics">
+              <BarChart3 className="w-4 h-4 mr-2" />
+              Analytics
+            </TabsTrigger>
           </TabsList>
           
           <TabsContent value="users" className="space-y-4">
@@ -876,7 +1464,7 @@ const SuperAdminDashboard = () => {
                   
                   <Select 
                     value={filterStatus} 
-                    onValueChange={(value: "all" | "pet_owner" | "vet" | "admin") => setFilterStatus(value)}
+                    onValueChange={(value: "all" | "pet_owner" | "vet" | "admin" | "suspended") => setFilterStatus(value)}
                   >
                     <SelectTrigger className="w-[180px]">
                       <Filter className="w-4 h-4 mr-2" />
@@ -887,6 +1475,7 @@ const SuperAdminDashboard = () => {
                       <SelectItem value="pet_owner">Pet Owners</SelectItem>
                       <SelectItem value="vet">Veterinarians</SelectItem>
                       <SelectItem value="admin">Administrators</SelectItem>
+                      <SelectItem value="suspended">Suspended</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -929,10 +1518,19 @@ const SuperAdminDashboard = () => {
                     ) : (
                       filteredUsers.map((user) => (
                         <TableRow key={user.id}>
-                          <TableCell className="font-medium">{user.full_name || 'Unknown'}</TableCell>
+                          <TableCell className="font-medium">
+                            {user.full_name?.replace('[SUSPENDED] ', '') || 'Unknown'}
+                          </TableCell>
                           <TableCell>{user.email || 'Not available'}</TableCell>
-                          <TableCell className="capitalize">{user.user_type || 'Unknown'}</TableCell>
-                          <TableCell>{getStatusBadge('active')}</TableCell>
+                          <TableCell className="capitalize">
+                            {user.user_type || 'Unknown'}
+                          </TableCell>
+                          <TableCell>
+                            {user.full_name?.startsWith('[SUSPENDED]') ? 
+                              getStatusBadge('suspended') : 
+                              getStatusBadge('active')
+                            }
+                          </TableCell>
                           <TableCell className="text-center">
                             <Badge variant="outline" className="bg-blue-50 text-blue-700">
                               {user.appointment_count || 0}
@@ -955,6 +1553,13 @@ const SuperAdminDashboard = () => {
                                 className="bg-primary hover:bg-primary/90 text-primary-foreground"
                               >
                                 View
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteClick('user', user.id, user.full_name || 'Unknown User')}
+                              >
+                                <Trash2 className="h-4 w-4" />
                               </Button>
                             </div>
                           </TableCell>
@@ -1108,6 +1713,15 @@ const SuperAdminDashboard = () => {
                                     </Button>
                                   </>
                                 )}
+                                
+                                <Button
+                                  size="sm"
+                                  variant="destructive"
+                                  onClick={() => handleDeleteClick('vet', vet.id, `Dr. ${vet.first_name} ${vet.last_name}`)}
+                                  className="flex-shrink-0"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
                               </div>
                             </TableCell>
                           </TableRow>
@@ -1139,12 +1753,13 @@ const SuperAdminDashboard = () => {
                       <TableHead>Veterinarian</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center py-8">
+                        <TableCell colSpan={8} className="text-center py-8">
                           <div className="flex justify-center">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                           </div>
@@ -1152,7 +1767,7 @@ const SuperAdminDashboard = () => {
                       </TableRow>
                     ) : appointments.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground">
                           No appointments found
                         </TableCell>
                       </TableRow>
@@ -1174,6 +1789,16 @@ const SuperAdminDashboard = () => {
                           </TableCell>
                           <TableCell className="capitalize">{appointment.consultation_type}</TableCell>
                           <TableCell>{getStatusBadge(appointment.status || 'pending')}</TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleDeleteClick('appointment', appointment.id, 
+                                `${appointment.pets?.name || 'Unknown Pet'} - ${new Date(appointment.booking_date).toLocaleDateString()}`)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </TableCell>
                         </TableRow>
                       ))
                     )}
@@ -1243,14 +1868,32 @@ const SuperAdminDashboard = () => {
                           </TableCell>
                           <TableCell>{getStatusBadge(prescription.status)}</TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="default"
-                              onClick={() => handlePrescriptionClick(prescription)}
-                              className="bg-primary hover:bg-primary/90 text-primary-foreground"
-                            >
-                              View Details
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handlePrescriptionClick(prescription)}
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                              >
+                                View Details
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => handleDownloadPrescription(prescription)}
+                                className="text-blue-600 hover:text-blue-700 border-blue-200 hover:border-blue-300"
+                              >
+                                <Download className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteClick('prescription', prescription.id, 
+                                  `${prescription.medication_name} for ${prescription.pet?.name || 'Unknown Pet'}`)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -1317,6 +1960,362 @@ const SuperAdminDashboard = () => {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="analytics" className="space-y-4">
+            {/* Overview Cards */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+                  <Users className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics?.overview.totalUsers || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    +{analytics?.overview.totalUsers && analytics.overview.totalUsers > 0 ? 
+                      Math.round((analytics.overview.totalUsers / Math.max(analytics.overview.totalUsers - 5, 1) - 1) * 100) : 0
+                    }% from last month
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Pets</CardTitle>
+                  <Heart className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics?.overview.totalPets || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Registered pets in the system
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                  <DollarSign className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">₹{analytics?.overview.totalRevenue.toLocaleString() || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    From completed transactions
+                  </p>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                  <CardTitle className="text-sm font-medium">Active Appointments</CardTitle>
+                  <Calendar className="h-4 w-4 text-muted-foreground" />
+                </CardHeader>
+                <CardContent>
+                  <div className="text-2xl font-bold">{analytics?.overview.activeAppointments || 0}</div>
+                  <p className="text-xs text-muted-foreground">
+                    Confirmed & scheduled
+                  </p>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Trends Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <CalendarIcon className="h-5 w-5" />
+                    Appointment Trends (Last 30 Days)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      appointments: { label: "Appointments", color: "#8b5cf6" },
+                      revenue: { label: "Revenue (₹)", color: "#ec4899" }
+                    }}
+                    className="h-[300px]"
+                  >
+                    <LineChart data={analytics?.trends.appointmentTrends || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="date" 
+                        fontSize={12}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                      />
+                      <YAxis fontSize={12} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Line
+                        type="monotone"
+                        dataKey="appointments"
+                        stroke="var(--color-appointments)"
+                        strokeWidth={2}
+                        dot={{ fill: "var(--color-appointments)" }}
+                      />
+                      <Line
+                        type="monotone"
+                        dataKey="revenue"
+                        stroke="var(--color-revenue)"
+                        strokeWidth={2}
+                        dot={{ fill: "var(--color-revenue)" }}
+                      />
+                    </LineChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Distribution Charts */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <PieChart className="h-5 w-5" />
+                    User Distribution
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      value: { label: "Count" }
+                    }}
+                    className="h-[200px]"
+                  >
+                    <RechartsPieChart>
+                      <Pie
+                        data={analytics?.distribution.userTypes || []}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={60}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {(analytics?.distribution.userTypes || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </RechartsPieChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Appointment Status
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      value: { label: "Count" }
+                    }}
+                    className="h-[200px]"
+                  >
+                    <BarChart data={analytics?.distribution.appointmentStatus || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="name" fontSize={12} />
+                      <YAxis fontSize={12} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                        {(analytics?.distribution.appointmentStatus || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Bar>
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Stethoscope className="h-5 w-5" />
+                    Pet Types
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      value: { label: "Count" }
+                    }}
+                    className="h-[200px]"
+                  >
+                    <RechartsPieChart>
+                      <Pie
+                        data={analytics?.distribution.petTypes || []}
+                        dataKey="value"
+                        nameKey="name"
+                        cx="50%"
+                        cy="50%"
+                        outerRadius={60}
+                        label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                      >
+                        {(analytics?.distribution.petTypes || []).map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                    </RechartsPieChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Performance Section */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <BarChart3 className="h-5 w-5" />
+                    Top Performing Veterinarians
+                  </CardTitle>
+                  <CardDescription>Based on number of appointments</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {(analytics?.performance.topVets || []).map((vet, index) => (
+                      <div key={index} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                        <div>
+                          <p className="font-medium">{vet.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {vet.appointments} appointments • ₹{vet.revenue.toLocaleString()} revenue
+                          </p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline">#{index + 1}</Badge>
+                          {vet.rating > 0 && (
+                            <Badge variant="secondary">{vet.rating.toFixed(1)} ⭐</Badge>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                    {(!analytics?.performance.topVets || analytics.performance.topVets.length === 0) && (
+                      <p className="text-center text-muted-foreground py-8">No veterinarian data available</p>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Activity className="h-5 w-5" />
+                    Recent Activity (Last 7 Days)
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <ChartContainer
+                    config={{
+                      users: { label: "New Users", color: "#3b82f6" },
+                      appointments: { label: "Appointments", color: "#10b981" },
+                      prescriptions: { label: "Prescriptions", color: "#f59e0b" }
+                    }}
+                    className="h-[300px]"
+                  >
+                    <BarChart data={analytics?.performance.recentActivity || []}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="date" 
+                        fontSize={12}
+                        tickFormatter={(value) => new Date(value).toLocaleDateString('en-US', { weekday: 'short' })}
+                      />
+                      <YAxis fontSize={12} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <Bar dataKey="users" fill="var(--color-users)" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="appointments" fill="var(--color-appointments)" radius={[2, 2, 0, 0]} />
+                      <Bar dataKey="prescriptions" fill="var(--color-prescriptions)" radius={[2, 2, 0, 0]} />
+                    </BarChart>
+                  </ChartContainer>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Additional Metrics */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Platform Health</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Pending Vet Approvals</span>
+                    <Badge variant={analytics?.overview.pendingVetApprovals && analytics.overview.pendingVetApprovals > 0 ? "destructive" : "secondary"}>
+                      {analytics?.overview.pendingVetApprovals || 0}
+                    </Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Total Veterinarians</span>
+                    <Badge variant="outline">{analytics?.overview.totalVets || 0}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Total Prescriptions</span>
+                    <Badge variant="outline">{analytics?.overview.totalPrescriptions || 0}</Badge>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm">Total Appointments</span>
+                    <Badge variant="outline">{analytics?.overview.totalAppointments || 0}</Badge>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">System Overview</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-green-600">
+                      {analytics ? Math.round((analytics.overview.activeAppointments / Math.max(analytics.overview.totalAppointments, 1)) * 100) : 0}%
+                    </div>
+                    <p className="text-sm text-muted-foreground">Appointment Success Rate</p>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-3xl font-bold text-blue-600">
+                      {analytics ? Math.round((analytics.overview.totalPets / Math.max(analytics.overview.totalUsers, 1)) * 100) / 100 : 0}
+                    </div>
+                    <p className="text-sm text-muted-foreground">Avg Pets per User</p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-lg">Quick Actions</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-2">
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setActiveTab('vets')}
+                  >
+                    <UserCheck className="h-4 w-4 mr-2" />
+                    Review Pending Vets ({analytics?.overview.pendingVetApprovals || 0})
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => setActiveTab('appointments')}
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    View Appointments
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    className="w-full justify-start"
+                    onClick={() => forceRefreshData()}
+                    disabled={isRefreshing}
+                  >
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                    Refresh Data
+                  </Button>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
         </Tabs>
 
         {/* User Details Modal */}
@@ -1341,6 +2340,62 @@ const SuperAdminDashboard = () => {
             isOpen={isPrescriptionModalOpen}
             onClose={handlePrescriptionModalClose} 
           />
+        )}
+        
+        {/* Delete Confirmation Dialog */}
+        {showDeleteConfirmation && deleteItem && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg max-w-md w-full mx-4">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                  <Trash2 className="h-5 w-5 text-red-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Delete {deleteItem.type.charAt(0).toUpperCase() + deleteItem.type.slice(1)}
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    This action cannot be undone.
+                  </p>
+                </div>
+              </div>
+              
+              <p className="text-gray-700 mb-6">
+                Are you sure you want to delete <strong>{deleteItem.name}</strong>? 
+                {deleteItem.type === 'user' && ' This will also remove all associated data including pets, appointments, and prescriptions.'}
+                {deleteItem.type === 'vet' && ' This will also remove all associated data including appointments and prescriptions.'}
+                {deleteItem.type === 'appointment' && ' Any associated payment data will be preserved.'}
+                {deleteItem.type === 'prescription' && ' This prescription will be permanently removed.'}
+              </p>
+              
+              <div className="flex gap-3 justify-end">
+                <Button
+                  variant="outline"
+                  onClick={handleDeleteConfirmationClose}
+                  disabled={isDeleting}
+                >
+                  Cancel
+                </Button>
+                <Button
+                  variant="destructive"
+                  onClick={handleDelete}
+                  disabled={isDeleting}
+                >
+                  {isDeleting ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Deleting...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 className="h-4 w-4 mr-2" />
+                      Delete
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </div>
         )}
       </main>
     </div>

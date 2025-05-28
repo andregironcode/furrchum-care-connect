@@ -2,7 +2,6 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
-import { sendAccountCreationEmail } from '@/integrations/resend/emailService';
 
 interface AuthContextType {
   user: User | null;
@@ -11,6 +10,7 @@ interface AuthContextType {
   signUp: (email: string, password: string, fullName: string, userType: 'pet_owner' | 'vet') => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPasswordForEmail: (email: string, redirectTo?: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -88,14 +88,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw error;
       }
       
-      // Only send email if user was successfully created
+      // Send welcome email via our server-side API
       if (data.user) {
         try {
-          // Send branded welcome email via Resend
-          await sendAccountCreationEmail({
-            email,
-            fullName
+          const response = await fetch('/api/send-welcome-email', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email,
+              fullName,
+              userType
+            }),
           });
+          
+          if (!response.ok) {
+            console.warn('Failed to send welcome email:', await response.text());
+          } else {
+            console.log('Welcome email sent successfully');
+          }
         } catch (emailError) {
           // Don't fail the signup if email fails, just log it
           console.warn('Failed to send welcome email:', emailError);
@@ -180,8 +192,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
+  const resetPasswordForEmail = async (email: string, redirectTo?: string) => {
+    setIsLoading(true);
+    
+    try {
+      // Validate email
+      if (!email) {
+        throw new Error('Email is required');
+      }
+      
+      // Default redirect URL to current domain + reset-password page
+      const defaultRedirectTo = redirectTo || `${window.location.origin}/reset-password`;
+      
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: defaultRedirectTo,
+      });
+
+      if (error) throw error;
+      
+      toast.success('Password reset link sent! Check your email for instructions.');
+    } catch (error: any) {
+      console.error('Password reset error:', error);
+      toast.error(error.message || 'Failed to send password reset email');
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signUp, signIn, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, signUp, signIn, signOut, resetPasswordForEmail }}>
       {children}
     </AuthContext.Provider>
   );

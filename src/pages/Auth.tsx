@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -151,6 +150,17 @@ const AuthTabs = () => {
                   onChange={(e) => setSignInData({...signInData, password: e.target.value})}
                   required
                 />
+              </div>
+
+              <div className="text-right">
+                <Button
+                  type="button"
+                  variant="link"
+                  className="px-0 font-normal text-sm text-primary hover:text-primary/80"
+                  onClick={() => navigate('/reset-password')}
+                >
+                  Forgot your password?
+                </Button>
               </div>
 
               <Button 

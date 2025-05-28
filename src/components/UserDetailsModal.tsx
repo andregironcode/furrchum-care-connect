@@ -46,7 +46,9 @@ import {
   Stethoscope,
   Pill,
   Video,
-  UserCheck
+  UserCheck,
+  UserX,
+  Shield
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -164,6 +166,9 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
   const [showRejectionForm, setShowRejectionForm] = useState(false);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showSuspendConfirmation, setShowSuspendConfirmation] = useState(false);
+  const [isSuspending, setIsSuspending] = useState(false);
+  const [suspendAction, setSuspendAction] = useState<'suspend' | 'unsuspend'>('suspend');
   const { toast } = useToast();
   
   const fetchUserDetails = useCallback(async () => {
@@ -357,6 +362,72 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
     }
   }, [user, toast, onUserUpdated, onClose]);
 
+  const handleSuspendUser = useCallback(async (action: 'suspend' | 'unsuspend') => {
+    if (!user) return;
+    
+    try {
+      setIsSuspending(true);
+      
+      // Since we can't modify user_type due to database constraints,
+      // we'll implement suspension using a separate approach:
+      // 1. Create/update a suspension record in a separate table (simulated with full_name field for now)
+      // 2. Use a marker in a field that we can modify
+      
+      if (action === 'suspend') {
+        // For suspension, we'll add a suspension marker to the full_name field temporarily
+        // This is a temporary solution until we can create a proper suspension table
+        const suspendedFullName = user.full_name ? `[SUSPENDED] ${user.full_name}` : '[SUSPENDED] User';
+        
+        const { error: profileUpdateError } = await supabase
+          .from('profiles')
+          .update({ 
+            full_name: suspendedFullName,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+          
+        if (profileUpdateError) {
+          console.error('Error updating user profile:', profileUpdateError);
+          throw new Error(profileUpdateError.message);
+        }
+      } else {
+        // For unsuspension, remove the suspension marker from full_name
+        const originalFullName = user.full_name?.replace('[SUSPENDED] ', '') || null;
+        
+        const { error: profileUpdateError } = await supabase
+          .from('profiles')
+          .update({ 
+            full_name: originalFullName,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+          
+        if (profileUpdateError) {
+          console.error('Error updating user profile:', profileUpdateError);
+          throw new Error(profileUpdateError.message);
+        }
+      }
+      
+      toast({
+        title: action === 'suspend' ? 'Account Suspended' : 'Account Unsuspended',
+        description: `The user account has been ${action === 'suspend' ? 'suspended' : 'unsuspended'} successfully.`,
+      });
+      
+      if (onUserUpdated) onUserUpdated();
+      onClose();
+    } catch (error) {
+      console.error(`Error ${action}ing user:`, error);
+      toast({
+        title: 'Error',
+        description: `Failed to ${action} user account. Please try again.`,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSuspending(false);
+      setShowSuspendConfirmation(false);
+    }
+  }, [user, toast, onUserUpdated, onClose]);
+
   const handleViewDocument = useCallback(async (url: string) => {
     if (!url) {
       toast({
@@ -399,6 +470,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
       cancelled: 'bg-gray-100 text-gray-800',
       confirmed: 'bg-blue-100 text-blue-800',
       expired: 'bg-red-100 text-red-800',
+      suspended: 'bg-orange-100 text-orange-800',
     };
     
     return (
@@ -406,6 +478,17 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
         {status || 'Unknown'}
       </Badge>
     );
+  }, []);
+
+  // Helper function to determine if user is suspended
+  const isUserSuspended = useCallback(() => {
+    return user.full_name?.startsWith('[SUSPENDED]') || false;
+  }, [user.full_name]);
+
+  // Helper function to handle suspend button click
+  const handleSuspendButtonClick = useCallback((action: 'suspend' | 'unsuspend') => {
+    setSuspendAction(action);
+    setShowSuspendConfirmation(true);
   }, []);
 
   const downloadLicenseDocument = useCallback(async (url: string | null) => {
@@ -454,7 +537,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              {user.full_name || 'Unknown User'}
+              {user.full_name?.replace(/^\[(SUSPENDED|DELETED)\] /, '') || 'Unknown User'}
               <Badge variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
                 {user.user_type.replace('_', ' ')}
               </Badge>
@@ -490,14 +573,40 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                     <CardTitle>User Information</CardTitle>
                     <CardDescription>Basic user profile details</CardDescription>
                   </div>
-                  <Button 
-                    variant="destructive" 
-                    size="sm"
-                    onClick={() => setShowDeleteConfirmation(true)}
-                  >
-                    <Trash2 className="h-4 w-4 mr-1" />
-                    Delete User
-                  </Button>
+                  <div className="flex items-center gap-2">
+                    {/* Suspend/Unsuspend Button */}
+                    {isUserSuspended() ? (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleSuspendButtonClick('unsuspend')}
+                        className="text-green-600 hover:text-green-700 border-green-200 hover:border-green-300"
+                      >
+                        <UserCheck className="h-4 w-4 mr-1" />
+                        Unsuspend Account
+                      </Button>
+                    ) : (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => handleSuspendButtonClick('suspend')}
+                        className="text-orange-600 hover:text-orange-700 border-orange-200 hover:border-orange-300"
+                      >
+                        <UserX className="h-4 w-4 mr-1" />
+                        Suspend Account
+                      </Button>
+                    )}
+                    
+                    {/* Delete Button */}
+                    <Button 
+                      variant="destructive" 
+                      size="sm"
+                      onClick={() => setShowDeleteConfirmation(true)}
+                    >
+                      <Trash2 className="h-4 w-4 mr-1" />
+                      Delete User
+                    </Button>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -506,7 +615,9 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                         <User className="h-3 w-3" />
                         Full Name
                       </p>
-                      <p className="font-medium">{user.full_name || 'Not provided'}</p>
+                      <p className="font-medium">
+                        {user.full_name?.replace('[SUSPENDED] ', '') || 'Not provided'}
+                      </p>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm text-gray-500 flex items-center gap-1">
@@ -520,6 +631,22 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                       <Badge variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
                         {user.user_type.replace('_', ' ')}
                       </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500">Account Status</p>
+                      <div className="flex items-center gap-2">
+                        {isUserSuspended() ? (
+                          <Badge className="bg-orange-100 text-orange-800">
+                            <Shield className="h-3 w-3 mr-1" />
+                            Suspended
+                          </Badge>
+                        ) : (
+                          <Badge className="bg-green-100 text-green-800">
+                            <UserCheck className="h-3 w-3 mr-1" />
+                            Active
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                     <div className="space-y-2">
                       <p className="text-sm text-gray-500">Member Since</p>
@@ -814,6 +941,46 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
                 </>
               ) : (
                 'Delete User'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Suspend/Unsuspend User Confirmation Dialog */}
+      <AlertDialog open={showSuspendConfirmation} onOpenChange={setShowSuspendConfirmation}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {suspendAction === 'suspend' ? 'Suspend Account' : 'Unsuspend Account'}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {suspendAction === 'suspend' 
+                ? 'This will suspend the user account, preventing them from accessing the platform. They will be unable to log in or use any features until the account is unsuspended. This action can be reversed.'
+                : 'This will restore the user account access, allowing them to log in and use the platform normally again.'
+              }
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isSuspending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                handleSuspendUser(suspendAction);
+              }}
+              disabled={isSuspending}
+              className={suspendAction === 'suspend' 
+                ? "bg-orange-600 hover:bg-orange-700" 
+                : "bg-green-600 hover:bg-green-700"
+              }
+            >
+              {isSuspending ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  {suspendAction === 'suspend' ? 'Suspending...' : 'Unsuspending...'}
+                </>
+              ) : (
+                suspendAction === 'suspend' ? 'Suspend Account' : 'Unsuspend Account'
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

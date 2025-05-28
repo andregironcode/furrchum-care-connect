@@ -124,6 +124,33 @@ export async function sendAppointmentReminderEmail(params: {
   }
 }
 
+/**
+ * Send password reset email
+ */
+export async function sendPasswordResetEmail(user: User) {
+  try {
+    const fullName = user.fullName || user.firstName || 'there';
+    const htmlContent = generatePasswordResetEmail(fullName);
+    
+    const { data, error } = await resend.emails.send({
+      from: emailConfig.from,
+      to: user.email,
+      subject: 'Reset Your FurrChum Password',
+      html: htmlContent,
+    });
+
+    if (error) {
+      console.error('Error sending password reset email:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Exception sending password reset email:', error);
+    return { success: false, error };
+  }
+}
+
 // Email Template Generators - Using string templates instead of React components
 
 /**
@@ -308,5 +335,36 @@ function generateEmailFooter(): string {
         </div>
       </div>
     </div>
+  `;
+}
+
+/**
+ * Generate password reset email HTML content
+ */
+function generatePasswordResetEmail(fullName: string): string {
+  return `
+    ${generateEmailHeader()}
+    <h1 style="font-size: 24px; color: #3b82f6; margin-bottom: 20px;">Reset Your Password</h1>
+    <p style="margin-bottom: 15px;">Hi ${fullName},</p>
+    <p style="margin-bottom: 20px;">
+      You recently requested to reset your password for your FurrChum Care Connect account. 
+      Click the button below to reset it.
+    </p>
+    <div style="text-align: center; margin-bottom: 30px;">
+      <a href="{{.ConfirmationURL}}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">Reset Your Password</a>
+    </div>
+    <p style="margin-bottom: 15px;">
+      <strong>If you did not request a password reset, please ignore this email or contact support if you have questions.</strong>
+    </p>
+    <p style="margin-bottom: 15px;">
+      This password reset link will expire in 1 hour for your security.
+    </p>
+    <p style="margin-bottom: 15px;">
+      If you're having trouble with the button above, copy and paste the URL below into your web browser:
+    </p>
+    <p style="margin-bottom: 25px; word-break: break-all; color: #6b7280; font-size: 14px;">
+      {{.ConfirmationURL}}
+    </p>
+    ${generateEmailFooter()}
   `;
 }

@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import VetDirectory from "./pages/VetDirectory";
 import HealthRecords from "./pages/HealthRecords";
 import Auth from "./pages/Auth";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 import AboutPage from "./pages/AboutPage";
 import { AuthProvider } from "./context/AuthContext";
@@ -58,6 +59,7 @@ const App = () => {
               <Route path="/records" element={<HealthRecords />} />
               <Route path="/about" element={<AboutPage />} />
               <Route path="/auth" element={<Auth />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
               <Route path="/test-whereby" element={<WherebyTest />} />
               <Route path="/vet-details/:vetId" element={<VetDetailsPage />} />
               
