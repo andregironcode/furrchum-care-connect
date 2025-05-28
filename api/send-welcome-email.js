@@ -1,7 +1,4 @@
-const { Resend } = require('resend');
-
-// Initialize Resend with API key from environment
-const resend = new Resend(process.env.VITE_RESEND_API_KEY);
+// Vercel serverless function for sending welcome emails
 
 // Helper function to generate welcome email HTML
 function generateWelcomeEmailHTML(fullName, userType) {
@@ -80,26 +77,38 @@ function generateWelcomeEmailHTML(fullName, userType) {
   `;
 }
 
-// Main serverless function handler
-module.exports = async (req, res) => {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
-
-  // Only allow POST requests
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
-
+// Main serverless function handler (ES module syntax for Vercel)
+export default async (req, res) => {
   try {
+    // Import Resend dynamically to avoid issues with ES modules
+    const { Resend } = await import('resend');
+    
+    console.log('Email API endpoint hit:', req.method);
+    
+    // Set CORS headers
+    res.setHeader('Access-Control-Allow-Credentials', true);
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+    res.setHeader(
+      'Access-Control-Allow-Headers',
+      'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version, Authorization'
+    );
+
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.status(200).end();
+    }
+
+    // Only allow POST requests
+    if (req.method !== 'POST') {
+      console.log('Method not allowed:', req.method);
+      return res.status(405).json({ error: 'Method not allowed, use POST' });
+    }
+
     // Validate request body
     const { email, fullName, userType } = req.body;
+    
+    console.log('Request body:', { email, fullName, userType });
     
     if (!email || !fullName || !userType) {
       return res.status(400).json({ 
@@ -119,18 +128,32 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user type' });
     }
 
+    // Get API key (try both with and without VITE_ prefix like the working API)
+    const RESEND_API_KEY = process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY;
+    const EMAIL_FROM = process.env.EMAIL_FROM || process.env.VITE_EMAIL_FROM || 'no-reply@furrchum.pittura.tech';
+    
+    console.log('Environment check:', {
+      'API Key available': !!RESEND_API_KEY,
+      'Email from': EMAIL_FROM
+    });
+
     // Check if Resend API key is configured
-    if (!process.env.VITE_RESEND_API_KEY) {
-      console.error('VITE_RESEND_API_KEY environment variable is not set');
+    if (!RESEND_API_KEY) {
+      console.error('RESEND_API_KEY environment variable is not set');
       return res.status(500).json({ error: 'Email service not configured' });
     }
+
+    // Initialize Resend with API key
+    const resend = new Resend(RESEND_API_KEY);
 
     // Generate email content
     const htmlContent = generateWelcomeEmailHTML(fullName, userType);
     
+    console.log('Sending email to:', email);
+    
     // Send email via Resend
     const { data, error } = await resend.emails.send({
-      from: process.env.VITE_EMAIL_FROM || 'no-reply@furrchum.pittura.tech',
+      from: EMAIL_FROM,
       to: email,
       subject: 'Welcome to FurrChum Care Connect!',
       html: htmlContent,
