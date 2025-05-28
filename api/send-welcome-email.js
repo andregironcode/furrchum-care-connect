@@ -1,5 +1,7 @@
 // Vercel serverless function for sending welcome emails
 
+const { Resend } = require('resend');
+
 // Helper function to generate welcome email HTML
 function generateWelcomeEmailHTML(fullName, userType) {
   const userTypeDisplay = userType === 'pet_owner' ? 'Pet Owner' : 'Veterinarian';
@@ -77,12 +79,9 @@ function generateWelcomeEmailHTML(fullName, userType) {
   `;
 }
 
-// Main serverless function handler (ES module syntax for Vercel)
-export default async (req, res) => {
+// Main serverless function handler (CommonJS syntax for Vercel)
+module.exports = async (req, res) => {
   try {
-    // Import Resend dynamically to avoid issues with ES modules
-    const { Resend } = await import('resend');
-    
     console.log('Email API endpoint hit:', req.method);
     
     // Set CORS headers
@@ -134,7 +133,8 @@ export default async (req, res) => {
     
     console.log('Environment check:', {
       'API Key available': !!RESEND_API_KEY,
-      'Email from': EMAIL_FROM
+      'Email from': EMAIL_FROM,
+      'All env vars': Object.keys(process.env).length
     });
 
     // Check if Resend API key is configured
