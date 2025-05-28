@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, ChangeEvent } from 'react';
+import { useState, useEffect, useCallback, ChangeEvent, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useParams, useNavigate, Navigate } from 'react-router-dom';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
@@ -127,6 +127,7 @@ interface VetProfile {
 
 const VetProfilePage = () => {
   const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState<VetProfile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -141,7 +142,17 @@ const VetProfilePage = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [clinicImagePreviews, setClinicImagePreviews] = useState<string[]>([]);
   const [defaultValues, setDefaultValues] = useState<Partial<VetProfile>>({});
-  const [languagesInput, setLanguagesInput] = useState<string>(''); // Track raw language input
+  const [languagesInput, setLanguagesInput] = useState<string>('');
+  
+  // Track if user has made changes to prevent auth-triggered resets
+  const hasUnsavedChangesRef = useRef(false);
+  const isInitialLoadRef = useRef(true);
+  
+  // Track form values to detect changes
+  const [initialFormValues, setInitialFormValues] = useState<VetProfile | null>(null);
+
+  // Optional coordinates state for location services
+  const [coordinates, setCoordinates] = useState<{ latitude: number; longitude: number } | null>(null);
 
   // Validation schema for vet profile form
   const vetProfileSchema = z.object({
@@ -289,8 +300,14 @@ ALTER TABLE vet_profiles
     }
   };
 
-  const fetchVetProfile = useCallback(async () => {
+  const fetchVetProfile = useCallback(async (forceRefresh: boolean = false) => {
     if (!user?.id) return;
+    
+    // Prevent overwriting unsaved changes unless it's a forced refresh
+    if (!forceRefresh && hasUnsavedChangesRef.current && !isInitialLoadRef.current) {
+      console.log('Skipping profile fetch to preserve unsaved changes');
+      return;
+    }
     
     try {
       setLoadingProfile(true);
@@ -309,11 +326,18 @@ ALTER TABLE vet_profiles
           const newProfile = await createVetProfile();
           if (newProfile) {
             setProfile(newProfile);
-            form.reset(newProfile);
-            setImagePreview(newProfile.image_url);
-            setClinicImagePreviews(newProfile.clinic_images);
-            setLanguagesInput(Array.isArray(newProfile.languages) ? newProfile.languages.join(', ') : '');
+            setInitialFormValues(newProfile);
+            
+            // Only reset form if not editing or this is initial load
+            if (!isEditing || isInitialLoadRef.current) {
+              form.reset(newProfile);
+              setImagePreview(newProfile.image_url);
+              setClinicImagePreviews(newProfile.clinic_images);
+              setLanguagesInput(Array.isArray(newProfile.languages) ? newProfile.languages.join(', ') : '');
+            }
+            
             setIsPageLoading(false);
+            isInitialLoadRef.current = false;
           }
           return;
         }
@@ -347,11 +371,18 @@ ALTER TABLE vet_profiles
         };
         
         setProfile(sanitizedProfile);
-        form.reset(sanitizedProfile);
-        setImagePreview(sanitizedProfile.image_url);
-        setClinicImagePreviews(sanitizedProfile.clinic_images);
-        setLanguagesInput(Array.isArray(sanitizedProfile.languages) ? sanitizedProfile.languages.join(', ') : '');
+        setInitialFormValues(sanitizedProfile);
+        
+        // Only reset form if not editing or this is initial load
+        if (!isEditing || isInitialLoadRef.current) {
+          form.reset(sanitizedProfile);
+          setImagePreview(sanitizedProfile.image_url);
+          setClinicImagePreviews(sanitizedProfile.clinic_images);
+          setLanguagesInput(Array.isArray(sanitizedProfile.languages) ? sanitizedProfile.languages.join(', ') : '');
+        }
+        
         setIsPageLoading(false);
+        isInitialLoadRef.current = false;
       }
     } catch (error) {
       console.error('Error fetching vet profile:', error);
@@ -359,7 +390,7 @@ ALTER TABLE vet_profiles
     } finally {
       setLoadingProfile(false);
     }
-  }, [supabase, user, form, toast]);
+  }, [supabase, user, form, toast, isEditing]);
 
   useEffect(() => {
     if (user?.id) {
@@ -370,26 +401,59 @@ ALTER TABLE vet_profiles
   }, [user?.id, fetchVetProfile]);
 
   useEffect(() => {
-    if (profile) {
-      // Initialize form with profile data
+    if (profile && (isInitialLoadRef.current || !isEditing)) {
+      // Initialize form with profile data only on initial load or when not editing
       setIsPageLoading(false);
 
       // Set profile defaults for form
-      form.reset({
+      const formData = {
         ...profile,
         consultation_fee: profile.consultation_fee || 0,
         years_experience: profile.years_experience || 0,
         offers_telemedicine: true, // Always enforce online consultations
         offers_in_person: profile.offers_in_person || false
-      });
+      };
+
+      form.reset(formData);
+      setInitialFormValues(formData);
 
       // Set clinic image previews if exist
       setClinicImagePreviews(profile.clinic_images || []);
       
       // Initialize languages input state
       setLanguagesInput(Array.isArray(profile.languages) ? profile.languages.join(', ') : '');
+      
+      // Reset unsaved changes flag after initial load
+      hasUnsavedChangesRef.current = false;
     }
-  }, [profile, form]);
+  }, [profile, form, isEditing]);
+
+  // Watch for form changes to detect unsaved changes
+  useEffect(() => {
+    if (!isInitialLoadRef.current && isEditing && initialFormValues) {
+      const subscription = form.watch((values) => {
+        // Compare current form values with initial values to detect changes
+        const hasChanges = JSON.stringify(values) !== JSON.stringify(initialFormValues);
+        hasUnsavedChangesRef.current = hasChanges;
+      });
+
+      return () => subscription.unsubscribe();
+    }
+  }, [form, isEditing, initialFormValues]);
+
+  // Handle browser/tab close with unsaved changes
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasUnsavedChangesRef.current && isEditing) {
+        e.preventDefault();
+        e.returnValue = '';
+        return '';
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [isEditing]);
 
   const handleImageChange = (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -737,6 +801,7 @@ ALTER TABLE vet_profiles
       // Update local state
       setProfile(sanitizedProfile);
       setDefaultValues(sanitizedProfile);
+      setInitialFormValues(sanitizedProfile);
       form.reset(sanitizedProfile);
       
       // Reset UI state
@@ -744,6 +809,9 @@ ALTER TABLE vet_profiles
       setSelectedLicense(null);
       setSelectedClinicImages([]);
       setIsEditing(false);
+      
+      // Reset unsaved changes flag
+      hasUnsavedChangesRef.current = false;
       
       // Show success notification
       toast.success("Profile Updated Successfully", {
@@ -755,16 +823,35 @@ ALTER TABLE vet_profiles
         duration: 5000
       });
       
-      // Refresh profile data to ensure everything is in sync
-      await fetchVetProfile();
+      // Refresh profile data to ensure everything is in sync (with force refresh)
+      await fetchVetProfile(true);
       
     } catch (error) {
       console.error('Error in saveProfile:', error);
       toast.error(error instanceof Error ? error.message : 'Failed to update profile');
-    } finally {
+    }
+    finally {
       setIsSaving(false);
     }
   }
+
+  // Helper function to start editing mode
+  const startEditing = () => {
+    setIsEditing(true);
+    hasUnsavedChangesRef.current = false; // Reset unsaved changes when starting edit
+    
+    // Store current form values as initial values for comparison
+    if (profile) {
+      const currentFormData = {
+        ...profile,
+        consultation_fee: profile.consultation_fee || 0,
+        years_experience: profile.years_experience || 0,
+        offers_telemedicine: true,
+        offers_in_person: profile.offers_in_person || false
+      };
+      setInitialFormValues(currentFormData);
+    }
+  };
 
   if (!user) {
     return <Navigate to="/auth" />;
@@ -802,7 +889,7 @@ ALTER TABLE vet_profiles
                             <Button 
                               variant="outline" 
                               size="icon"
-                              onClick={() => setIsEditing(true)}
+                              onClick={startEditing}
                             >
                               <Edit2 className="h-4 w-4" />
                             </Button>
@@ -1306,6 +1393,17 @@ ALTER TABLE vet_profiles
                                 type="button" 
                                 variant="outline" 
                                 onClick={() => {
+                                  // Check for unsaved changes and warn user
+                                  if (hasUnsavedChangesRef.current) {
+                                    const confirmDiscard = confirm(
+                                      "You have unsaved changes. Are you sure you want to discard them?"
+                                    );
+                                    if (!confirmDiscard) {
+                                      return;
+                                    }
+                                  }
+                                  
+                                  // Reset to original state
                                   setIsEditing(false);
                                   setSelectedImage(null);
                                   setSelectedLicense(null);
@@ -1313,13 +1411,22 @@ ALTER TABLE vet_profiles
                                   setImagePreview(profile?.image_url || null);
                                   setClinicImagePreviews(profile?.clinic_images || []);
                                   setLanguagesInput(Array.isArray(profile?.languages) ? profile.languages.join(', ') : '');
-                                  form.reset({
-                                    ...profile,
-                                    consultation_fee: profile?.consultation_fee || 0,
-                                    years_experience: profile?.years_experience || 0,
-                                    offers_telemedicine: true, // Always enforce online consultations
-                                    offers_in_person: profile?.offers_in_person || false
-                                  });
+                                  
+                                  // Reset form to original profile data
+                                  if (profile) {
+                                    const originalFormData = {
+                                      ...profile,
+                                      consultation_fee: profile.consultation_fee || 0,
+                                      years_experience: profile.years_experience || 0,
+                                      offers_telemedicine: true, // Always enforce online consultations
+                                      offers_in_person: profile.offers_in_person || false
+                                    };
+                                    form.reset(originalFormData);
+                                    setInitialFormValues(originalFormData);
+                                  }
+                                  
+                                  // Clear unsaved changes flag
+                                  hasUnsavedChangesRef.current = false;
                                 }}
                               >
                                 Cancel
