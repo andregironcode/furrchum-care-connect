@@ -1,4 +1,3 @@
-
 import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
@@ -56,6 +55,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
+      // Validate inputs
+      if (!email || !password || !fullName) {
+        throw new Error('All fields are required');
+      }
+      
+      if (password.length < 6) {
+        throw new Error('Password must be at least 6 characters long');
+      }
+      
       // Using metadata to pass user information
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -68,18 +76,43 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        // Provide more specific error messages
+        if (error.message.includes('Database error saving new user')) {
+          throw new Error('There was an issue creating your profile. Please try again or contact support if the problem persists.');
+        } else if (error.message.includes('User already registered')) {
+          throw new Error('An account with this email already exists. Please try signing in instead.');
+        } else if (error.message.includes('Invalid email')) {
+          throw new Error('Please enter a valid email address.');
+        }
+        throw error;
+      }
       
-      // Send branded welcome email via Resend
-      await sendAccountCreationEmail({
-        email,
-        fullName
-      });
+      // Only send email if user was successfully created
+      if (data.user) {
+        try {
+          // Send branded welcome email via Resend
+          await sendAccountCreationEmail({
+            email,
+            fullName
+          });
+        } catch (emailError) {
+          // Don't fail the signup if email fails, just log it
+          console.warn('Failed to send welcome email:', emailError);
+        }
+      }
       
       toast.success('Account created! Check your email for confirmation.');
     } catch (error: any) {
       console.error('Signup error:', error);
-      toast.error(error.message || 'Error creating account');
+      
+      // Improve error message display
+      let errorMessage = 'Error creating account';
+      if (error.message) {
+        errorMessage = error.message;
+      }
+      
+      toast.error(errorMessage);
       throw error;
     } finally {
       setIsLoading(false);

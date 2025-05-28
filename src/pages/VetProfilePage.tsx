@@ -141,6 +141,7 @@ const VetProfilePage = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [clinicImagePreviews, setClinicImagePreviews] = useState<string[]>([]);
   const [defaultValues, setDefaultValues] = useState<Partial<VetProfile>>({});
+  const [languagesInput, setLanguagesInput] = useState<string>(''); // Track raw language input
 
   // Validation schema for vet profile form
   const vetProfileSchema = z.object({
@@ -149,9 +150,9 @@ const VetProfilePage = () => {
     last_name: z.string().min(1, { message: 'Last name is required' }),
     specialization: z.string().min(1, { message: 'Specialization is required' }),
     about: z.string().min(1, { message: 'About section is required' }),
-    consultation_fee: z.number().min(0, { message: 'Consultation fee is required' }).positive({ message: 'Consultation fee must be a positive number' }),
+    consultation_fee: z.number().min(0, { message: 'Consultation fee must be 0 or greater' }),
     image_url: z.string().optional().or(z.literal('')),
-    years_experience: z.number().min(0, { message: 'Years of experience is required' }).int({ message: 'Must be a whole number' }),
+    years_experience: z.number().min(0, { message: 'Years of experience must be 0 or greater' }).int({ message: 'Must be a whole number' }),
     phone: z.string().min(10, { message: 'Phone number must be at least 10 digits' }).max(15, { message: 'Phone number is too long' }),
     gender: z.string().min(1, { message: 'Gender is required' }),
     languages: z.array(z.string()).min(1, { message: 'At least one language is required' }),
@@ -162,7 +163,7 @@ const VetProfilePage = () => {
     offers_telemedicine: z.boolean(),
     offers_in_person: z.boolean()
   }).refine(data => data.offers_telemedicine || data.offers_in_person, {
-    message: "You must offer at least one consultation type (video calls or in-person)",
+    message: "Online consultations are compulsory for all veterinarians",
     path: ["offers_telemedicine"]
   });
 
@@ -184,7 +185,7 @@ const VetProfilePage = () => {
       license_url: '',
       clinic_location: '',
       clinic_images: [],
-      offers_telemedicine: false,
+      offers_telemedicine: true, // Make online consultations compulsory by default
       offers_in_person: false,
       ...defaultValues,
     },
@@ -202,19 +203,19 @@ const VetProfilePage = () => {
         first_name: user.user_metadata?.full_name?.split(' ')[0] || '',
         last_name: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
         specialization: 'General Veterinarian',
-        about: '',
+        about: 'Please update your profile with information about your veterinary experience and expertise.',
         consultation_fee: 0,
         years_experience: 0,
         phone: '',
         gender: '',
-        languages: [],
+        languages: ['English'], // Set default language to pass validation
         zip_code: '',
         image_url: user.user_metadata?.avatar_url || '',
         license_url: '',
         clinic_location: '',
         clinic_images: [],
-        offers_video_calls: false,
-        offers_in_person: false
+        offers_video_calls: true, // Make online consultations compulsory
+        offers_in_person: true // Set default to true to pass validation
       };
 
       const { data, error } = await supabase
@@ -311,6 +312,7 @@ ALTER TABLE vet_profiles
             form.reset(newProfile);
             setImagePreview(newProfile.image_url);
             setClinicImagePreviews(newProfile.clinic_images);
+            setLanguagesInput(Array.isArray(newProfile.languages) ? newProfile.languages.join(', ') : '');
             setIsPageLoading(false);
           }
           return;
@@ -320,7 +322,7 @@ ALTER TABLE vet_profiles
 
       if (data) {
         // Cast database response to our VetProfileDB type
-        const dbProfile = data as VetProfileDB;
+        const dbProfile = data as unknown as VetProfileDB;
         
         // Convert database values to proper types
         const sanitizedProfile: VetProfile = {
@@ -348,6 +350,7 @@ ALTER TABLE vet_profiles
         form.reset(sanitizedProfile);
         setImagePreview(sanitizedProfile.image_url);
         setClinicImagePreviews(sanitizedProfile.clinic_images);
+        setLanguagesInput(Array.isArray(sanitizedProfile.languages) ? sanitizedProfile.languages.join(', ') : '');
         setIsPageLoading(false);
       }
     } catch (error) {
@@ -376,12 +379,15 @@ ALTER TABLE vet_profiles
         ...profile,
         consultation_fee: profile.consultation_fee || 0,
         years_experience: profile.years_experience || 0,
-        offers_telemedicine: profile.offers_telemedicine || false,
+        offers_telemedicine: true, // Always enforce online consultations
         offers_in_person: profile.offers_in_person || false
       });
 
       // Set clinic image previews if exist
       setClinicImagePreviews(profile.clinic_images || []);
+      
+      // Initialize languages input state
+      setLanguagesInput(Array.isArray(profile.languages) ? profile.languages.join(', ') : '');
     }
   }, [profile, form]);
 
@@ -578,6 +584,17 @@ ALTER TABLE vet_profiles
     try {
       setIsSaving(true);
       console.log('3. Form validation starting');
+      
+      // Process the current languages input and update form before validation
+      const processedLanguages = languagesInput
+        .split(',')
+        .map(lang => lang.trim())
+        .filter(lang => lang.length > 0);
+      
+      // Update the form with processed languages and ensure telemedicine is true
+      form.setValue('languages', processedLanguages);
+      form.setValue('offers_telemedicine', true);
+      
       const isValid = await form.trigger();
       console.log('4. Form validation result:', isValid, 'Errors:', form.formState.errors);
       
@@ -657,7 +674,7 @@ ALTER TABLE vet_profiles
         license_url: licenseUrl,
         clinic_images: clinicImages,
         clinic_location: values.clinic_location,
-        offers_video_calls: values.offers_telemedicine,
+        offers_video_calls: true, // Always enforce online consultations
         offers_in_person: values.offers_in_person,
         updated_at: new Date().toISOString()
       };
@@ -1049,16 +1066,17 @@ ALTER TABLE vet_profiles
                                     <FormItem className="flex flex-row items-start space-x-3 space-y-0">
                                       <FormControl>
                                         <Checkbox
-                                          checked={field.value}
-                                          onCheckedChange={field.onChange}
+                                          checked={true}
+                                          onCheckedChange={() => {}}
+                                          disabled={true}
                                         />
                                       </FormControl>
                                       <div className="space-y-1 leading-none">
                                         <FormLabel>
-                                          Video Calls
+                                          Video Calls (Required)
                                         </FormLabel>
                                         <FormDescription>
-                                          I offer video consultations
+                                          Online consultations are mandatory for all veterinarians
                                         </FormDescription>
                                       </div>
                                     </FormItem>
@@ -1252,6 +1270,37 @@ ALTER TABLE vet_profiles
                               )}
                             />
 
+                            <FormField
+                              control={form.control}
+                              name="languages"
+                              render={({ field }) => (
+                                <FormItem>
+                                  <FormLabel>Languages Spoken</FormLabel>
+                                  <FormControl>
+                                    <Input 
+                                      value={languagesInput}
+                                      onChange={(e) => {
+                                        setLanguagesInput(e.target.value);
+                                      }}
+                                      onBlur={() => {
+                                        // Process the languages when user finishes typing
+                                        const languages = languagesInput
+                                          .split(',')
+                                          .map(lang => lang.trim())
+                                          .filter(lang => lang.length > 0);
+                                        field.onChange(languages);
+                                      }}
+                                      placeholder="e.g., English, Hindi, Spanish"
+                                    />
+                                  </FormControl>
+                                  <FormDescription>
+                                    Enter languages separated by commas (e.g., English, Hindi, Spanish)
+                                  </FormDescription>
+                                  <FormMessage />
+                                </FormItem>
+                              )}
+                            />
+
                             <div className="flex justify-end space-x-4">
                               <Button
                                 type="button" 
@@ -1263,6 +1312,14 @@ ALTER TABLE vet_profiles
                                   setSelectedClinicImages([]);
                                   setImagePreview(profile?.image_url || null);
                                   setClinicImagePreviews(profile?.clinic_images || []);
+                                  setLanguagesInput(Array.isArray(profile?.languages) ? profile.languages.join(', ') : '');
+                                  form.reset({
+                                    ...profile,
+                                    consultation_fee: profile?.consultation_fee || 0,
+                                    years_experience: profile?.years_experience || 0,
+                                    offers_telemedicine: true, // Always enforce online consultations
+                                    offers_in_person: profile?.offers_in_person || false
+                                  });
                                 }}
                               >
                                 Cancel
