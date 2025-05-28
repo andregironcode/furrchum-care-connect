@@ -201,8 +201,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('Email is required');
       }
       
-      // Default redirect URL to current domain + reset-password page
-      const defaultRedirectTo = redirectTo || `${window.location.origin}/reset-password`;
+      // Determine the correct redirect URL based on environment
+      let defaultRedirectTo = redirectTo;
+      
+      if (!defaultRedirectTo) {
+        // Try to get the frontend URL from environment variables
+        const frontendUrl = import.meta.env.VITE_FRONTEND_URL || 
+                           import.meta.env.VITE_APP_URL ||
+                           window.location.origin;
+        
+        // Explicit fallback for production domain
+        let baseUrl = frontendUrl;
+        if (window.location.hostname.includes('vercel.app') && frontendUrl.includes('localhost')) {
+          baseUrl = 'https://furrchum-care-connect.vercel.app';
+        }
+        
+        // Clean the URL to remove any trailing slashes
+        const cleanUrl = baseUrl.replace(/\/$/, '');
+        defaultRedirectTo = `${cleanUrl}/reset-password`;
+        
+        // Log for debugging (remove in production)
+        console.log('Reset password redirect URL:', defaultRedirectTo);
+      }
       
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: defaultRedirectTo,

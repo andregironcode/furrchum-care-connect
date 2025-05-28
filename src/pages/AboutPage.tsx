@@ -1,4 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Card, CardContent } from '@/components/ui/card';
@@ -11,12 +13,24 @@ const AboutPage = () => {
   const storyRef = useRef<HTMLDivElement>(null);
   const valuesRef = useRef<HTMLDivElement>(null);
   const visionRef = useRef<HTMLDivElement>(null);
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     const handleScroll = () => setScrollY(window.scrollY);
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  const handleBeginJourney = () => {
+    if (user) {
+      // User is logged in, navigate to home page
+      navigate('/');
+    } else {
+      // User is not logged in, navigate to authentication
+      navigate('/auth');
+    }
+  };
 
   const values = [
     {
@@ -30,22 +44,22 @@ const AboutPage = () => {
       icon: Shield,
       title: "Trust",
       description: "Only certified, vetted professionals. Zero compromise.",
-      color: "from-blue-400 to-indigo-500",
-      bgColor: "bg-blue-50"
+      color: "from-orange-400 to-red-500",
+      bgColor: "bg-orange-50"
     },
     {
       icon: Clock,
       title: "Convenience",
       description: "From bookings to health records, everything in one intuitive flow.",
-      color: "from-green-400 to-emerald-500",
-      bgColor: "bg-green-50"
+      color: "from-amber-400 to-orange-500",
+      bgColor: "bg-amber-50"
     },
     {
       icon: Eye,
       title: "Innovation",
       description: "Technology that solves real-world problems, not just adds features.",
-      color: "from-purple-400 to-violet-500",
-      bgColor: "bg-purple-50"
+      color: "from-yellow-400 to-amber-500",
+      bgColor: "bg-yellow-50"
     },
     {
       icon: Users,
@@ -58,35 +72,35 @@ const AboutPage = () => {
       icon: CheckCircle,
       title: "Ownership",
       description: "Every pet. Every consult. Every life touched — we take it personally.",
-      color: "from-teal-400 to-cyan-500",
-      bgColor: "bg-teal-50"
+      color: "from-amber-400 to-yellow-500",
+      bgColor: "bg-amber-50"
     }
   ];
 
   const stats = [
-    { icon: Users, number: "10,000+", label: "Happy Pet Parents", color: "text-blue-600" },
-    { icon: Shield, number: "500+", label: "Verified Vets", color: "text-green-600" },
+    { icon: Users, number: "10,000+", label: "Happy Pet Parents", color: "text-orange-600" },
+    { icon: Shield, number: "500+", label: "Verified Vets", color: "text-amber-600" },
     { icon: Star, number: "4.9/5", label: "Average Rating", color: "text-yellow-600" },
-    { icon: Globe, number: "50+", label: "Cities Covered", color: "text-purple-600" }
+    { icon: Globe, number: "50+", label: "Cities Covered", color: "text-red-600" }
   ];
 
   return (
     <div className="min-h-screen bg-background overflow-hidden">
       <Navbar />
       
-      {/* Enhanced Hero Section - Reduced Height & More Subtle Colors */}
+      {/* Enhanced Hero Section - Orange Theme */}
       <section 
         ref={heroRef}
-        className="relative h-[80vh] flex items-center justify-center bg-gradient-to-br from-slate-800 via-blue-900 to-indigo-900 overflow-hidden"
+        className="relative h-[80vh] flex items-center justify-center bg-gradient-to-br from-orange-900 via-red-900 to-amber-900 overflow-hidden"
         style={{
           transform: `translateY(${scrollY * 0.3}px)`,
         }}
       >
         {/* Subtle Animated Background Elements */}
         <div className="absolute inset-0">
-          <div className="absolute top-20 left-10 w-64 h-64 bg-gradient-to-r from-blue-500/20 to-purple-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse"></div>
-          <div className="absolute top-40 right-10 w-64 h-64 bg-gradient-to-r from-indigo-500/20 to-blue-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse delay-1000"></div>
-          <div className="absolute bottom-20 left-1/2 w-64 h-64 bg-gradient-to-r from-purple-500/20 to-indigo-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse delay-2000"></div>
+          <div className="absolute top-20 left-10 w-64 h-64 bg-gradient-to-r from-orange-500/20 to-red-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse"></div>
+          <div className="absolute top-40 right-10 w-64 h-64 bg-gradient-to-r from-amber-500/20 to-orange-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse delay-1000"></div>
+          <div className="absolute bottom-20 left-1/2 w-64 h-64 bg-gradient-to-r from-red-500/20 to-orange-500/20 rounded-full mix-blend-multiply filter blur-xl opacity-40 animate-pulse delay-2000"></div>
         </div>
 
         {/* Floating Particles */}
@@ -117,7 +131,7 @@ const AboutPage = () => {
             }}
           >
             <h1 className="text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
-              <span className="block bg-gradient-to-r from-blue-400 via-indigo-400 to-purple-500 bg-clip-text text-transparent">
+              <span className="block bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
                 Furrchum
               </span>
               <span className="block text-3xl md:text-4xl mt-2 text-white/90">
@@ -126,11 +140,14 @@ const AboutPage = () => {
             </h1>
             <p className="text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed mb-10 font-light">
               Revolutionizing pet healthcare with 
-              <span className="text-blue-300 font-medium"> cutting-edge technology</span> and 
-              <span className="text-indigo-300 font-medium"> boundless compassion</span>
+              <span className="text-orange-300 font-medium"> cutting-edge technology</span> and 
+              <span className="text-amber-300 font-medium"> boundless compassion</span>
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
-              <Button className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold px-10 py-3 text-lg rounded-full transform hover:scale-105 transition-all duration-300 shadow-xl">
+              <Button 
+                onClick={handleBeginJourney}
+                className="bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-700 hover:to-red-800 text-white font-bold px-10 py-3 text-lg rounded-full transform hover:scale-105 transition-all duration-300 shadow-xl"
+              >
                 Begin the Journey
                 <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
@@ -170,13 +187,13 @@ const AboutPage = () => {
         </div>
       </section>
 
-      {/* Story Section with Parallax */}
+      {/* Story Section with Parallax - Orange Theme */}
       <section 
         ref={storyRef}
-        className="py-24 bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 relative overflow-hidden"
+        className="py-24 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 relative overflow-hidden"
       >
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-blue-500/5 to-indigo-500/5 transform rotate-12 scale-150"></div>
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-orange-500/5 to-amber-500/5 transform rotate-12 scale-150"></div>
         </div>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -188,25 +205,25 @@ const AboutPage = () => {
                 opacity: Math.max(0, Math.min(1, (scrollY - 300) / 300))
               }}
             >
-              <div className="inline-block px-4 py-2 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-full text-sm font-medium mb-6">
+              <div className="inline-block px-4 py-2 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-sm font-medium mb-6">
                 🐾 Our Beginning
               </div>
               <h2 className="text-4xl font-bold text-gray-900 mb-6 leading-tight">
                 Born from a 
-                <span className="bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"> moment of need</span>
+                <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent"> moment of need</span>
               </h2>
               <div className="space-y-4">
                 <p className="text-lg text-gray-700 leading-relaxed">
                   One evening, we witnessed a grandmother's desperate search for veterinary help for her beloved companion. 
-                  <span className="font-semibold text-blue-600"> That moment changed everything.</span>
+                  <span className="font-semibold text-orange-600"> That moment changed everything.</span>
                 </p>
                 <p className="text-lg text-gray-700 leading-relaxed">
                   We realized that in our digital age, pet healthcare remained frustratingly analog. 
-                  <span className="font-semibold text-indigo-600"> Distance, time, and accessibility</span> were barriers between love and care.
+                  <span className="font-semibold text-red-600"> Distance, time, and accessibility</span> were barriers between love and care.
                 </p>
                 <p className="text-lg text-gray-700 leading-relaxed">
                   Furrchum was born to eliminate these barriers forever — creating an ecosystem where 
-                  <span className="font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent"> 
+                  <span className="font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent"> 
                     professional veterinary care is just a touch away.
                   </span>
                 </p>
@@ -220,7 +237,7 @@ const AboutPage = () => {
               }}
             >
               <div className="relative">
-                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 to-indigo-600/20 rounded-2xl blur-lg"></div>
+                <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/20 to-red-600/20 rounded-2xl blur-lg"></div>
                 <img 
                   src="/lovable-uploads/42e2d7bd-3440-457d-8a1e-fcd08a2d4014.png" 
                   alt="Veterinarian caring for pet" 
@@ -233,21 +250,21 @@ const AboutPage = () => {
         </div>
       </section>
 
-      {/* Mission Section */}
-      <section className="py-24 bg-gradient-to-br from-slate-800 via-gray-900 to-slate-900 text-white relative overflow-hidden">
+      {/* Mission Section - Orange Theme */}
+      <section className="py-24 bg-gradient-to-br from-orange-900 via-red-900 to-amber-900 text-white relative overflow-hidden">
         <div className="absolute inset-0">
-          <div className="absolute top-20 right-20 w-80 h-80 bg-gradient-to-r from-blue-600/10 to-indigo-600/10 rounded-full filter blur-3xl"></div>
-          <div className="absolute bottom-20 left-20 w-80 h-80 bg-gradient-to-r from-indigo-600/10 to-purple-600/10 rounded-full filter blur-3xl"></div>
+          <div className="absolute top-20 right-20 w-80 h-80 bg-gradient-to-r from-orange-600/10 to-red-600/10 rounded-full filter blur-3xl"></div>
+          <div className="absolute bottom-20 left-20 w-80 h-80 bg-gradient-to-r from-red-600/10 to-amber-600/10 rounded-full filter blur-3xl"></div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center mb-16">
-            <div className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-full text-lg font-bold mb-6">
+            <div className="inline-block px-6 py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-lg font-bold mb-6">
               🎯 Our Mission
             </div>
             <h2 className="text-5xl font-bold mb-6 leading-tight">
               Transforming 
-              <span className="bg-gradient-to-r from-blue-400 to-indigo-500 bg-clip-text text-transparent"> Pet Healthcare</span>
+              <span className="bg-gradient-to-r from-orange-400 to-amber-500 bg-clip-text text-transparent"> Pet Healthcare</span>
             </h2>
             <p className="text-xl text-white/80 max-w-4xl mx-auto leading-relaxed">
               Making veterinary care accessible, intelligent, and instantaneous for every pet family across India and beyond.
@@ -266,13 +283,13 @@ const AboutPage = () => {
                 icon: TrendingUp,
                 title: "Veterinarians",
                 description: "Grow reach and revenue digitally",
-                color: "from-green-500 to-blue-600"
+                color: "from-orange-500 to-red-600"
               },
               {
                 icon: Zap,
                 title: "Healthcare",
                 description: "Modern, data-driven experiences",
-                color: "from-blue-500 to-indigo-600"
+                color: "from-amber-500 to-orange-600"
               }
             ].map((item, index) => (
               <div 
@@ -297,12 +314,12 @@ const AboutPage = () => {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <div className="inline-block px-6 py-3 bg-gradient-to-r from-indigo-600 to-purple-700 text-white rounded-full text-lg font-bold mb-6">
+            <div className="inline-block px-6 py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-lg font-bold mb-6">
               💛 Our Values
             </div>
             <h2 className="text-5xl font-bold text-gray-900 mb-6">
               What Drives 
-              <span className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Everything We Do</span>
+              <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Everything We Do</span>
             </h2>
           </div>
           
@@ -329,20 +346,20 @@ const AboutPage = () => {
         </div>
       </section>
 
-      {/* Vision Section */}
+      {/* Vision Section - Orange Theme */}
       <section 
         ref={visionRef}
-        className="py-24 bg-gradient-to-br from-slate-800 via-blue-900 to-indigo-900 text-white relative overflow-hidden"
+        className="py-24 bg-gradient-to-br from-orange-900 via-red-900 to-amber-900 text-white relative overflow-hidden"
       >
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-blue-600/5 to-indigo-600/5 transform -rotate-12 scale-150"></div>
+          <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-orange-600/5 to-red-600/5 transform -rotate-12 scale-150"></div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
             <div className="relative order-2 lg:order-1">
               <div className="relative">
-                <div className="absolute -inset-4 bg-gradient-to-r from-blue-500/20 to-indigo-600/20 rounded-2xl blur-lg"></div>
+                <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/20 to-red-600/20 rounded-2xl blur-lg"></div>
                 <img 
                   src="/lovable-uploads/d90a72b9-e0fd-4086-9692-b3c0a15463a7.png" 
                   alt="Professional veterinary team" 
@@ -351,12 +368,12 @@ const AboutPage = () => {
               </div>
             </div>
             <div className="order-1 lg:order-2">
-              <div className="inline-block px-6 py-3 bg-gradient-to-r from-blue-600 to-indigo-700 text-white rounded-full text-lg font-bold mb-6">
+              <div className="inline-block px-6 py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-lg font-bold mb-6">
                 🚀 Our Vision
               </div>
               <h2 className="text-4xl font-bold mb-6 leading-tight">
                 Building India's 
-                <span className="bg-gradient-to-r from-blue-400 to-indigo-400 bg-clip-text text-transparent">
+                <span className="bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
                   Pet Care Revolution
                 </span>
               </h2>
@@ -374,18 +391,21 @@ const AboutPage = () => {
                     "24/7 Care Access"
                   ].map((item, index) => (
                     <div key={index} className="flex items-center space-x-3">
-                      <div className="w-2 h-2 bg-gradient-to-r from-blue-400 to-indigo-400 rounded-full"></div>
+                      <div className="w-2 h-2 bg-gradient-to-r from-orange-400 to-amber-400 rounded-full"></div>
                       <span className="text-white/80 text-sm">{item}</span>
                     </div>
                   ))}
                 </div>
               </div>
 
-              <blockquote className="text-lg italic text-blue-200 border-l-4 border-blue-400 pl-4 mb-6">
+              <blockquote className="text-lg italic text-orange-200 border-l-4 border-orange-400 pl-4 mb-6">
                 "Transforming a fragmented system into an intelligent, accessible network where every pet matters."
               </blockquote>
 
-              <Button className="bg-gradient-to-r from-blue-600 to-indigo-700 hover:from-blue-700 hover:to-indigo-800 text-white font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg">
+              <Button 
+                onClick={handleBeginJourney}
+                className="bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-700 hover:to-red-800 text-white font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg"
+              >
                 Join Our Mission
                 <Star className="ml-2 h-4 w-4" />
               </Button>
@@ -394,16 +414,19 @@ const AboutPage = () => {
         </div>
       </section>
 
-      {/* Call to Action */}
-      <section className="py-16 bg-gradient-to-r from-indigo-600 via-blue-700 to-purple-700 text-white text-center">
+      {/* Call to Action - Orange Theme */}
+      <section className="py-16 bg-gradient-to-r from-orange-600 via-red-700 to-amber-700 text-white text-center">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Transform Pet Care?</h2>
           <p className="text-lg mb-6 opacity-90">Join thousands of pet families who trust Furrchum for their companions' health</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Button className="bg-white text-indigo-700 hover:bg-gray-100 font-bold px-6 py-3 rounded-full transition-all duration-300">
+            <Button 
+              onClick={handleBeginJourney}
+              className="bg-white text-orange-700 hover:bg-gray-100 font-bold px-6 py-3 rounded-full transition-all duration-300"
+            >
               Start Your Journey
             </Button>
-            <Button className="bg-indigo-800/50 border border-white/30 text-white hover:bg-indigo-800/70 font-medium px-6 py-3 rounded-full backdrop-blur-sm transition-all duration-300">
+            <Button className="bg-orange-800/50 border border-white/30 text-white hover:bg-orange-800/70 font-medium px-6 py-3 rounded-full backdrop-blur-sm transition-all duration-300">
               Partner With Us
             </Button>
           </div>
