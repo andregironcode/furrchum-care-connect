@@ -763,7 +763,7 @@ const SuperAdminDashboard = () => {
                           <TableCell>
                             {new Date(user.created_at).toLocaleDateString()}
                           </TableCell>
-                          <TableCell>
+                           <TableCell>
                             <div className="flex items-center gap-2">
                               <Button
                                 size="sm"
@@ -772,26 +772,6 @@ const SuperAdminDashboard = () => {
                               >
                                 View
                               </Button>
-                              
-                              {user.user_type === 'active' ? (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-red-600 hover:text-red-700"
-                                  onClick={() => handleUserStatusChange(user.id, 'suspended')}
-                                >
-                                  Suspend
-                                </Button>
-                              ) : (
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="text-green-600 hover:text-green-700"
-                                  onClick={() => handleUserStatusChange(user.id, 'active')}
-                                >
-                                  Activate
-                                </Button>
-                              )}
                             </div>
                           </TableCell>
                         </TableRow>

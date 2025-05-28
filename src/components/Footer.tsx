@@ -1,8 +1,13 @@
 
 import { Link } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const { user } = useAuth();
+  
+  // Determine user type (if authenticated)
+  const userType = user?.user_metadata?.user_type;
   
   return (
     <footer className="bg-gray-100 border-t border-gray-200 py-8">
@@ -42,11 +47,13 @@ const Footer = () => {
                   About Us
                 </Link>
               </li>
-              <li>
-                <Link to="/auth" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                  Sign In / Register
-                </Link>
-              </li>
+              {!user && (
+                <li>
+                  <Link to="/auth" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                    Sign In / Register
+                  </Link>
+                </li>
+              )}
               <li>
                 <Link to="/contact" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
                   Contact Us
@@ -55,36 +62,129 @@ const Footer = () => {
             </ul>
           </div>
           
-          {/* Column 3: User Pages */}
+          {/* Column 3: User Pages - Dynamic based on user type */}
           <div className="col-span-1">
-            <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-4">User Area</h3>
-            <ul className="space-y-2">
-              <li>
-                <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                  Dashboard
-                </Link>
-              </li>
-              <li>
-                <Link to="/my-pets" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                  My Pets
-                </Link>
-              </li>
-              <li>
-                <Link to="/my-vets" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                  My Vets
-                </Link>
-              </li>
-              <li>
-                <Link to="/prescriptions" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                  Prescriptions
-                </Link>
-              </li>
-              <li>
-                <Link to="/payments" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
-                  Payments
-                </Link>
-              </li>
-            </ul>
+            {!user && (
+              <>
+                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-4">Quick Links</h3>
+                <ul className="space-y-2">
+                  <li>
+                    <Link to="/auth" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Sign In
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/auth?tab=register" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Register
+                    </Link>
+                  </li>
+                </ul>
+              </>
+            )}
+            
+            {user && userType === 'pet_owner' && (
+              <>
+                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-4">Pet Owner Area</h3>
+                <ul className="space-y-2">
+                  <li>
+                    <Link to="/dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Dashboard
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/my-pets" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      My Pets
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/my-vets" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      My Vets
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/appointments" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Appointments
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/prescriptions" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Prescriptions
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/payments" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Payments
+                    </Link>
+                  </li>
+                </ul>
+              </>
+            )}
+            
+            {user && userType === 'vet' && (
+              <>
+                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-4">Vet Area</h3>
+                <ul className="space-y-2">
+                  <li>
+                    <Link to="/vet-dashboard" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Dashboard
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/vet-profile" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      My Profile
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/vet-appointments" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Appointments
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/vet-patients" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Patients
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/vet-prescriptions" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Prescriptions
+                    </Link>
+                  </li>
+                </ul>
+              </>
+            )}
+            
+            {user && userType === 'admin' && (
+              <>
+                <h3 className="text-sm font-semibold text-gray-800 uppercase tracking-wider mb-4">Admin Area</h3>
+                <ul className="space-y-2">
+                  <li>
+                    <Link to="/admin" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Dashboard
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/admin/users" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Manage Users
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/admin/vets" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Manage Vets
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/admin/appointments" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Appointments
+                    </Link>
+                  </li>
+                  <li>
+                    <Link to="/admin/transactions" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                      Transactions
+                    </Link>
+                  </li>
+                </ul>
+              </>
+            )}
           </div>
           
           {/* Column 4: Legal Pages */}
