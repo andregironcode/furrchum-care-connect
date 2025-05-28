@@ -105,7 +105,7 @@ Please respond to the customer at: ${sanitizedData.email}
     // Send email using Resend
     const emailResponse = await resend.emails.send({
       from: process.env.VITE_EMAIL_FROM || 'contact@furrchum.pittura.tech',
-      to: ['info@furrchum.com', 'contact@furrchum.pittura.tech'], // Multiple recipients
+      to: ['info@furrchum.com', 'a.giron3121@gmail.com'], // Multiple recipients
       subject: `Contact Form: ${sanitizedData.subject}`,
       text: formattedMessage,
       html: htmlMessage,
