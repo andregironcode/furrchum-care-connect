@@ -22,6 +22,71 @@ import { Checkbox } from '@/components/ui/checkbox';
 import PhoneInput from '@/components/ui/phone-input';
 import PinCodeInput from '@/components/ui/pin-code-input';
 
+// Function to get coordinates from ZIP code using OpenStreetMap Nominatim
+const getCoordinatesFromZipCode = async (zipCode: string, countryCode = 'in'): Promise<{ latitude: number; longitude: number } | null> => {
+  try {
+    const response = await fetch(
+      `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(zipCode)}&country=${countryCode}&format=json`
+    );
+    
+    if (!response.ok) {
+      throw new Error('Failed to fetch coordinates');
+    }
+    
+    const data = await response.json();
+    
+    if (data && data.length > 0) {
+      return {
+        latitude: parseFloat(data[0].lat),
+        longitude: parseFloat(data[0].lon)
+      };
+    }
+    
+    return null;
+  } catch (error) {
+    console.error('Error getting coordinates:', error);
+    return null;
+  }
+};
+
+// Define the database response type to ensure it matches the actual DB schema
+type VetProfileDB = {
+  id: string;
+  user_id?: string;
+  first_name: string | null;
+  last_name: string | null;
+  specialization: string | null;
+  about: string | null;
+  consultation_fee: number | null;
+  image_url: string | null;
+  years_experience: number | null;
+  phone: string | null;
+  gender: string | null;
+  languages: string[] | null;
+  zip_code: string | null;
+  license_url: string | null;
+  clinic_location: string | null;
+  clinic_images: string[] | null;
+  offers_video_calls: boolean | null; // Database field name 
+  offers_in_person: boolean | null;
+  latitude: number | null;
+  longitude: number | null;
+  approval_status: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  availability: string | null;
+  clinic_name: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  experience_years: number | null;
+  is_available: boolean | null;
+  profile_image: string | null;
+  qualifications: string | null;
+  services: string | null;
+  state: string | null;
+};
+
+// Client-side representation with proper types
 interface VetProfile {
   id: string; // Primary key, matches the user's ID
   first_name: string;
@@ -38,9 +103,26 @@ interface VetProfile {
   license_url: string;
   clinic_location: string;
   clinic_images: string[];
-  offers_telemedicine: boolean; // Maps to offers_video_calls in DB
+  offers_telemedicine: boolean; // Our UI field that maps to offers_video_calls in DB
   offers_in_person: boolean;
-  offers_video_calls?: boolean; // For database compatibility
+  user_id?: string;
+  // Optional fields that might come from the database
+  offers_video_calls?: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
+  approval_status?: string | null;
+  approved_at?: string | null;
+  approved_by?: string | null;
+  availability?: string | null;
+  clinic_name?: string;
+  created_at?: string;
+  updated_at?: string;
+  experience_years?: number;
+  is_available?: boolean;
+  profile_image?: string | null;
+  qualifications?: string | null;
+  services?: string | null;
+  state?: string;
 }
 
 const VetProfilePage = () => {
@@ -66,19 +148,22 @@ const VetProfilePage = () => {
     first_name: z.string().min(1, { message: 'First name is required' }),
     last_name: z.string().min(1, { message: 'Last name is required' }),
     specialization: z.string().min(1, { message: 'Specialization is required' }),
-    about: z.string(),
-    consultation_fee: z.number().min(0),
-    image_url: z.string(),
-    years_experience: z.number().min(0),
-    phone: z.string().optional(),
-    gender: z.string(),
-    languages: z.array(z.string()),
-    zip_code: z.string(),
-    license_url: z.string(),
-    clinic_location: z.string(),
-    clinic_images: z.array(z.string()),
+    about: z.string().min(1, { message: 'About section is required' }),
+    consultation_fee: z.number().min(0, { message: 'Consultation fee is required' }).positive({ message: 'Consultation fee must be a positive number' }),
+    image_url: z.string().optional().or(z.literal('')),
+    years_experience: z.number().min(0, { message: 'Years of experience is required' }).int({ message: 'Must be a whole number' }),
+    phone: z.string().min(10, { message: 'Phone number must be at least 10 digits' }).max(15, { message: 'Phone number is too long' }),
+    gender: z.string().min(1, { message: 'Gender is required' }),
+    languages: z.array(z.string()).min(1, { message: 'At least one language is required' }),
+    zip_code: z.string().length(6, { message: 'PIN code must be 6 digits' }).regex(/^\d+$/, { message: 'PIN code must contain only numbers' }),
+    license_url: z.string().optional().or(z.literal('')),
+    clinic_location: z.string().min(1, { message: 'Clinic location is required' }),
+    clinic_images: z.array(z.string()).optional().or(z.array(z.string()).length(0)),
     offers_telemedicine: z.boolean(),
     offers_in_person: z.boolean()
+  }).refine(data => data.offers_telemedicine || data.offers_in_person, {
+    message: "You must offer at least one consultation type (video calls or in-person)",
+    path: ["offers_telemedicine"]
   });
 
   const form = useForm<VetProfile>({
@@ -171,6 +256,38 @@ const VetProfilePage = () => {
     }
   };
 
+  // Check if the database has the required columns and log instructions if not
+  const checkDatabaseSchema = async () => {
+    try {
+      // Try to query a record with the new columns
+      const { data, error } = await supabase
+        .from('vet_profiles')
+        .select('id,latitude,longitude,offers_video_calls,offers_in_person')
+        .limit(1);
+
+      if (error) {
+        if ((error as any).code === '42703') { // Undefined column error
+          console.warn('Database schema needs to be updated. Please run these SQL commands in your Supabase SQL editor:');
+          console.log(`
+--- Add required columns to vet_profiles
+ALTER TABLE vet_profiles 
+  ADD COLUMN IF NOT EXISTS latitude DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS longitude DOUBLE PRECISION,
+  ADD COLUMN IF NOT EXISTS offers_video_calls BOOLEAN DEFAULT FALSE,
+  ADD COLUMN IF NOT EXISTS offers_in_person BOOLEAN DEFAULT FALSE;
+          `);
+          toast.warning('Database needs update for location features. Check console for SQL to run.');
+        } else {
+          console.error('Error checking database schema:', error);
+        }
+      } else {
+        console.log('Database schema is up to date');
+      }
+    } catch (error) {
+      console.error('Error checking database schema:', error);
+    }
+  };
+
   const fetchVetProfile = useCallback(async () => {
     if (!user?.id) return;
     
@@ -202,25 +319,29 @@ const VetProfilePage = () => {
       }
 
       if (data) {
+        // Cast database response to our VetProfileDB type
+        const dbProfile = data as VetProfileDB;
+        
         // Convert database values to proper types
         const sanitizedProfile: VetProfile = {
-          id: data.id || '',
-          first_name: data.first_name || '',
-          last_name: data.last_name || '',
-          specialization: data.specialization || '',
-          about: data.about || '',
-          consultation_fee: Number(data.consultation_fee) || 0,
-          image_url: data.image_url || '',
-          years_experience: Number(data.years_experience) || 0,
-          phone: data.phone || '',
-          gender: data.gender || '',
-          languages: Array.isArray(data.languages) ? data.languages : [],
-          zip_code: data.zip_code || '',
-          license_url: data.license_url || '',
-          clinic_location: data.clinic_location || '',
-          clinic_images: Array.isArray(data.clinic_images) ? data.clinic_images : [],
-          offers_telemedicine: Boolean(data.offers_telemedicine || data.offers_video_calls),
-          offers_in_person: Boolean(data.offers_in_person)
+          id: dbProfile.id || '',
+          first_name: dbProfile.first_name || '',
+          last_name: dbProfile.last_name || '',
+          specialization: dbProfile.specialization || '',
+          about: dbProfile.about || '',
+          consultation_fee: Number(dbProfile.consultation_fee) || 0,
+          image_url: dbProfile.image_url || '',
+          years_experience: Number(dbProfile.years_experience) || 0,
+          phone: dbProfile.phone || '',
+          gender: dbProfile.gender || '',
+          languages: Array.isArray(dbProfile.languages) ? dbProfile.languages : [],
+          zip_code: dbProfile.zip_code || '',
+          license_url: dbProfile.license_url || '',
+          clinic_location: dbProfile.clinic_location || '',
+          clinic_images: Array.isArray(dbProfile.clinic_images) ? dbProfile.clinic_images : [],
+          // Map database field to UI field
+          offers_telemedicine: Boolean(dbProfile.offers_video_calls),
+          offers_in_person: Boolean(dbProfile.offers_in_person)
         };
         
         setProfile(sanitizedProfile);
@@ -238,10 +359,12 @@ const VetProfilePage = () => {
   }, [supabase, user, form, toast]);
 
   useEffect(() => {
-    if (user) {
+    if (user?.id) {
+      // Check database schema and fetch profile
+      checkDatabaseSchema();
       fetchVetProfile();
     }
-  }, [user, fetchVetProfile]);
+  }, [user?.id, fetchVetProfile]);
 
   useEffect(() => {
     if (profile) {
@@ -441,23 +564,42 @@ const VetProfilePage = () => {
     }
   };
 
-  const saveProfile = async (values: VetProfile) => {
+  const saveProfile = async (values: VetProfile): Promise<void> => {
+    console.log('1. saveProfile called with values:', values);
+    
     if (!user?.id) {
+      console.error('No user ID found');
       toast.error('User not authenticated');
       return;
     }
+    console.log('2. User authenticated:', user.id);
     
+    // Check if form is valid before proceeding
     try {
       setIsSaving(true);
+      console.log('3. Form validation starting');
+      const isValid = await form.trigger();
+      console.log('4. Form validation result:', isValid, 'Errors:', form.formState.errors);
+      
+      if (!isValid) {
+        console.error('Form validation failed:', form.formState.errors);
+        toast.error('Please fill in all required fields correctly');
+        setIsSaving(false);
+        return;
+      }
+      
+      console.log('5. Form validation passed');
       
       // Handle image uploads
-      let imageUrl = profile?.image_url;
-      let licenseUrl = profile?.license_url;
+      let imageUrl = profile?.image_url || '';
+      let licenseUrl = profile?.license_url || '';
+      console.log('6. Initial URLs:', { imageUrl, licenseUrl });
       
       // Get the current form values for clinic_images
-      // This ensures we only keep the images that weren't deleted in the UI
-      let clinicImages = values.clinic_images || [];
+      let clinicImages = Array.isArray(values.clinic_images) ? values.clinic_images : [];
+      console.log('7. Initial clinic images:', clinicImages.length);
 
+      // Upload new profile image if selected
       if (selectedImage) {
         const newImageUrl = await uploadProfileImage(user.id);
         if (newImageUrl) {
@@ -465,6 +607,7 @@ const VetProfilePage = () => {
         }
       }
 
+      // Upload new license if selected
       if (selectedLicense) {
         const newLicenseUrl = await uploadLicense(user.id);
         if (newLicenseUrl) {
@@ -472,6 +615,7 @@ const VetProfilePage = () => {
         }
       }
 
+      // Handle clinic images upload
       if (selectedClinicImages.length > 0) {
         const newClinicImages = await uploadClinicImages(user.id);
         
@@ -483,90 +627,126 @@ const VetProfilePage = () => {
           clinicImages = [...clinicImages, ...newClinicImages.slice(0, availableSlots)];
           toast.warning(`Only added ${availableSlots} images to stay within the 5 image limit`);
         } else {
-          clinicImages = [...clinicImages, ...newClinicImages.filter(url => url)];
+          clinicImages = [...clinicImages, ...newClinicImages.filter((url): url is string => Boolean(url))];
         }
       }
       
-      // Prepare profile data with proper type handling
-      const profileData = {
+      // Get coordinates from ZIP code if it has changed
+      let coordinates: { latitude: number; longitude: number } | null = null;
+      if (values.zip_code && (!profile || values.zip_code !== profile.zip_code)) {
+        coordinates = await getCoordinatesFromZipCode(values.zip_code);
+        if (!coordinates) {
+          toast.warning('Could not determine location from ZIP code. Distance-based features may be limited.');
+        }
+      }
+
+      // Prepare profile data for database
+      const dbProfileData: any = {
+        id: user.id,
         first_name: values.first_name,
         last_name: values.last_name,
         specialization: values.specialization,
         about: values.about,
-        consultation_fee: values.consultation_fee,
-        years_experience: values.years_experience,
+        consultation_fee: Number(values.consultation_fee) || 0,
+        years_experience: Number(values.years_experience) || 0,
         phone: values.phone,
         gender: values.gender,
+        languages: values.languages,
         zip_code: values.zip_code,
         image_url: imageUrl,
         license_url: licenseUrl,
         clinic_images: clinicImages,
         clinic_location: values.clinic_location,
-        offers_video_calls: values.offers_telemedicine, // Map to correct DB column
-        offers_in_person: values.offers_in_person
+        offers_video_calls: values.offers_telemedicine,
+        offers_in_person: values.offers_in_person,
+        updated_at: new Date().toISOString()
       };
       
-      console.log('Saving profile data:', profileData);
-      
-      const { data, error } = await supabase
-        .from('vet_profiles')
-        .update(profileData)
-        .eq('id', user.id) // Use id field which is the primary key
-        .select();
-
-      if (error) throw error;
-      
-      // Update local state with returned data
-      if (data && data.length > 0) {
-        const profile = data[0] as unknown as VetProfile;
-        // Handle null values from database and convert to expected types
-        const sanitizedProfile: VetProfile = {
-          id: profile.id || '',
-          first_name: profile.first_name || '',
-          last_name: profile.last_name || '',
-          specialization: profile.specialization || '',
-          about: profile.about || '',
-          consultation_fee: Number(profile.consultation_fee) || 0,
-          image_url: profile.image_url || '',
-          years_experience: Number(profile.years_experience) || 0,
-          phone: profile.phone || '',
-          gender: profile.gender || '',
-          languages: Array.isArray(profile.languages) ? profile.languages : [],
-          zip_code: profile.zip_code || '',
-          license_url: profile.license_url || '',
-          clinic_location: profile.clinic_location || '',
-          clinic_images: Array.isArray(profile.clinic_images) ? profile.clinic_images : [],
-          offers_telemedicine: Boolean(profile.offers_video_calls),
-          offers_in_person: Boolean(profile.offers_in_person)
-        };
-        
-        setProfile(sanitizedProfile);
-        setDefaultValues(sanitizedProfile);
-        form.reset(sanitizedProfile);
+      // Add coordinates if available
+      if (coordinates) {
+        dbProfileData.latitude = coordinates.latitude;
+        dbProfileData.longitude = coordinates.longitude;
       }
       
-      setIsEditing(false);
+      console.log('8. Saving to database with data:', dbProfileData);
+      
+      // Use upsert to handle both create and update cases
+      const { data, error } = await supabase
+        .from('vet_profiles')
+        .upsert(dbProfileData)
+        .eq('id', user.id)
+        .select();
+
+      console.log('9. Database response:', { data, error });
+
+      if (error) {
+        console.error('Error saving profile:', error);
+        toast.error('Failed to save profile: ' + error.message);
+        setIsSaving(false);
+        return;
+      }
+      
+      if (!data || data.length === 0) {
+        console.error('No data returned from database');
+        toast.error('Failed to save profile: No data returned');
+        setIsSaving(false);
+        return;
+      }
+
+      // Map database fields to our VetProfile interface
+      const savedProfile = data[0];
+      const sanitizedProfile: VetProfile = {
+        id: savedProfile.id || user.id,
+        first_name: savedProfile.first_name || '',
+        last_name: savedProfile.last_name || '',
+        specialization: savedProfile.specialization || '',
+        about: savedProfile.about || '',
+        consultation_fee: Number(savedProfile.consultation_fee) || 0,
+        image_url: savedProfile.image_url || '',
+        years_experience: Number(savedProfile.years_experience) || 0,
+        phone: savedProfile.phone || '',
+        gender: savedProfile.gender || '',
+        languages: Array.isArray(savedProfile.languages) ? savedProfile.languages : [],
+        zip_code: savedProfile.zip_code || '',
+        license_url: savedProfile.license_url || '',
+        clinic_location: savedProfile.clinic_location || '',
+        clinic_images: Array.isArray(savedProfile.clinic_images) ? savedProfile.clinic_images : [],
+        offers_telemedicine: Boolean(savedProfile.offers_video_calls),
+        offers_in_person: Boolean(savedProfile.offers_in_person)
+      };
+      
+      console.log('10. Profile updated successfully:', sanitizedProfile);
+      
+      // Update local state
+      setProfile(sanitizedProfile);
+      setDefaultValues(sanitizedProfile);
+      form.reset(sanitizedProfile);
+      
+      // Reset UI state
       setSelectedImage(null);
       setSelectedLicense(null);
       setSelectedClinicImages([]);
-      toast.success("Profile updated successfully");
+      setIsEditing(false);
       
-      // Refresh profile data
-      fetchVetProfile();
+      // Show success notification
+      toast.success("Profile Updated Successfully", {
+        description: "Your changes have been saved successfully.",
+        action: {
+          label: "Dismiss",
+          onClick: () => {}
+        },
+        duration: 5000
+      });
+      
+      // Refresh profile data to ensure everything is in sync
+      await fetchVetProfile();
+      
     } catch (error) {
-      console.error('Error updating vet profile:', error);
-      toast.error("Failed to update profile");
+      console.error('Error in saveProfile:', error);
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile');
     } finally {
       setIsSaving(false);
     }
-  };
-
-  if (isPageLoading || loadingProfile) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
   }
 
   if (!user) {
@@ -759,7 +939,14 @@ const VetProfilePage = () => {
                       </CardHeader>
                       <CardContent>
                         <Form {...form}>
-                          <form onSubmit={form.handleSubmit(saveProfile)} className="space-y-6">
+                          <form onSubmit={(e) => {
+                              e.preventDefault();
+                              console.log('Form submitted directly');
+                              const values = form.getValues();
+                              console.log('Form values in submit handler:', values);
+                              saveProfile(values as VetProfile);
+                            }} 
+                            className="space-y-6">
                             <div className="flex flex-col items-center mb-4">
                               <div className="relative w-40 h-40 mb-4">
                                 <Avatar className="w-full h-full">
@@ -1086,11 +1273,16 @@ const VetProfilePage = () => {
                                 className="flex items-center gap-2"
                               >
                                 {(isSaving || uploadingImage || uploadingLicense || uploadingClinicImages) ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" /> 
+                                  <>
+                                    <Loader2 className="h-5 w-5 animate-spin" /> 
+                                    Saving...
+                                  </>
                                 ) : (
-                                  <Save className="h-4 w-4" />
+                                  <>
+                                    <Save className="h-4 w-4" />
+                                    Save Changes
+                                  </>
                                 )}
-                                Save Changes
                               </Button>
                             </div>
                           </form>

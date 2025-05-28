@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
@@ -12,27 +12,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { openFile, downloadFile } from '@/utils/supabaseStorage';
 
-// Mapping of zip codes to coordinates (latitude, longitude)
-// This is a simplified version - in a production app, you'd use a geocoding API
-const zipCodeCoordinates: Record<string, {lat: number, lng: number}> = {
-  '10001': { lat: 40.750742, lng: -73.997237 }, // NYC - Manhattan
-  '10461': { lat: 40.847429, lng: -73.838208 }, // NYC - Bronx
-  '11201': { lat: 40.699744, lng: -73.989163 }, // NYC - Brooklyn
-  '90210': { lat: 34.103003, lng: -118.416022 }, // Beverly Hills, CA
-  '60601': { lat: 41.884941, lng: -87.622965 }, // Chicago, IL
-  '75201': { lat: 32.784618, lng: -96.797941 }, // Dallas, TX
-  '94102': { lat: 37.780526, lng: -122.415110 }, // San Francisco, CA
-  '98101': { lat: 47.608013, lng: -122.335167 }, // Seattle, WA
-  '33139': { lat: 25.781033, lng: -80.132988 }, // Miami, FL
-  '02108': { lat: 42.358894, lng: -71.057837 }, // Boston, MA
-};
-
 interface Coordinate {
-  lat: number;
-  lng: number;
+  latitude: number;
+  longitude: number;
 }
 
-// Define interface for Vet
 interface Vet {
   id: string;
   name: string;
@@ -45,7 +29,7 @@ interface Vet {
   image: string;
   location?: Coordinate;
   zipCode?: string | null;
-  distance?: number;
+  distance?: number | null; // Changed to allow null for unknown distances
   about?: string | null;
   phone?: string | null;
   clinic_location?: string | null;
@@ -53,26 +37,22 @@ interface Vet {
   offers_in_person?: boolean | null;
   license_url?: string | null;
   clinic_images?: string[] | null;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
-// Calculate distance between two points using Haversine formula
 const calculateDistance = (coord1: Coordinate, coord2: Coordinate): number => {
-  const R = 3958.8; // Earth's radius in miles
-  const lat1 = coord1.lat * Math.PI / 180;
-  const lat2 = coord2.lat * Math.PI / 180;
-  const deltaLat = (coord2.lat - coord1.lat) * Math.PI / 180;
-  const deltaLng = (coord2.lng - coord1.lng) * Math.PI / 180;
-
-  const a = 
-    Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
-    Math.cos(lat1) * Math.cos(lat2) * 
-    Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
-    
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-  return R * c; // Distance in miles
+  const R = 6371; // Earth's radius in kilometers
+  const dLat = (coord2.latitude - coord1.latitude) * Math.PI / 180;
+  const dLon = (coord2.longitude - coord1.longitude) * Math.PI / 180;
+  const a =
+    0.5 - Math.cos(dLat) / 2 +
+    Math.cos(coord1.latitude * Math.PI / 180) * Math.cos(coord2.latitude * Math.PI / 180) *
+    (1 - Math.cos(dLon)) / 2;
+  return R * 2 * Math.asin(Math.sqrt(a));
 };
 
-const VetDirectory = () => {
+const VetDirectory = (): JSX.Element => {
   const [searchTerm, setSearchTerm] = useState('');
   const [specialization, setSpecialization] = useState('all');
   const [availability, setAvailability] = useState('all');
@@ -81,18 +61,11 @@ const VetDirectory = () => {
   const [vets, setVets] = useState<Vet[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [userLocation, setUserLocation] = useState<Coordinate | null>(null);
+  const [zipSearchError, setZipSearchError] = useState<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  // Initialize zip code from URL params if present
-  useEffect(() => {
-    const zipFromUrl = searchParams.get('zip');
-    if (zipFromUrl) {
-      setZipCode(zipFromUrl);
-    }
-  }, [searchParams]);
-
-  // Fetch vets from database
   useEffect(() => {
     const fetchVets = async () => {
       setIsLoading(true);
@@ -107,14 +80,36 @@ const VetDirectory = () => {
         if (error) throw error;
         
         if (data) {
+          console.log('Fetched vet data from database:', data);
+        
           // Transform the database data to match our Vet interface
           const transformedVets: Vet[] = data.map(vet => {
-            // Get location from zip code if available
+            // Initialize location as undefined since we don't have coordinates
             let location: Coordinate | undefined;
-            if (vet.zip_code && zipCodeCoordinates[vet.zip_code]) {
-              location = zipCodeCoordinates[vet.zip_code];
-            }
             
+            // Debug latitude and longitude values
+            const lat = (vet as any).latitude;
+            const lng = (vet as any).longitude;
+            console.log(`Vet ${vet.first_name} ${vet.last_name} coordinates:`, {
+              latitude: lat,
+              longitude: lng,
+              type_lat: typeof lat,
+              type_long: typeof lng,
+              hasCoordinates: lat !== null && lng !== null
+            });
+            
+            // Get any potential coordinates from the vet profile
+            const rawLatitude = (vet as any).latitude;
+            const rawLongitude = (vet as any).longitude;
+            
+            console.log(`Raw coordinates values for ${vet.first_name}:`, {
+              rawLatitude,
+              rawLongitude,
+              rawLatType: typeof rawLatitude,
+              rawLngType: typeof rawLongitude
+            });
+            
+            // Create the vet object with coordinates if available
             return {
               id: vet.id,
               name: `Dr. ${vet.first_name} ${vet.last_name}`,
@@ -127,6 +122,9 @@ const VetDirectory = () => {
               image: vet.image_url || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&auto=format&fit=crop',
               zipCode: vet.zip_code,
               location,
+              // Include latitude and longitude if available
+              latitude: rawLatitude !== null && rawLatitude !== undefined ? Number(rawLatitude) : undefined,
+              longitude: rawLongitude !== null && rawLongitude !== undefined ? Number(rawLongitude) : undefined,
               about: vet.about,
               phone: vet.phone,
               clinic_location: vet.clinic_location,
@@ -148,48 +146,151 @@ const VetDirectory = () => {
     
     fetchVets();
   }, []);
-  
+
+  const fetchCoordinatesForPinCode = async (pinCodeToSearch: string) => {
+    if (pinCodeToSearch.length !== 6 || !/^[0-9]+$/.test(pinCodeToSearch)) {
+      setZipSearchError('Please enter a valid 6-digit PIN code.');
+      setUserLocation(null);
+      return null;
+    }
+    setZipSearchError(null);
+    setIsLoading(true);
+    try {
+      // Use the same Nominatim OpenStreetMap API that's used in VetProfilePage
+      const response = await fetch(
+        `https://nominatim.openstreetmap.org/search?postalcode=${encodeURIComponent(pinCodeToSearch)}&country=in&format=json`
+      );
+      
+      if (!response.ok) {
+        throw new Error(`API request failed with status ${response.status}`);
+      }
+      
+      const data = await response.json();
+      console.log('OpenStreetMap API response for PIN code:', data);
+      
+      if (data && data.length > 0 && data[0].lat && data[0].lon) {
+        const coords: Coordinate = {
+          latitude: parseFloat(data[0].lat),
+          longitude: parseFloat(data[0].lon),
+        };
+        console.log('Found coordinates for PIN code:', coords);
+        setUserLocation(coords);
+        return coords;
+      } else {
+        throw new Error('No location found for this PIN code. Try another PIN code or search term.');
+      }
+    } catch (err: any) {
+      console.error('Error fetching coordinates:', err);
+      setZipSearchError(err.message || 'Could not fetch location for the PIN code.');
+      setUserLocation(null);
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleZipCodeSearch = async () => {
+    if (zipCode) {
+      // Get coordinates from the PIN code
+      const coords = await fetchCoordinatesForPinCode(zipCode);
+      
+      // If we got valid coordinates, refetch vets to update them with distances
+      if (coords) {
+        // No need to filter by ZIP code text, we'll use coordinates for distance calculation
+        setUserLocation(coords);
+      }
+    }
+  };
+
   const filteredAndSortedVets = useMemo(() => {
-    if (vets.length === 0) return [];
+    if (!vets) return [];
     
-    let filtered = vets.filter(vet => {
-      const matchesSearch = vet.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                           vet.specialization.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesSpecialization = specialization === 'all' || vet.specialization === specialization;
-      const matchesAvailability = availability === 'all' || vet.availability === availability;
-      return matchesSearch && matchesSpecialization && matchesAvailability;
-    });
+    let filtered = [...vets];
     
-    // If zip code is provided, calculate distance and sort by proximity
-    if (zipCode && zipCodeCoordinates[zipCode]) {
-      const userLocation = zipCodeCoordinates[zipCode];
+    // Apply filters
+    if (searchTerm) {
+      const term = searchTerm.toLowerCase();
+      filtered = filtered.filter(vet => 
+        vet.name.toLowerCase().includes(term) || 
+        vet.specialization.toLowerCase().includes(term) ||
+        (vet.about?.toLowerCase().includes(term) || false)
+      );
+    }
+    
+    if (specialization && specialization !== 'all') {
+      filtered = filtered.filter(vet => 
+        vet.specialization === specialization
+      );
+    }
+    
+    if (availability && availability !== 'all') {
+      filtered = filtered.filter(vet => 
+        vet.availability.toLowerCase().includes(availability)
+      );
+    }
+    
+    // If searching by ZIP code, don't filter by text matching anymore
+    // We'll rely on the distance calculation from coordinates instead
+    // This allows showing results for all vets, sorted by distance
+    
+    // Calculate distances if we have user location
+    if (userLocation) {
+      console.log('User location for distance calculation:', userLocation);
+      
+      const userCoord: Coordinate = {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+      };
       
       // Add distance to each vet
       filtered = filtered.map(vet => {
-        // If vet has location coordinates, calculate distance
-        if (vet.location) {
+        console.log('Calculating distance for vet:', vet.name, {
+          latitude: vet.latitude,
+          longitude: vet.longitude,
+          hasValidLat: vet.latitude !== undefined && vet.latitude !== null && !isNaN(vet.latitude),
+          hasValidLong: vet.longitude !== undefined && vet.longitude !== null && !isNaN(vet.longitude)
+        });
+        
+        // Only calculate distance if we have both vet location and user location
+        if (vet.latitude !== undefined && vet.latitude !== null && 
+            vet.longitude !== undefined && vet.longitude !== null && 
+            !isNaN(vet.latitude) && !isNaN(vet.longitude)) {
+          const vetCoord: Coordinate = {
+            latitude: vet.latitude,
+            longitude: vet.longitude,
+          };
+          
+          console.log('Valid coordinates found, calculating distance between:', {
+            userCoord,
+            vetCoord
+          });
+          
+          const distance = calculateDistance(userCoord, vetCoord);
+          console.log(`Distance calculated for ${vet.name}: ${distance.toFixed(2)} km`);
+          
           return {
             ...vet,
-            distance: calculateDistance(userLocation, vet.location)
+            distance: distance // Store the exact distance for sorting
           };
         }
+        
+        console.log(`No valid coordinates for ${vet.name}, skipping distance calculation`);
+        // If no location data, don't set a distance
         return vet;
       });
       
-      // Sort by distance (only for vets with location data)
+      // Sort by distance if available, otherwise by name
       filtered.sort((a, b) => {
         if (a.distance !== undefined && b.distance !== undefined) {
-          return a.distance - b.distance;
+          return (a.distance || 0) - (b.distance || 0);
         }
-        if (a.distance !== undefined) return -1;
-        if (b.distance !== undefined) return 1;
-        return 0;
+        return a.name.localeCompare(b.name);
       });
     }
     
     return filtered;
-  }, [vets, searchTerm, specialization, availability, zipCode]);
-  
+  }, [vets, searchTerm, specialization, availability, zipCode, userLocation]);
+
   const handleBookNow = async (vetId: string) => {
     if (!user) {
       toast.error("Please login to book a consultation", {
@@ -278,7 +379,7 @@ const VetDirectory = () => {
                     <MapPin className="h-5 w-5 text-gray-400" />
                   </div>
                   <Input 
-                    placeholder="Enter zip code to find nearest vets" 
+                    placeholder="Enter PIN code to find nearest vets" 
                     value={zipCode}
                     onChange={e => setZipCode(e.target.value)}
                     className="pl-10"
@@ -287,7 +388,7 @@ const VetDirectory = () => {
               </div>
               <Button 
                 className="text-white bg-orange-500 hover:bg-orange-400"
-                onClick={() => setZipCode(zipCode)}
+                onClick={handleZipCodeSearch}
               >
                 <Search className="mr-2 h-4 w-4" /> Find Nearest Vet
               </Button>
@@ -384,12 +485,14 @@ const VetDirectory = () => {
                     ))}
                   </div>
                   
-                  {vet.distance !== undefined && (
+                  {vet.distance !== undefined && vet.distance !== null && (
                     <div className="mb-3 text-sm text-slate-700">
                       <span className="font-medium text-orange-500">
-                        {vet.distance.toFixed(1)} miles away
+                        {typeof vet.distance === 'number' ? vet.distance.toFixed(1) : '?'} km away
                       </span>
-                      <span className="text-xs text-slate-500 ml-2">({vet.zipCode})</span>
+                      {vet.zipCode && (
+                        <span className="text-xs text-slate-500 ml-2">({vet.zipCode})</span>
+                      )}
                     </div>
                   )}
                   
