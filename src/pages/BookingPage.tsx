@@ -93,6 +93,54 @@ const BookingPage = () => {
   const [vetAvailability, setVetAvailability] = useState<VetAvailability[]>([]);
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const [bookedSlots, setBookedSlots] = useState<Record<string, string[]>>({});
+  const [userProfile, setUserProfile] = useState<any>(null);
+
+  // Check user access - vets shouldn't be able to book appointments
+  useEffect(() => {
+    const checkUserAccess = async () => {
+      if (!user) {
+        toast.error("Please login to book a consultation");
+        navigate('/auth', { state: { from: `/booking/${vetId}` } });
+        return;
+      }
+
+      try {
+        // Fetch user profile to check user type
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('user_type, full_name')
+          .eq('id', user.id)
+          .single();
+
+        if (error) {
+          console.error('Error fetching user profile:', error);
+          return;
+        }
+
+        setUserProfile(profile);
+
+        // If user is a vet, redirect them with a message
+        if (profile?.user_type === 'vet') {
+          toast.error("Veterinarians cannot book appointments. You can manage your appointments from your dashboard.", {
+            duration: 6000,
+          });
+          navigate('/vet-dashboard', { replace: true });
+          return;
+        }
+
+        // If user is a pet owner, continue with normal flow
+        if (profile?.user_type === 'pet_owner') {
+          setIsLoading(false);
+        }
+      } catch (error) {
+        console.error('Error checking user access:', error);
+        toast.error("Failed to verify user access. Please try again.");
+        navigate('/dashboard');
+      }
+    };
+
+    checkUserAccess();
+  }, [user, navigate, vetId]);
 
   const fetchVetDetails = useCallback(async () => {
     if (!vetId) return;
@@ -288,16 +336,14 @@ const BookingPage = () => {
     }
   }, [date, generateTimeSlots, timeSlot]);
 
-  // Initial data loading
+  // Initial data loading - only fetch data if user is verified as a pet owner
   useEffect(() => {
-    if (user) {
+    if (user && userProfile?.user_type === 'pet_owner' && vetId) {
+      fetchVetDetails();
       fetchUserPets();
       fetchVetAvailability();
-    } else if (vetId) {
-      // If no user is logged in, redirect to login
-      navigate('/auth', { state: { from: `/booking/${vetId}` } });
     }
-  }, [user, vetId, navigate, fetchUserPets, fetchVetAvailability]);
+  }, [user, userProfile, vetId, fetchVetDetails, fetchUserPets, fetchVetAvailability]);
 
   const validateBookingDetails = () => {
     if (!selectedPetId) {

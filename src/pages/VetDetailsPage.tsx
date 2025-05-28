@@ -131,7 +131,7 @@ const VetDetailsPage = () => {
     }
   }, [vetId]);
 
-  const handleBookNow = useCallback((id: string) => {
+  const handleBookNow = useCallback(async (id: string) => {
     if (!user) {
       toast.error("Please login to book a consultation", {
         action: {
@@ -141,7 +141,34 @@ const VetDetailsPage = () => {
       });
       return;
     }
-    navigate(`/booking/${id}`);
+
+    try {
+      // Check user type before allowing booking
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        toast.error("Failed to verify user access. Please try again.");
+        return;
+      }
+
+      if (profile?.user_type === 'vet') {
+        toast.error("Veterinarians cannot book appointments with other vets. Please contact them directly if needed.", {
+          duration: 6000,
+        });
+        return;
+      }
+
+      // If user is a pet owner, proceed to booking
+      navigate(`/booking/${id}`);
+    } catch (error) {
+      console.error('Error checking user access:', error);
+      toast.error("Failed to verify user access. Please try again.");
+    }
   }, [user, navigate]);
 
   useEffect(() => {

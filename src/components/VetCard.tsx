@@ -1,10 +1,11 @@
-
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { MapPin, Star, Users, Video, Calendar } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
 
 interface VetCardProps {
   id: string;
@@ -44,7 +45,7 @@ const VetCard = ({
     'Scheduled Only': 'bg-gray-500'
   };
   
-  const handleBookNow = () => {
+  const handleBookNow = async () => {
     if (!user) {
       toast.error("Please login to book a consultation", {
         action: {
@@ -54,7 +55,34 @@ const VetCard = ({
       });
       return;
     }
-    navigate(`/booking/${id}`);
+
+    try {
+      // Check user type before allowing booking
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', user.id)
+        .single();
+
+      if (error) {
+        console.error('Error fetching user profile:', error);
+        toast.error("Failed to verify user access. Please try again.");
+        return;
+      }
+
+      if (profile?.user_type === 'vet') {
+        toast.error("Veterinarians cannot book appointments with other vets. Please contact them directly if needed.", {
+          duration: 6000,
+        });
+        return;
+      }
+
+      // If user is a pet owner, proceed to booking
+      navigate(`/booking/${id}`);
+    } catch (error) {
+      console.error('Error checking user access:', error);
+      toast.error("Failed to verify user access. Please try again.");
+    }
   };
 
   const handleViewProfile = () => {

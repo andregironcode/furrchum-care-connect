@@ -21,6 +21,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { Checkbox } from '@/components/ui/checkbox';
 import PhoneInput from '@/components/ui/phone-input';
 import PinCodeInput from '@/components/ui/pin-code-input';
+import VetAvailabilityForm from '@/pages/VetProfile/VetAvailabilityForm';
 
 // Function to get coordinates from ZIP code using OpenStreetMap Nominatim
 const getCoordinatesFromZipCode = async (zipCode: string, countryCode = 'in'): Promise<{ latitude: number; longitude: number } | null> => {
@@ -1465,8 +1466,7 @@ ALTER TABLE vet_profiles
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      {/* Placeholder for availability management - will be implemented separately */}
-                      <p>Availability management will be implemented in a future update.</p>
+                      <VetAvailabilityForm />
                     </CardContent>
                   </Card>
                 </TabsContent>
