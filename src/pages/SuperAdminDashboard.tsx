@@ -20,14 +20,14 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Loader2, LogOut, Search, User, Calendar, CheckCircle, XCircle, AlertCircle, RefreshCw, Users, CreditCard, Clock, Filter, UserCheck, UserX, FileText, LayoutGrid, List } from 'lucide-react';
+import { Loader2, LogOut, Search, User, Calendar, CheckCircle, XCircle, AlertCircle, RefreshCw, Users, CreditCard, Clock, Filter, UserCheck, UserX, FileText, LayoutGrid, List, Pill } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-// Temporarily comment out until UserDetailsModal is fixed
-// import UserDetailsModal from '@/components/UserDetailsModal';
+import UserDetailsModal from '@/components/UserDetailsModal';
 import VetApprovalCard from '@/components/VetApprovalCard';
 import VetDetailsModal from '@/components/VetDetailsModal';
+import PrescriptionDetailsModal from '@/components/PrescriptionDetailsModal';
 import { UserProfile, VetProfile, Appointment, Transaction } from '@/types/profiles';
 import { downloadFile, openFile } from '@/utils/supabaseStorage';
 
@@ -72,11 +72,13 @@ interface SupabaseVetProfile {
   years_experience?: number | null;
   about?: string | null;
   clinic_location?: string | null;
+  clinic_name?: string | null;
   zip_code?: string | null;
   availability?: string | null;
   license_number?: string | null;
   license_document_url?: string | null;
   license_url?: string | null;
+  license_expiry?: string | null;
   approval_status?: 'pending' | 'approved' | 'rejected' | null;
   approved_at?: string | null;
   approved_by?: string | null;
@@ -100,6 +102,38 @@ interface SupabaseUserProfile {
   status?: string | null;
   address?: string | null;
   image_url?: string | null;
+  appointment_count?: number;
+  prescription_count?: number;
+}
+
+interface SupabasePrescription {
+  id: string;
+  medication_name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions?: string | null;
+  diagnosis?: string | null;
+  prescribed_date: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  pet_id: string;
+  pet_owner_id: string;
+  vet_id: string;
+  pet?: {
+    name: string;
+    type: string;
+    breed?: string;
+  };
+  owner?: {
+    full_name?: string;
+  };
+  vet?: {
+    first_name: string;
+    last_name: string;
+    specialization?: string;
+  };
 }
 
 interface SupabaseTransaction {
@@ -122,6 +156,7 @@ const SuperAdminDashboard = () => {
   const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
   const [transactions, setTransactions] = useState<SupabaseTransaction[]>([]);
   const [users, setUsers] = useState<SupabaseUserProfile[]>([]);
+  const [prescriptions, setPrescriptions] = useState<SupabasePrescription[]>([]);
   
   // UI state
   const [searchTerm, setSearchTerm] = useState('');
@@ -143,8 +178,12 @@ const SuperAdminDashboard = () => {
   const [selectedVet, setSelectedVet] = useState<SupabaseVetProfile | null>(null);
   const [isVetModalOpen, setIsVetModalOpen] = useState(false);
   
+  // State for prescription details modal
+  const [selectedPrescription, setSelectedPrescription] = useState<SupabasePrescription | null>(null);
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  
   // View mode for vets (cards or table)
-  const [activeView, setActiveView] = useState<'cards' | 'table'>('cards');
+  const [activeView, setActiveView] = useState<'cards' | 'table'>('table');
   
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -155,20 +194,27 @@ const SuperAdminDashboard = () => {
       setIsRefreshing(true);
       setError(null);
       
-      // Fetch all users with proper RLS bypass for superadmin
-      const { data: usersData, error: userError } = await supabase
-        .from('profiles')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .throwOnError();
+      // Initialize variables to store all fetched data
+      let fetchedUsers: any[] = [];
+      let processedAppointments: AppointmentWithDetails[] = [];
+      let processedPrescriptions: SupabasePrescription[] = [];
       
-      if (userError) {
+      // Fetch all pet owners with emails using RPC function (users tab should only show pet owners since vets have their own tab)
+      try {
+        const { data: allUsersData, error: rpcError } = await (supabase as any)
+          .rpc('get_all_users_with_emails');
+         
+        if (rpcError) {
+          console.error('Error fetching users with emails:', rpcError);
+          setError('Failed to fetch users with emails');
+        } else {
+          // Filter to only show pet owners since vets have their own dedicated tab
+          fetchedUsers = (allUsersData || []).filter((user: any) => user.user_type === 'pet_owner');
+          console.log('Fetched pet owners with emails:', fetchedUsers.length, 'users');
+        }
+      } catch (error) {
+        console.error('Error in RPC call:', error);
         setError('Failed to fetch users');
-        console.error('Error fetching users:', userError);
-        // Continue execution even if there's an error with users
-      } else {
-        // Log the users data to help with debugging
-        console.log('Fetched users:', usersData?.length || 0, 'users', usersData);
       }
       
       // Fetch all vets with proper ordering and RLS policies
@@ -208,114 +254,110 @@ const SuperAdminDashboard = () => {
           console.error('Error fetching bookings:', bookingsError);
           setError('Failed to fetch appointments');
           // Continue with empty appointments array
-          setAppointments([]);
-        }
-        
-        if (!bookingsData || bookingsData.length === 0) {
-          setAppointments([]);
-          return;
-        }
-        
-        // Get unique vet IDs and pet IDs from bookings
-        const vetIds = [...new Set(bookingsData.map(booking => booking.vet_id))];
-        const petIds = [...new Set(bookingsData.map(booking => booking.pet_id).filter(id => id !== null) as string[])];
-        const ownerIds = [...new Set(bookingsData.map(booking => booking.pet_owner_id))];
-        
-        // Fetch vet profiles
-        const { data: vetProfilesData, error: vetProfilesError } = await supabase
-          .from('vet_profiles')
-          .select('id, first_name, last_name')
-          .in('id', vetIds)
-          .throwOnError();
-        
-        if (vetProfilesError) {
-          console.error('Error fetching vet profiles:', vetProfilesError);
-        }
-        
-        // Fetch pet data
-        const { data: petsData, error: petsError } = await supabase
-          .from('pets')
-          .select('id, name, type, owner_id')
-          .in('id', petIds)
-          .throwOnError();
-        
-        if (petsError) {
-          console.error('Error fetching pets:', petsError);
-        }
-        
-        // Fetch user profiles for appointments
-        const { data: profilesData, error: profilesError } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', ownerIds)
-          .throwOnError();
-        
-        if (profilesError) {
-          console.error('Error fetching profiles for appointments:', profilesError);
-          // Continue execution even if there's an error
-        }
-        
-        // Create lookup maps for faster access
-        const vetProfilesMap = (vetProfilesData || []).reduce<Record<string, any>>((map, profile) => {
-          map[profile.id] = profile;
-          return map;
-        }, {});
-        
-        const petsMap = (petsData || []).reduce<Record<string, any>>((map, pet) => {
-          map[pet.id] = pet;
-          return map;
-        }, {});
-        
-        const profilesMap = (profilesData || []).reduce<Record<string, any>>((map, profile) => {
-          map[profile.id] = profile;
-          return map;
-        }, {});
-        
-        // Process the appointments data to ensure it matches our interface
-        const processedAppointments = bookingsData.map((booking) => {
-          // Safely access nested properties with null checks
-          const vetId = booking.vet_id || '';
-          const petId = booking.pet_id || '';
-          const ownerId = booking.pet_owner_id || '';
+          processedAppointments = [];
+        } else if (!bookingsData || bookingsData.length === 0) {
+          processedAppointments = [];
+        } else {
+          // Get unique vet IDs and pet IDs from bookings
+          const vetIds = [...new Set(bookingsData.map(booking => booking.vet_id))];
+          const petIds = [...new Set(bookingsData.map(booking => booking.pet_id).filter(id => id !== null) as string[])];
+          const ownerIds = [...new Set(bookingsData.map(booking => booking.pet_owner_id))];
           
-          // Get related data with null checks
-          const vetProfile = vetId ? (vetProfilesMap[vetId] || null) : null;
-          const petData = petId ? (petsMap[petId] || null) : null;
-          const ownerProfile = ownerId ? (profilesMap[ownerId] || null) : null;
+          // Fetch vet profiles
+          const { data: vetProfilesData, error: vetProfilesError } = await supabase
+            .from('vet_profiles')
+            .select('id, first_name, last_name')
+            .in('id', vetIds)
+            .throwOnError();
           
-          return {
-            id: booking.id,
-            booking_date: booking.booking_date,
-            start_time: booking.start_time,
-            end_time: booking.end_time,
-            status: booking.status,
-            notes: booking.notes,
-            vet_id: vetId,
-            pet_id: petId,
-            pet_owner_id: ownerId,
-            consultation_type: booking.consultation_type,
-            created_at: booking.created_at,
-            updated_at: booking.updated_at,
-            // Add the related data
-            vet_profiles: vetProfile,
-            pets: petData,
-            profiles: ownerProfile,
-            // Add the derived fields for compatibility
-            first_name: vetProfile?.first_name || '',
-            last_name: vetProfile?.last_name || '',
-            name: petData?.name || '',
-            type: petData?.type || '',
-            owner_id: petData?.owner_id || '',
-            full_name: ownerProfile?.full_name || '',
-            email: ownerProfile?.email || '',
-            phone_number: ownerProfile?.phone_number || ''
-          } as AppointmentWithDetails;
-        });
-        
-        setAppointments(processedAppointments);
+          if (vetProfilesError) {
+            console.error('Error fetching vet profiles:', vetProfilesError);
+          }
+          
+          // Fetch pet data
+          const { data: petsData, error: petsError } = await supabase
+            .from('pets')
+            .select('id, name, type, owner_id')
+            .in('id', petIds)
+            .throwOnError();
+          
+          if (petsError) {
+            console.error('Error fetching pets:', petsError);
+          }
+          
+          // Fetch user profiles for appointments
+          const { data: profilesData, error: profilesError } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', ownerIds)
+            .throwOnError();
+          
+          if (profilesError) {
+            console.error('Error fetching profiles for appointments:', profilesError);
+            // Continue execution even if there's an error
+          }
+          
+          // Create lookup maps for faster access
+          const vetProfilesMap = (vetProfilesData || []).reduce<Record<string, any>>((map, profile) => {
+            map[profile.id] = profile;
+            return map;
+          }, {});
+          
+          const petsMap = (petsData || []).reduce<Record<string, any>>((map, pet) => {
+            map[pet.id] = pet;
+            return map;
+          }, {});
+          
+          const profilesMap = (profilesData || []).reduce<Record<string, any>>((map, profile) => {
+            map[profile.id] = profile;
+            return map;
+          }, {});
+          
+          // Process the appointments data to ensure it matches our interface
+          processedAppointments = bookingsData.map((booking) => {
+            // Safely access nested properties with null checks
+            const vetId = booking.vet_id || '';
+            const petId = booking.pet_id || '';
+            const ownerId = booking.pet_owner_id || '';
+            
+            // Get related data with null checks
+            const vetProfile = vetId ? (vetProfilesMap[vetId] || null) : null;
+            const petData = petId ? (petsMap[petId] || null) : null;
+            const ownerProfile = ownerId ? (profilesMap[ownerId] || null) : null;
+            
+            return {
+              id: booking.id,
+              booking_date: booking.booking_date,
+              start_time: booking.start_time,
+              end_time: booking.end_time,
+              status: booking.status,
+              notes: booking.notes,
+              vet_id: vetId,
+              pet_id: petId,
+              pet_owner_id: ownerId,
+              consultation_type: booking.consultation_type,
+              created_at: booking.created_at,
+              updated_at: booking.updated_at,
+              // Add the related data
+              vet_profiles: vetProfile,
+              pets: petData,
+              profiles: ownerProfile,
+              // Add the derived fields for compatibility
+              first_name: vetProfile?.first_name || '',
+              last_name: vetProfile?.last_name || '',
+              name: petData?.name || '',
+              type: petData?.type || '',
+              owner_id: petData?.owner_id || '',
+              full_name: ownerProfile?.full_name || '',
+              email: ownerProfile?.email || '',
+              phone_number: ownerProfile?.phone_number || ''
+            } as AppointmentWithDetails;
+          });
+        }
       } catch (error) {
         console.error('Error in appointments fetch:', error);
         setError('Failed to fetch appointments');
+        processedAppointments = [];
       }
       
       // Fetch all transactions
@@ -333,6 +375,89 @@ const SuperAdminDashboard = () => {
         setTransactions(transactionsData || []);
       }
       
+      // Fetch all prescriptions with related data
+      try {
+        const { data: prescriptionsData, error: prescriptionsError } = await supabase
+          .from('prescriptions')
+          .select('*')
+          .order('prescribed_date', { ascending: false })
+          .throwOnError();
+        
+        if (prescriptionsError) {
+          console.error('Error fetching prescriptions:', prescriptionsError);
+          setError('Failed to fetch prescriptions');
+          processedPrescriptions = [];
+        } else if (!prescriptionsData || prescriptionsData.length === 0) {
+          processedPrescriptions = [];
+        } else {
+          // Get unique IDs for related data
+          const prescriptionPetIds = [...new Set(prescriptionsData.map(p => p.pet_id))];
+          const prescriptionOwnerIds = [...new Set(prescriptionsData.map(p => p.pet_owner_id))];
+          const prescriptionVetIds = [...new Set(prescriptionsData.map(p => p.vet_id))];
+          
+          // Fetch pets data for prescriptions
+          const { data: prescriptionPetsData, error: prescriptionPetsError } = await supabase
+            .from('pets')
+            .select('id, name, type, breed')
+            .in('id', prescriptionPetIds)
+            .throwOnError();
+          
+          if (prescriptionPetsError) {
+            console.error('Error fetching pets for prescriptions:', prescriptionPetsError);
+          }
+          
+          // Fetch owners data for prescriptions
+          const { data: prescriptionOwnersData, error: prescriptionOwnersError } = await supabase
+            .from('profiles')
+            .select('id, full_name')
+            .in('id', prescriptionOwnerIds)
+            .throwOnError();
+          
+          if (prescriptionOwnersError) {
+            console.error('Error fetching owners for prescriptions:', prescriptionOwnersError);
+          }
+          
+          // Fetch vets data for prescriptions
+          const { data: prescriptionVetsData, error: prescriptionVetsError } = await supabase
+            .from('vet_profiles')
+            .select('id, first_name, last_name, specialization')
+            .in('id', prescriptionVetIds)
+            .throwOnError();
+          
+          if (prescriptionVetsError) {
+            console.error('Error fetching vets for prescriptions:', prescriptionVetsError);
+          }
+          
+          // Create lookup maps
+          const prescriptionPetsMap = (prescriptionPetsData || []).reduce<Record<string, any>>((map, pet) => {
+            map[pet.id] = pet;
+            return map;
+          }, {});
+          
+          const prescriptionOwnersMap = (prescriptionOwnersData || []).reduce<Record<string, any>>((map, owner) => {
+            map[owner.id] = owner;
+            return map;
+          }, {});
+          
+          const prescriptionVetsMap = (prescriptionVetsData || []).reduce<Record<string, any>>((map, vet) => {
+            map[vet.id] = vet;
+            return map;
+          }, {});
+          
+          // Process prescriptions data
+          processedPrescriptions = prescriptionsData.map((prescription) => ({
+            ...prescription,
+            pet: prescriptionPetsMap[prescription.pet_id] || null,
+            owner: prescriptionOwnersMap[prescription.pet_owner_id] || null,
+            vet: prescriptionVetsMap[prescription.vet_id] || null
+          }));
+        }
+      } catch (error) {
+        console.error('Error in prescriptions fetch:', error);
+        setError('Failed to fetch prescriptions');
+        processedPrescriptions = [];
+      }
+      
       // Process and normalize the vet data to ensure approval_status is one of the expected values
       const processedVets = (vetsData || []).map((vet: any) => ({
         ...vet,
@@ -341,11 +466,31 @@ const SuperAdminDashboard = () => {
           : 'pending') as 'pending' | 'approved' | 'rejected'
       }));
       
+      // Count appointments and prescriptions for each user
+      const usersWithCounts = fetchedUsers.map(user => {
+        // Count appointments where user is the pet owner
+        const appointmentCount = processedAppointments.filter(appointment => 
+          appointment.pet_owner_id === user.id
+        ).length;
+        
+        // Count prescriptions where user is the pet owner
+        const prescriptionCount = processedPrescriptions.filter(prescription => 
+          prescription.pet_owner_id === user.id
+        ).length;
+        
+        return {
+          ...user,
+          appointment_count: appointmentCount,
+          prescription_count: prescriptionCount
+        };
+      });
+      
       // Set state with fetched data
-      setUsers(usersData || []);
+      setUsers(usersWithCounts);
       setVets(processedVets);
-      // Appointments are set in the try-catch block above
-      // Transactions are set in the if-else block above
+      setAppointments(processedAppointments);
+      setPrescriptions(processedPrescriptions);
+      
     } catch (error) {
       setError('An unexpected error occurred while fetching data');
     } finally {
@@ -534,6 +679,18 @@ const SuperAdminDashboard = () => {
     setSelectedVet(null);
   };
   
+  // Handle prescription click
+  const handlePrescriptionClick = (prescription: SupabasePrescription) => {
+    setSelectedPrescription(prescription);
+    setIsPrescriptionModalOpen(true);
+  };
+  
+  // Handle prescription modal close
+  const handlePrescriptionModalClose = () => {
+    setIsPrescriptionModalOpen(false);
+    setSelectedPrescription(null);
+  };
+  
   // Get status badge
   const getStatusBadge = (status: string) => {
     const statusLower = status?.toLowerCase();
@@ -556,6 +713,10 @@ const SuperAdminDashboard = () => {
     
     if (statusLower === 'cancelled') {
       return <Badge className="bg-gray-100 text-gray-800">Cancelled</Badge>;
+    }
+    
+    if (statusLower === 'active') {
+      return <Badge className="bg-green-100 text-green-800">Active</Badge>;
     }
     
     return <Badge className="bg-gray-100 text-gray-800">{status || 'Unknown'}</Badge>;
@@ -647,7 +808,7 @@ const SuperAdminDashboard = () => {
         </div>
       </header>
       
-      <main className="container flex-1 py-6 space-y-6">
+      <main className="container mx-auto flex-1 py-6 space-y-6 max-w-7xl">
         {error && (
           <Alert variant="destructive">
             <AlertDescription>{error}</AlertDescription>
@@ -679,7 +840,7 @@ const SuperAdminDashboard = () => {
         </div>
         
         <Tabs defaultValue="users" value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="users">
               <Users className="w-4 h-4 mr-2" />
               Users
@@ -691,6 +852,10 @@ const SuperAdminDashboard = () => {
             <TabsTrigger value="appointments">
               <Calendar className="w-4 h-4 mr-2" />
               Appointments
+            </TabsTrigger>
+            <TabsTrigger value="prescriptions">
+              <Pill className="w-4 h-4 mr-2" />
+              Prescriptions
             </TabsTrigger>
             <TabsTrigger value="transactions">
               <CreditCard className="w-4 h-4 mr-2" />
@@ -734,14 +899,22 @@ const SuperAdminDashboard = () => {
                       <TableHead>Email</TableHead>
                       <TableHead>Type</TableHead>
                       <TableHead>Status</TableHead>
+                      <TableHead className="text-center">
+                        <Calendar className="h-4 w-4 inline mr-1" />
+                        Appointments
+                      </TableHead>
+                      <TableHead className="text-center">
+                        <FileText className="h-4 w-4 inline mr-1" />
+                        Prescriptions
+                      </TableHead>
                       <TableHead>Joined</TableHead>
-                      <TableHead>Actions</TableHead>
+                      <TableHead className="w-auto">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {loading ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
+                        <TableCell colSpan={8} className="text-center py-8">
                           <div className="flex justify-center">
                             <Loader2 className="h-8 w-8 animate-spin text-primary" />
                           </div>
@@ -749,7 +922,7 @@ const SuperAdminDashboard = () => {
                       </TableRow>
                     ) : filteredUsers.length === 0 ? (
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                        <TableCell colSpan={8} className="text-center text-muted-foreground">
                           No users found
                         </TableCell>
                       </TableRow>
@@ -757,9 +930,19 @@ const SuperAdminDashboard = () => {
                       filteredUsers.map((user) => (
                         <TableRow key={user.id}>
                           <TableCell className="font-medium">{user.full_name || 'Unknown'}</TableCell>
-                          <TableCell>Not available</TableCell>
+                          <TableCell>{user.email || 'Not available'}</TableCell>
                           <TableCell className="capitalize">{user.user_type || 'Unknown'}</TableCell>
                           <TableCell>{getStatusBadge('active')}</TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="bg-blue-50 text-blue-700">
+                              {user.appointment_count || 0}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-center">
+                            <Badge variant="outline" className="bg-green-50 text-green-700">
+                              {user.prescription_count || 0}
+                            </Badge>
+                          </TableCell>
                           <TableCell>
                             {new Date(user.created_at).toLocaleDateString()}
                           </TableCell>
@@ -767,8 +950,9 @@ const SuperAdminDashboard = () => {
                             <div className="flex items-center gap-2">
                               <Button
                                 size="sm"
-                                variant="ghost"
+                                variant="default"
                                 onClick={() => handleUserClick(user)}
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground"
                               >
                                 View
                               </Button>
@@ -834,17 +1018,17 @@ const SuperAdminDashboard = () => {
                   </div>
                 </div>
               </CardHeader>
-              <CardContent>
+              <CardContent className="p-0">
                 {loading ? (
-                  <div className="flex justify-center py-8">
+                  <div className="flex justify-center py-8 px-6">
                     <Loader2 className="h-8 w-8 animate-spin text-primary" />
                   </div>
                 ) : filteredVets.length === 0 ? (
-                  <div className="text-center text-muted-foreground py-8">
+                  <div className="text-center text-muted-foreground py-8 px-6">
                     No veterinarians found
                   </div>
                 ) : activeView === 'cards' ? (
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-6">
                     {filteredVets.map((vet) => (
                       <VetApprovalCard
                         key={vet.id}
@@ -859,8 +1043,8 @@ const SuperAdminDashboard = () => {
                           license_url: vet.license_url || '',
                           approval_status: vet.approval_status || 'pending',
                           created_at: vet.created_at,
-                          clinic_name: vet.clinic_location || '',
-                          license_expiry: ''
+                          clinic_name: vet.clinic_name || '',
+                          license_expiry: vet.license_expiry || ''
                         }}
                         onApprove={(id) => handleVetApproval(id, 'approved')}
                         onReject={(id) => handleVetApproval(id, 'rejected')}
@@ -869,65 +1053,68 @@ const SuperAdminDashboard = () => {
                     ))}
                   </div>
                 ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Specialization</TableHead>
-                        <TableHead>Experience</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Registered</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredVets.map((vet) => (
-                        <TableRow key={vet.id}>
-                          <TableCell className="font-medium">
-                            Dr. {vet.first_name} {vet.last_name}
-                          </TableCell>
-                          <TableCell>{vet.specialization || 'Not specified'}</TableCell>
-                          <TableCell>{vet.years_experience ? `${vet.years_experience} years` : 'Not specified'}</TableCell>
-                          <TableCell>{getStatusBadge(vet.approval_status || 'pending')}</TableCell>
-                          <TableCell>
-                            {new Date(vet.created_at).toLocaleDateString()}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                onClick={() => handleVetClick(vet)}
-                              >
-                                View Details
-                              </Button>
-                              
-                              {(vet.approval_status === 'pending' || !vet.approval_status) && (
-                                <>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-green-600 hover:text-green-700"
-                                    onClick={() => handleVetApproval(vet.id, 'approved')}
-                                  >
-                                    Approve
-                                  </Button>
-                                  <Button
-                                    size="sm"
-                                    variant="outline"
-                                    className="text-red-600 hover:text-red-700"
-                                    onClick={() => handleVetApproval(vet.id, 'rejected')}
-                                  >
-                                    Reject
-                                  </Button>
-                                </>
-                              )}
-                            </div>
-                          </TableCell>
+                  <div className="w-full overflow-x-auto">
+                    <Table className="w-full">
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead className="w-1/6">Name</TableHead>
+                          <TableHead className="w-1/6">Specialization</TableHead>
+                          <TableHead className="w-1/8">Experience</TableHead>
+                          <TableHead className="w-1/8">Status</TableHead>
+                          <TableHead className="w-1/8">Registered</TableHead>
+                          <TableHead className="w-auto">Actions</TableHead>
                         </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredVets.map((vet) => (
+                          <TableRow key={vet.id}>
+                            <TableCell className="font-medium">
+                              Dr. {vet.first_name} {vet.last_name}
+                            </TableCell>
+                            <TableCell>{vet.specialization || 'Not specified'}</TableCell>
+                            <TableCell>{vet.years_experience ? `${vet.years_experience} years` : 'Not specified'}</TableCell>
+                            <TableCell>{getStatusBadge(vet.approval_status || 'pending')}</TableCell>
+                            <TableCell>
+                              {new Date(vet.created_at).toLocaleDateString()}
+                            </TableCell>
+                            <TableCell className="w-auto">
+                              <div className="flex items-center gap-2 w-full min-w-fit">
+                                <Button
+                                  size="sm"
+                                  variant="default"
+                                  onClick={() => handleVetClick(vet)}
+                                  className="bg-primary hover:bg-primary/90 text-primary-foreground flex-shrink-0"
+                                >
+                                  View Details
+                                </Button>
+                                
+                                {(vet.approval_status === 'pending' || !vet.approval_status) && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-green-600 hover:text-green-700 flex-shrink-0"
+                                      onClick={() => handleVetApproval(vet.id, 'approved')}
+                                    >
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-red-600 hover:text-red-700 flex-shrink-0"
+                                      onClick={() => handleVetApproval(vet.id, 'rejected')}
+                                    >
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -996,6 +1183,84 @@ const SuperAdminDashboard = () => {
             </Card>
           </TabsContent>
 
+          <TabsContent value="prescriptions" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Prescriptions</CardTitle>
+                <CardDescription>
+                  View and manage all prescriptions on the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Pet</TableHead>
+                      <TableHead>Owner</TableHead>
+                      <TableHead>Veterinarian</TableHead>
+                      <TableHead>Medication</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          <div className="flex justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : prescriptions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          No prescriptions found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      prescriptions.map((prescription) => (
+                        <TableRow key={prescription.id}>
+                          <TableCell>
+                            {new Date(prescription.prescribed_date).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{prescription.pet?.name || 'Unknown Pet'}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {prescription.pet?.type}{prescription.pet?.breed && ` - ${prescription.pet.breed}`}
+                            </div>
+                          </TableCell>
+                          <TableCell>{prescription.owner?.full_name || 'Unknown'}</TableCell>
+                          <TableCell>
+                            Dr. {prescription.vet?.first_name} {prescription.vet?.last_name}
+                          </TableCell>
+                          <TableCell>
+                            <div className="font-medium">{prescription.medication_name}</div>
+                            <div className="text-sm text-muted-foreground">
+                              {prescription.dosage} - {prescription.frequency}
+                            </div>
+                          </TableCell>
+                          <TableCell>{getStatusBadge(prescription.status)}</TableCell>
+                          <TableCell>
+                            <Button
+                              size="sm"
+                              variant="default"
+                              onClick={() => handlePrescriptionClick(prescription)}
+                              className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                            >
+                              View Details
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
           <TabsContent value="transactions" className="space-y-4">
             <Card>
               <CardHeader>
@@ -1054,22 +1319,28 @@ const SuperAdminDashboard = () => {
           </TabsContent>
         </Tabs>
 
-        {/* Temporarily commented out until UserDetailsModal is fixed */}
+        {/* User Details Modal */}
         {selectedUser && isUserModalOpen && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-            <div className="bg-white p-6 rounded-lg max-w-lg w-full">
-              <h2 className="text-xl font-bold mb-4">User Details</h2>
-              <p>User details modal is currently unavailable.</p>
-              <div className="mt-4 flex justify-end">
-                <Button onClick={handleUserModalClose}>Close</Button>
-              </div>
-            </div>
-          </div>
+          <UserDetailsModal 
+            user={selectedUser} 
+            isOpen={isUserModalOpen}
+            onClose={handleUserModalClose}
+            onUserUpdated={handleUserUpdated}
+          />
         )}
         
         {/* Vet Details Modal */}
         {selectedVet && isVetModalOpen && (
           <VetDetailsModal vet={selectedVet} onClose={handleVetModalClose} />
+        )}
+        
+        {/* Prescription Details Modal */}
+        {selectedPrescription && isPrescriptionModalOpen && (
+          <PrescriptionDetailsModal 
+            prescription={selectedPrescription} 
+            isOpen={isPrescriptionModalOpen}
+            onClose={handlePrescriptionModalClose} 
+          />
         )}
       </main>
     </div>

@@ -141,11 +141,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      // Check if there's a current session first
+      const { data: { session: currentSession } } = await supabase.auth.getSession();
+      
+      if (currentSession) {
+        // If session exists, try normal signOut
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          // If signOut fails but we have a session, log the error but continue with cleanup
+          console.warn('SignOut error:', error);
+        }
+      } else {
+        // If no session exists, just clean up local state
+        console.log('No active session found, cleaning up local state');
+      }
+      
+      // Always clear local state regardless of signOut success/failure
+      setSession(null);
+      setUser(null);
+      localStorage.removeItem('userAlreadySignedIn');
+      
+      // Show success message
+      toast.success('Signed out successfully');
+      
     } catch (error: any) {
-      toast.error(error.message || 'Error signing out');
-      throw error;
+      console.warn('SignOut process encountered an error:', error);
+      
+      // Even if there's an error, clear local state to ensure user is logged out
+      setSession(null);
+      setUser(null);
+      localStorage.removeItem('userAlreadySignedIn');
+      
+      // Don't throw the error or show error toast - just log it and continue
+      // The user should still be logged out from the app's perspective
+      toast.success('Signed out successfully');
     } finally {
       setIsLoading(false);
     }

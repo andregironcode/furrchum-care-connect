@@ -3,7 +3,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -24,20 +23,131 @@ import {
   Card,
   CardContent,
   CardDescription,
-  CardFooter,
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
-import { CheckCircle, XCircle, Calendar, Clock, AlertCircle, Trash2, Loader2, FileWarning } from 'lucide-react';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { 
+  CheckCircle, 
+  XCircle, 
+  Calendar, 
+  Clock, 
+  AlertCircle, 
+  Trash2, 
+  Loader2, 
+  FileText, 
+  Eye, 
+  Download,
+  User,
+  Mail,
+  Phone,
+  MapPin,
+  Heart,
+  Stethoscope,
+  Pill,
+  Video,
+  UserCheck
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
-import { UserProfile, VetProfile, Appointment } from '@/types/profiles';
-import { User, FileText, CheckCircle as CheckCircleIcon, XCircle as XCircleIcon, Download, Eye } from 'lucide-react';
 import { openFile, downloadFile } from '@/utils/supabaseStorage';
 
+// Enhanced interfaces for the modal
+interface UserProfile {
+  id: string;
+  full_name: string | null;
+  user_type: string;
+  created_at: string;
+  updated_at: string;
+  email?: string | null;
+}
+
+interface VetProfile {
+  id: string;
+  first_name: string;
+  last_name: string;
+  specialization: string | null;
+  about: string | null;
+  consultation_fee: number | null;
+  image_url: string | null;
+  years_experience: number | null;
+  phone: string | null;
+  gender: string | null;
+  languages: string[] | null;
+  zip_code: string | null;
+  clinic_location: string | null;
+  clinic_images: string[] | null;
+  license_url: string | null;
+  offers_video_calls: boolean | null;
+  offers_in_person: boolean | null;
+  approval_status: string | null;
+  approved_at: string | null;
+  approved_by: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface Appointment {
+  id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  status: string;
+  consultation_type: string;
+  notes: string | null;
+  pet_id: string | null;
+  pet_owner_id: string;
+  vet_id: string;
+  created_at: string;
+  pets?: {
+    name: string;
+    type: string;
+  } | null;
+  vet_profiles?: {
+    first_name: string;
+    last_name: string;
+  } | null;
+}
+
+interface Prescription {
+  id: string;
+  medication_name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
+  instructions: string | null;
+  diagnosis: string | null;
+  status: string;
+  prescribed_date: string;
+  pet_id: string;
+  pet_owner_id: string;
+  vet_id: string;
+  created_at: string;
+  pets?: {
+    name: string;
+    type: string;
+  } | null;
+  vet_profiles?: {
+    first_name: string;
+    last_name: string;
+  } | null;
+}
+
+interface Pet {
+  id: string;
+  name: string;
+  type: string;
+  breed: string | null;
+  age: number | null;
+  weight: number | null;
+  gender: string | null;
+  vaccination_status: string | null;
+  created_at: string;
+}
+
 interface UserDetailsModalProps {
-  user: UserProfile & Partial<VetProfile>;
+  user: UserProfile;
   isOpen: boolean;
   onClose: () => void;
   onUserUpdated?: () => void;
@@ -46,6 +156,9 @@ interface UserDetailsModalProps {
 const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsModalProps) => {
   const [vetProfile, setVetProfile] = useState<VetProfile | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [rejectionFeedback, setRejectionFeedback] = useState('');
   const [showRejectionForm, setShowRejectionForm] = useState(false);
@@ -58,67 +171,76 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
 
     setLoading(true);
     try {
-      // Fetch vet profile if user is a vet
-      if (user.user_type === 'vet') {
-        const { data: vetData, error: vetError } = await supabase
-          .from('vet_profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (vetError && vetError.code !== 'PGRST116') {
-          console.error('Error fetching vet profile:', vetError);
-        } else if (vetData) {
-          // Transform the data to handle null values properly
-          // Only include fields that are actually in the VetProfile interface
-          const transformedVetProfile: VetProfile = {
-            id: vetData.id,
-            first_name: vetData.first_name || '',
-            last_name: vetData.last_name || '',
-            specialization: vetData.specialization || '',
-            about: vetData.about || '',
-            consultation_fee: vetData.consultation_fee || 0,
-            image_url: vetData.image_url || '',
-            years_experience: vetData.years_experience || 0,
-            phone: vetData.phone || '',  // phone_number doesn't exist in the database schema
-            gender: vetData.gender || '',
-            languages: Array.isArray(vetData.languages) ? vetData.languages : [],
-            zip_code: vetData.zip_code || '',
-            clinic_location: vetData.clinic_location || '',
-            clinic_images: Array.isArray(vetData.clinic_images) ? vetData.clinic_images : [],
-            license_url: vetData.license_url || '',
-            rating: typeof vetData.rating === 'number' ? vetData.rating : 5,
-            availability: typeof vetData.availability === 'object' ? JSON.stringify(vetData.availability) : (vetData.availability?.toString() || 'Available'),
-            offers_video_calls: Boolean(vetData.offers_video_calls),
-            offers_in_person: Boolean(vetData.offers_in_person),
-            created_at: vetData.created_at,
-            approval_status: (vetData.approval_status as 'pending' | 'approved' | 'rejected') || 'pending',
-            approved_at: vetData.approved_at,
-            approved_by: vetData.approved_by,
-          };
+      // Fetch user email using the new RPC function
+      try {
+        const { data: emailData, error: emailError } = await (supabase as any)
+          .rpc('get_user_email', { user_id: user.id });
           
-          setVetProfile(transformedVetProfile);
-          console.log('Transformed vet profile data:', transformedVetProfile); // Debug log
+        if (!emailError && emailData) {
+          setUserEmail(emailData);
+        } else {
+          console.warn('Could not fetch user email:', emailError);
+          setUserEmail(user.email || 'Email not available');
         }
+      } catch (error) {
+        console.warn('Error fetching user email:', error);
+        setUserEmail(user.email || 'Email not available');
       }
 
-      // Fetch recent appointments
+      // Skip vet profile fetching since this modal is only for pet owners now
+      // The vet profiles are handled in the separate vets tab
+
+      // Fetch user's pets (since this is now only for pet owners)
+      const { data: petsData, error: petsError } = await supabase
+        .from('pets')
+        .select('*')
+        .eq('owner_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (petsError) {
+        console.error('Error fetching pets:', petsError);
+      } else {
+        setPets(petsData || []);
+      }
+
+      // Fetch appointments related to this user
       const { data: appointmentsData, error: appointmentsError } = await supabase
         .from('bookings')
         .select(`
           *,
-          vet_profiles(first_name, last_name),
-          pets(name)
+          pets(name, type),
+          vet_profiles(first_name, last_name)
         `)
         .or(`pet_owner_id.eq.${user.id},vet_id.eq.${user.id}`)
-        .order('created_at', { ascending: false })
-        .limit(5);
+        .order('booking_date', { ascending: false })
+        .limit(10);
 
       if (appointmentsError) {
         console.error('Error fetching appointments:', appointmentsError);
       } else {
         setAppointments(appointmentsData || []);
       }
+
+      // Fetch prescriptions related to this user (simplified without relations)
+      const { data: prescriptionsData, error: prescriptionsError } = await supabase
+        .from('prescriptions')
+        .select('*')
+        .or(`pet_owner_id.eq.${user.id},vet_id.eq.${user.id}`)
+        .order('prescribed_date', { ascending: false })
+        .limit(10);
+
+      if (prescriptionsError) {
+        console.error('Error fetching prescriptions:', prescriptionsError);
+      } else {
+        // Transform the data to match our interface
+        const transformedPrescriptions: Prescription[] = (prescriptionsData || []).map(prescription => ({
+          ...prescription,
+          pets: null, // Set to null since we can't fetch the relation
+          vet_profiles: null, // Set to null since we can't fetch the relation
+        }));
+        setPrescriptions(transformedPrescriptions);
+      }
+
     } catch (error) {
       console.error('Error fetching user details:', error);
       const errorMessage = error instanceof Error ? error.message : 'Failed to fetch user details';
@@ -138,55 +260,18 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
     }
   }, [isOpen, user, fetchUserDetails]);
 
-  // Function to verify if a vet's approval status was updated successfully
-  const verifyVetApprovalStatus = async (vetId: string, expectedStatus: 'pending' | 'approved' | 'rejected'): Promise<boolean> => {
-    try {
-      const { data, error } = await supabase
-        .from('vet_profiles')
-        .select('approval_status')
-        .eq('id', vetId)
-        .single();
-
-      if (error) {
-        console.error('Error verifying vet approval status:', error);
-        return false;
-      }
-
-      if (!data) {
-        console.warn('No vet profile found for verification');
-        return false;
-      }
-
-      const currentStatus = data.approval_status;
-      console.log(`Verification: Expected status ${expectedStatus}, current status ${currentStatus}`);
-      
-      return currentStatus === expectedStatus;
-    } catch (err) {
-      console.error('Error in verification:', err);
-      return false;
-    }
-  };
-
   const handleVetApproval = useCallback(async (status: 'approved' | 'rejected', feedback?: string) => {
     if (!vetProfile || !user) return;
 
     try {
       setLoading(true);
 
-      console.log(`Updating vet profile ${vetProfile.id} to status: ${status}`);
-
-      // Create update data with only the fields we know exist in the table
       const updateData = {
-        approval_status: status
+        approval_status: status,
+        approved_at: status === 'approved' ? new Date().toISOString() : null,
+        approved_by: status === 'approved' ? 'Super Admin' : null,
       };
 
-      // Log feedback for rejections, but don't try to store it in a non-existent column
-      if (status === 'rejected' && feedback) {
-        console.log(`Rejection feedback for vet ${vetProfile.id}: ${feedback}`);
-        // We could store this in a separate table if needed
-      }
-
-      // Update the vet_profiles table
       const { error: profileError } = await supabase
         .from('vet_profiles')
         .update(updateData)
@@ -196,23 +281,10 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
         throw new Error(`Error updating vet profile: ${profileError.message}`);
       }
 
-      // Verify the update was successful
-      const verified = await verifyVetApprovalStatus(vetProfile.id, status);
-      if (!verified) {
-        console.warn(`Could not verify vet ${vetProfile.id} status update to ${status}. Will try to refresh data anyway.`);
+      if (status === 'rejected' && feedback) {
+        console.log(`Rejection feedback for vet ${vetProfile.id}: ${feedback}`);
       }
 
-      console.log(`Successfully updated vet profile ${vetProfile.id} to status: ${status}`);
-
-      // We'll skip updating the profiles table since it's causing a 400 Bad Request error
-      // The approval status is already stored in the vet_profiles table, which is sufficient
-      console.log(`Vet profile for user ${user.id} updated successfully to status: ${status}. Skipping profiles table update.`);
-
-      // Send notification to the vet (this would normally be an email)
-      // For now, we'll just log it
-      console.log(`Notification to vet ${vetProfile.id}: Your account has been ${status}${feedback ? ` with feedback: ${feedback}` : ''}`);
-
-      // Refresh the vet profile data to confirm changes
       await fetchUserDetails();
 
       toast({
@@ -265,14 +337,6 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
         throw new Error(profileDeleteError.message);
       }
       
-      // Delete user from auth
-      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(user.id);
-      
-      if (authDeleteError) {
-        console.error('Error deleting user from auth:', authDeleteError);
-        throw new Error(authDeleteError.message);
-      }
-      
       toast({
         title: 'User Deleted',
         description: 'The user has been successfully deleted.',
@@ -297,20 +361,17 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
     if (!url) {
       toast({
         title: 'Error',
-        description: 'No license document available',
+        description: 'No document available',
         variant: 'destructive'
       });
       return;
     }
 
     try {
-      // Use the imported utility function to open the file
       const success = await openFile(url);
       
       if (!success) {
-        // Fallback to direct URL opening if the utility function fails
         window.open(url, '_blank');
-        
         toast({
           title: 'Warning',
           description: 'Using direct URL access. If the document doesn\'t load, please try downloading it instead.',
@@ -334,7 +395,10 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
       approved: 'bg-green-100 text-green-800',
       rejected: 'bg-red-100 text-red-800',
       active: 'bg-blue-100 text-blue-800',
-      suspended: 'bg-gray-100 text-gray-800',
+      completed: 'bg-green-100 text-green-800',
+      cancelled: 'bg-gray-100 text-gray-800',
+      confirmed: 'bg-blue-100 text-blue-800',
+      expired: 'bg-red-100 text-red-800',
     };
     
     return (
@@ -344,7 +408,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
     );
   }, []);
 
-  const downloadLicenseDocument = useCallback(async (url: string | undefined) => {
+  const downloadLicenseDocument = useCallback(async (url: string | null) => {
     if (!url) {
       toast({
         title: 'Error',
@@ -369,7 +433,6 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
           variant: 'default',
         });
         
-        // Fallback to direct URL download
         window.open(url, '_blank');
       }
     } catch (error) {
@@ -385,395 +448,344 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
   if (!user) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            {user.full_name || 'Unknown User'}
-          </DialogTitle>
-          <DialogDescription>
-            User ID: {user.id} • Joined: {new Date(user.created_at).toLocaleDateString()}
-            {user.user_type === 'vet' && (
-              <span className="ml-2 text-blue-600 font-medium">
-                • Veterinarian Account
-              </span>
-            )}
-          </DialogDescription>
-        </DialogHeader>
+    <>
+      <Dialog open={isOpen} onOpenChange={onClose}>
+        <DialogContent className="max-w-6xl max-h-[95vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <User className="h-5 w-5" />
+              {user.full_name || 'Unknown User'}
+              <Badge variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
+                {user.user_type.replace('_', ' ')}
+              </Badge>
+            </DialogTitle>
+            <DialogDescription className="flex items-center gap-4 text-sm">
+              <span>User ID: {user.id}</span>
+              <span>•</span>
+              <span>Joined: {new Date(user.created_at).toLocaleDateString()}</span>
+              {userEmail && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <Mail className="h-3 w-3" />
+                    {userEmail}
+                  </span>
+                </>
+              )}
+            </DialogDescription>
+          </DialogHeader>
 
-        <Tabs defaultValue="profile" className="mt-4">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="profile">Profile</TabsTrigger>
-            <TabsTrigger
-              value="documents"
-              className={user.user_type === 'vet' ? '' : 'hidden'}
-            >
-              Documents
-            </TabsTrigger>
-            <TabsTrigger
-              value="pets"
-              className={user.user_type === 'pet_owner' ? '' : 'hidden'}
-            >
-              Pets
-            </TabsTrigger>
-            <TabsTrigger value="appointments">Appointments</TabsTrigger>
-          </TabsList>
+          <Tabs defaultValue="profile" className="mt-4">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="profile">Profile</TabsTrigger>
+              <TabsTrigger value="appointments">Appointments ({appointments.length})</TabsTrigger>
+              <TabsTrigger value="prescriptions">Prescriptions ({prescriptions.length})</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="profile" className="space-y-4">
-            <Card>
-              <CardHeader className="flex justify-between items-start">
-                <CardTitle>User Information</CardTitle>
-                <Button 
-                  variant="destructive" 
-                  size="sm"
-                  onClick={() => setShowDeleteConfirmation(true)}
-                >
-                  <Trash2 className="h-4 w-4 mr-1" />
-                  Delete User
-                </Button>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Full Name</p>
-                    <p className="font-medium">{user.full_name}</p>
-                  </div>
-                  <strong>User Type:</strong>
-                  <Badge className="ml-2" variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
-                    {user.user_type.replace('_', ' ')}
-                  </Badge>
-                </div>
-                <div>
-                  <strong>Name:</strong> {user.full_name || 'Not provided'}
-                </div>
-                <div>
-                  <strong>User Type:</strong>
-                  <Badge className="ml-2" variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
-                    {user.user_type.replace('_', ' ')}
-                  </Badge>
-                </div>
-                <div>
-                  <strong>Status:</strong> {getStatusBadge(user.status || 'active')}
-                </div>
-              </CardContent>
-            </Card>
-
-            {user.user_type === 'vet' && vetProfile && (
+            <TabsContent value="profile" className="space-y-4">
+              {/* Basic User Information */}
               <Card>
-                <CardHeader>
-                  <CardTitle>Veterinarian Profile</CardTitle>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>User Information</CardTitle>
+                    <CardDescription>Basic user profile details</CardDescription>
+                  </div>
+                  <Button 
+                    variant="destructive" 
+                    size="sm"
+                    onClick={() => setShowDeleteConfirmation(true)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-1" />
+                    Delete User
+                  </Button>
                 </CardHeader>
-                <CardContent className="space-y-3">
-                  <div>
-                    <strong>Name:</strong> Dr. {vetProfile.first_name} {vetProfile.last_name}
-                  </div>
-                  <div>
-                    <strong>Specialization:</strong> {vetProfile.specialization || 'General Practice'}
-                  </div>
-                  <div>
-                    <strong>Experience:</strong> {vetProfile.years_experience || 0} years
-                  </div>
-                  <div>
-                    <strong>Consultation Fee:</strong> ${vetProfile.consultation_fee || 0}
-                  </div>
-                  <div>
-                    <strong>Approval Status:</strong> {getStatusBadge(vetProfile.approval_status)}
-                  </div>
-                  <div>
-                    <strong>Location:</strong> {vetProfile.clinic_location || 'Not specified'}
-                  </div>
-                  {vetProfile.about && (
-                    <div>
-                      <strong>About:</strong>
-                      <p className="mt-1 text-sm text-muted-foreground">{vetProfile.about}</p>
+                <CardContent>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500 flex items-center gap-1">
+                        <User className="h-3 w-3" />
+                        Full Name
+                      </p>
+                      <p className="font-medium">{user.full_name || 'Not provided'}</p>
                     </div>
-                  )}
-
-                  {vetProfile && vetProfile.approval_status === 'pending' && (
-                    <div className="space-y-4 mt-4">
-                      {!showRejectionForm ? (
-                        <div className="flex space-x-2">
-                          <Button
-                            onClick={() => handleVetApproval('approved')}
-                            className="bg-green-600 hover:bg-green-700"
-                            disabled={loading}
-                          >
-                            <CheckCircleIcon className="mr-2 h-4 w-4" />
-                            Approve Vet
-                          </Button>
-                          <Button
-                            onClick={() => setShowRejectionForm(true)}
-                            variant="destructive"
-                            disabled={loading}
-                          >
-                            <XCircleIcon className="mr-2 h-4 w-4" />
-                            Reject Vet
-                          </Button>
-                        </div>
-                      ) : (
-                        <div className="space-y-4 border rounded-md p-4 bg-red-50 border-red-200">
-                          <div className="flex items-center text-red-700 mb-2">
-                            <AlertCircle className="h-4 w-4 mr-2" />
-                            <p className="font-medium">Provide rejection feedback</p>
-                          </div>
-
-                          <Textarea
-                            placeholder="Please provide feedback on why this vet is being rejected..."
-                            value={rejectionFeedback}
-                            onChange={(e) => setRejectionFeedback(e.target.value)}
-                            className="h-24"
-                          />
-
-                          <div className="flex space-x-2">
-                            <Button
-                              onClick={() => handleVetApproval('rejected', rejectionFeedback)}
-                              variant="destructive"
-                              disabled={loading || !rejectionFeedback.trim()}
-                            >
-                              <XCircleIcon className="mr-2 h-4 w-4" />
-                              Confirm Rejection
-                            </Button>
-                            <Button
-                              onClick={() => {
-                                setShowRejectionForm(false);
-                                setRejectionFeedback('');
-                              }}
-                              variant="outline"
-                              disabled={loading}
-                            >
-                              Cancel
-                            </Button>
-                          </div>
-                        </div>
-                      )}
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500 flex items-center gap-1">
+                        <Mail className="h-3 w-3" />
+                        Email
+                      </p>
+                      <p className="font-medium">{userEmail || 'Not available'}</p>
                     </div>
-                  )}
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500">User Type</p>
+                      <Badge variant={user.user_type === 'vet' ? 'default' : 'secondary'}>
+                        {user.user_type.replace('_', ' ')}
+                      </Badge>
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-gray-500">Member Since</p>
+                      <p className="font-medium">{new Date(user.created_at).toLocaleDateString()}</p>
+                    </div>
+                  </div>
                 </CardContent>
               </Card>
-            )}
-          </TabsContent>
 
-          {user.user_type === 'vet' && (
-            <TabsContent value="documents" className="space-y-4">
+              {/* Pets Section for Pet Owners */}
               <Card>
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
-                    <FileText className="h-5 w-5" />
-                    Veterinarian Documents
+                    <Heart className="h-5 w-5" />
+                    Registered Pets ({pets.length})
                   </CardTitle>
                   <CardDescription>
-                    Review uploaded licenses and certifications for approval
+                    Pets registered under this user's account
                   </CardDescription>
                 </CardHeader>
                 <CardContent>
                   {loading ? (
                     <div className="flex items-center justify-center py-8">
-                      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                      <span className="ml-2">Loading documents...</span>
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <span className="ml-2">Loading pets...</span>
                     </div>
-                  ) : vetProfile ? (
-                    <div className="space-y-6">
-                      {/* License Document */}
-                      {vetProfile.license_url ? (
-                        <div className="border rounded-lg p-4 bg-blue-50">
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-blue-100 rounded-lg">
-                                <FileText className="w-5 h-5 text-blue-600" />
+                  ) : pets.length > 0 ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {pets.map((pet) => (
+                        <Card key={pet.id} className="border">
+                          <CardContent className="p-4">
+                            <div className="space-y-2">
+                              <div className="flex items-center justify-between">
+                                <h4 className="font-medium">{pet.name}</h4>
+                                <Badge variant="outline">{pet.type}</Badge>
                               </div>
-                              <div>
-                                <h4 className="font-medium text-lg">Veterinary License</h4>
-                                <p className="text-sm text-muted-foreground">
-                                  Professional veterinary license document
-                                </p>
-                                <p className="text-xs text-green-600 mt-1">
-                                  ✓ Document uploaded
-                                </p>
+                              {pet.breed && (
+                                <p className="text-sm text-gray-500">Breed: {pet.breed}</p>
+                              )}
+                              <div className="flex gap-4 text-sm text-gray-500">
+                                {pet.age && <span>Age: {pet.age}y</span>}
+                                {pet.weight && <span>Weight: {pet.weight}kg</span>}
+                                {pet.gender && <span>Gender: {pet.gender}</span>}
                               </div>
-                            </div>
-                            <div className="flex gap-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() => downloadLicenseDocument(vetProfile?.license_document_url || vetProfile?.license_url || '')}
-                                className="bg-white"
-                                disabled={!vetProfile?.license_document_url && !vetProfile?.license_url}
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-yellow-100 rounded-lg">
-                              <FileWarning className="w-5 h-5 text-yellow-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-lg">No License Document</h4>
-                              <p className="text-sm text-muted-foreground">
-                                No license document has been uploaded by this veterinarian.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                        {vetProfile.approval_status === 'pending' && (
-                          <div className="border rounded-lg p-4 bg-red-50 mt-4">
-                            <div className="flex items-center gap-3">
-                              <div className="p-2 bg-red-100 rounded-lg">
-                                <XCircle className="w-5 h-5 text-red-600" />
-                              </div>
-                              <div>
-                                <h4 className="font-medium text-lg text-red-800">No License Uploaded</h4>
-                                <p className="text-sm text-red-600">
-                                  Veterinary license document is required for approval
-                                </p>
-                              </div>
-                            </div>
-                          </div>
-                        )}
-                      )}
-
-                      {/* Clinic Images */}
-                      {vetProfile.clinic_images && vetProfile.clinic_images.length > 0 ? (
-                        <div className="border rounded-lg p-4">
-                          <h4 className="font-medium mb-3 flex items-center gap-2">
-                            <Eye className="w-4 h-4" />
-                            Clinic Images ({vetProfile.clinic_images.length})
-                          </h4>
-                          <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                            {vetProfile.clinic_images.map((imageUrl: string, index: number) => (
-                              <div key={index} className="relative group">
-                                <img
-                                  src={imageUrl}
-                                  alt={`Clinic image ${index + 1}`}
-                                  className="w-full h-32 object-cover rounded-lg cursor-pointer hover:opacity-80 transition-opacity border"
-                                  onClick={() => openDocument(imageUrl)}
-                                />
-                                <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition-all rounded-lg flex items-center justify-center">
-                                  <Eye className="w-6 h-6 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+                              {pet.vaccination_status && (
+                                <div className="flex items-center gap-1">
+                                  <span className="text-sm text-gray-500">Vaccination:</span>
+                                  {getStatusBadge(pet.vaccination_status)}
                                 </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="border rounded-lg p-4 bg-gray-50">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-gray-100 rounded-lg">
-                              <FileText className="w-5 h-5 text-gray-600" />
-                            </div>
-                            <div>
-                              <h4 className="font-medium text-gray-800">No Clinic Images</h4>
-                              <p className="text-sm text-gray-600">
-                                No clinic images have been uploaded yet
+                              )}
+                              <p className="text-xs text-gray-400">
+                                Registered: {new Date(pet.created_at).toLocaleDateString()}
                               </p>
                             </div>
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Approval Status and Actions */}
-                      <div className="border rounded-lg p-4 bg-yellow-50">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-medium text-lg">Approval Status</h4>
-                            <div className="flex items-center space-x-2">
-                              <div className="font-medium">Status:</div>
-                              {getStatusBadge(vetProfile?.approval_status || 'pending')}
-                            </div>
-                          </div>
-                          {vetProfile.approved_at && (
-                            <p className="text-xs text-muted-foreground mt-1">
-                              Approved on {new Date(vetProfile.approved_at).toLocaleDateString()}
-                            </p>
-                          )}
-                          {vetProfile.approval_status === 'pending' && (
-                            <div className="flex gap-2">
-                              <Button
-                                onClick={() => handleVetApproval('approved')}
-                                className="bg-green-600 hover:bg-green-700"
-                              >
-                                <CheckCircle className="w-4 h-4 mr-1" />
-                                Approve Vet
-                              </Button>
-                              <Button
-                                variant="destructive"
-                                onClick={() => handleVetApproval('rejected')}
-                              >
-                                <XCircle className="w-4 h-4 mr-1" />
-                                Reject
-                              </Button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                          </CardContent>
+                        </Card>
+                      ))}
                     </div>
                   ) : (
                     <div className="text-center py-8">
-                      <FileText className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-                      <p className="text-muted-foreground">No vet profile found for this user.</p>
+                      <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-muted-foreground">No pets registered yet.</p>
                     </div>
                   )}
                 </CardContent>
               </Card>
             </TabsContent>
-          )}
 
-          {user.user_type === 'pet_owner' && (
-            <TabsContent value="pets" className="space-y-4">
+            <TabsContent value="appointments" className="space-y-4">
               <Card>
                 <CardHeader>
-                  <CardTitle>Registered Pets</CardTitle>
+                  <CardTitle className="flex items-center gap-2">
+                    <Calendar className="h-5 w-5" />
+                    Appointments ({appointments.length})
+                  </CardTitle>
+                  <CardDescription>
+                    {user.user_type === 'vet' 
+                      ? 'Appointments scheduled with this veterinarian'
+                      : 'Appointments booked by this user'
+                    }
+                  </CardDescription>
                 </CardHeader>
                 <CardContent>
-                  {/* Pet data would be fetched and displayed here */}
-                  <p className="text-muted-foreground">Pet information would be displayed here.</p>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <span className="ml-2">Loading appointments...</span>
+                    </div>
+                  ) : appointments.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date & Time</TableHead>
+                            <TableHead>Pet</TableHead>
+                            <TableHead>{user.user_type === 'vet' ? 'Pet Owner' : 'Veterinarian'}</TableHead>
+                            <TableHead>Type</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Notes</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {appointments.map((appointment) => (
+                            <TableRow key={appointment.id}>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <div className="flex items-center gap-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {new Date(appointment.booking_date).toLocaleDateString()}
+                                  </div>
+                                  <div className="flex items-center gap-1 text-sm text-gray-500">
+                                    <Clock className="h-3 w-3" />
+                                    {appointment.start_time} - {appointment.end_time}
+                                  </div>
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Heart className="h-3 w-3" />
+                                  {appointment.pets?.name || 'Unknown Pet'}
+                                  {appointment.pets?.type && (
+                                    <span className="text-sm text-gray-500">({appointment.pets.type})</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {user.user_type === 'vet' ? (
+                                  <span>Pet Owner</span>
+                                ) : (
+                                  appointment.vet_profiles ? (
+                                    <span>Dr. {appointment.vet_profiles.first_name} {appointment.vet_profiles.last_name}</span>
+                                  ) : (
+                                    'Unknown Vet'
+                                  )
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <Badge variant="outline">
+                                  {appointment.consultation_type === 'video_call' ? (
+                                    <><Video className="h-3 w-3 mr-1" />Video</>
+                                  ) : (
+                                    <><UserCheck className="h-3 w-3 mr-1" />In-Person</>
+                                  )}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                {getStatusBadge(appointment.status)}
+                              </TableCell>
+                              <TableCell>
+                                <p className="text-sm text-gray-600 max-w-xs truncate">
+                                  {appointment.notes || 'No notes'}
+                                </p>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Calendar className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-muted-foreground">No appointments found.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </TabsContent>
-          )}
 
-          <TabsContent value="appointments" className="space-y-4">
-            <Card>
-              <CardHeader>
-                <CardTitle>Recent Appointments</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {appointments.length > 0 ? (
-                  <div className="space-y-4">
-                    {appointments.map((appointment) => (
-                      <div key={appointment.id} className="border rounded-lg p-4">
-                        <div className="flex justify-between items-start">
-                          <div>
-                            <h4 className="font-medium">
-                              {new Date(appointment.booking_date).toLocaleDateString()}
-                            </h4>
-                            <p className="text-sm text-muted-foreground">
-                              {appointment.start_time} - {appointment.end_time}
-                            </p>
-                            <p className="text-sm">
-                              {user.user_type === 'vet' 
-                                ? `Pet: ${appointment.pets?.name || 'Unknown'}`
-                                : `Vet: Dr. ${appointment.vet_profiles?.first_name} ${appointment.vet_profiles?.last_name}`
-                              }
-                            </p>
-                            <p className="text-sm capitalize">{appointment.consultation_type}</p>
-                          </div>
-                          <Badge className={
-                            appointment.status === 'confirmed' ? 'bg-blue-100 text-blue-800' :
-                            appointment.status === 'completed' ? 'bg-green-100 text-green-800' :
-                            appointment.status === 'cancelled' ? 'bg-red-100 text-red-800' :
-                            'bg-yellow-100 text-yellow-800'
-                          }>
-                            {appointment.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <p className="text-muted-foreground">No appointments found.</p>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </DialogContent>
+            <TabsContent value="prescriptions" className="space-y-4">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Pill className="h-5 w-5" />
+                    Prescriptions ({prescriptions.length})
+                  </CardTitle>
+                  <CardDescription>
+                    {user.user_type === 'vet' 
+                      ? 'Prescriptions issued by this veterinarian'
+                      : 'Prescriptions received for this user\'s pets'
+                    }
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  {loading ? (
+                    <div className="flex items-center justify-center py-8">
+                      <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                      <span className="ml-2">Loading prescriptions...</span>
+                    </div>
+                  ) : prescriptions.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Date</TableHead>
+                            <TableHead>Pet</TableHead>
+                            <TableHead>{user.user_type === 'vet' ? 'Pet Owner' : 'Veterinarian'}</TableHead>
+                            <TableHead>Medication</TableHead>
+                            <TableHead>Dosage & Frequency</TableHead>
+                            <TableHead>Duration</TableHead>
+                            <TableHead>Status</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {prescriptions.map((prescription) => (
+                            <TableRow key={prescription.id}>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Calendar className="h-3 w-3" />
+                                  {new Date(prescription.prescribed_date).toLocaleDateString()}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-1">
+                                  <Heart className="h-3 w-3" />
+                                  {prescription.pets?.name || 'Unknown Pet'}
+                                  {prescription.pets?.type && (
+                                    <span className="text-sm text-gray-500">({prescription.pets.type})</span>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                {user.user_type === 'vet' ? (
+                                  <span>Pet Owner</span>
+                                ) : (
+                                  prescription.vet_profiles ? (
+                                    <span>Dr. {prescription.vet_profiles.first_name} {prescription.vet_profiles.last_name}</span>
+                                  ) : (
+                                    'Unknown Vet'
+                                  )
+                                )}
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p className="font-medium">{prescription.medication_name}</p>
+                                  {prescription.diagnosis && (
+                                    <p className="text-sm text-gray-500">For: {prescription.diagnosis}</p>
+                                  )}
+                                </div>
+                              </TableCell>
+                              <TableCell>
+                                <div className="space-y-1">
+                                  <p>{prescription.dosage}</p>
+                                  <p className="text-sm text-gray-500">{prescription.frequency}</p>
+                                </div>
+                              </TableCell>
+                              <TableCell>{prescription.duration}</TableCell>
+                              <TableCell>
+                                {getStatusBadge(prescription.status)}
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <Pill className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                      <p className="text-muted-foreground">No prescriptions found.</p>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
+        </DialogContent>
+      </Dialog>
       
       {/* Delete User Confirmation Dialog */}
       <AlertDialog open={showDeleteConfirmation} onOpenChange={setShowDeleteConfirmation}>
@@ -807,7 +819,7 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </Dialog>
+    </>
   );
 };
 
