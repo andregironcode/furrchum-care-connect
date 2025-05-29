@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -7,14 +6,13 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
-  SidebarGroupLabel,
   SidebarHeader,
   SidebarMenu,
   SidebarMenuButton,
   SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
-import { Home, PawPrint, User, Calendar, FileText, CreditCard, LogOut } from "lucide-react";
+import { Home, PawPrint, User, Calendar, FileText, CreditCard, LogOut, HelpCircle } from "lucide-react";
 
 const PetOwnerSidebar = () => {
   const { signOut } = useAuth();
@@ -60,6 +58,12 @@ const PetOwnerSidebar = () => {
       path: "/payments",
       icon: CreditCard,
       isActive: isActive("/payments"),
+    },
+    {
+      title: "FAQ",
+      path: "/faq",
+      icon: HelpCircle,
+      isActive: isActive("/faq"),
     },
     {
       title: "Profile",
@@ -129,4 +133,4 @@ const PetOwnerSidebar = () => {
   );
 };
 
-export default PetOwnerSidebar;
+export default PetOwnerSidebar; 

@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Menu, X, LogOut, UserCircle } from 'lucide-react';
@@ -39,6 +38,12 @@ const Navbar = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+    setIsOpen(false);
+  };
+
+  const handleNavigate = (path: string) => {
+    navigate(path);
+    setIsOpen(false);
   };
   
   return (
@@ -62,8 +67,9 @@ const Navbar = () => {
             <Link to="/contact" className="text-accent-600 hover:text-primary font-medium transition-colors">Contact Us</Link>
           </div>
 
-          <div className="flex items-center space-x-4">
-            {user ? (
+          {/* Desktop User Account Dropdown - Only for authenticated users */}
+          <div className="hidden md:flex items-center space-x-4">
+            {user && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white font-medium">
@@ -90,25 +96,6 @@ const Navbar = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-            ) : (
-              <>
-                <Button 
-                  variant="outline" 
-                  className="border-primary text-primary hover:bg-primary hover:text-white font-medium"
-                  onClick={() => navigate('/auth')}
-                >
-                  Sign In
-                </Button>
-                
-                <Button 
-                  className="bg-accent hover:bg-accent/90 text-white font-medium"
-                  onClick={() => {
-                    navigate('/auth');
-                  }}
-                >
-                  Sign Up
-                </Button>
-              </>
             )}
           </div>
 
@@ -129,16 +116,69 @@ const Navbar = () => {
         {isOpen && (
           <div className="md:hidden py-4 border-t border-primary/10 animate-fade-in">
             <div className="flex flex-col space-y-4">
-              <Link to="/vets" className="text-accent-600 hover:text-primary py-2 font-medium">Find Vets</Link>
-              <Link to="/about" className="text-accent-600 hover:text-primary py-2 font-medium">About Us</Link>
-              <Link to="/contact" className="text-accent-600 hover:text-primary py-2 font-medium">Contact Us</Link>
-              {user && (
-                <button
-                  onClick={handleSignOut}
-                  className="flex items-center text-accent-600 hover:text-primary py-2 font-medium"
-                >
-                  <LogOut className="w-4 h-4 mr-2" /> Sign Out
-                </button>
+              {/* Navigation Links */}
+              <Link 
+                to="/vets" 
+                className="text-accent-600 hover:text-primary py-2 font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                Find Vets
+              </Link>
+              <Link 
+                to="/about" 
+                className="text-accent-600 hover:text-primary py-2 font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                About Us
+              </Link>
+              <Link 
+                to="/contact" 
+                className="text-accent-600 hover:text-primary py-2 font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                Contact Us
+              </Link>
+              
+              {/* User-specific actions */}
+              {user ? (
+                <>
+                  {/* Dashboard Link */}
+                  <button
+                    onClick={() => handleNavigate(userType === 'vet' ? '/vet-dashboard' : '/dashboard')}
+                    className="flex items-center text-accent-600 hover:text-primary py-2 font-medium"
+                  >
+                    <UserCircle className="w-4 h-4 mr-2" />
+                    {userType === 'vet' ? 'Vet Dashboard' : 'Dashboard'}
+                  </button>
+                  
+                  {/* Sign Out */}
+                  <button
+                    onClick={handleSignOut}
+                    className="flex items-center text-accent-600 hover:text-primary py-2 font-medium"
+                  >
+                    <LogOut className="w-4 h-4 mr-2" /> 
+                    Sign Out
+                  </button>
+                </>
+              ) : (
+                <>
+                  {/* Login Button */}
+                  <Button 
+                    variant="outline" 
+                    className="border-primary text-primary hover:bg-primary hover:text-white font-medium w-full justify-start"
+                    onClick={() => handleNavigate('/auth')}
+                  >
+                    Sign In
+                  </Button>
+                  
+                  {/* Register Button */}
+                  <Button 
+                    className="bg-accent hover:bg-accent/90 text-white font-medium w-full justify-start"
+                    onClick={() => handleNavigate('/auth')}
+                  >
+                    Sign Up
+                  </Button>
+                </>
               )}
             </div>
           </div>

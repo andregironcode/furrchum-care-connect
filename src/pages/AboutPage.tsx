@@ -32,6 +32,10 @@ const AboutPage = () => {
     }
   };
 
+  const handlePartnerWithUs = () => {
+    navigate('/contact');
+  };
+
   const values = [
     {
       icon: Heart,
@@ -130,28 +134,28 @@ const AboutPage = () => {
               opacity: Math.max(0, 1 - scrollY * 0.002)
             }}
           >
-            <h1 className="text-6xl md:text-7xl font-bold text-white mb-6 leading-tight">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold text-white mb-6 leading-tight">
               <span className="block bg-gradient-to-r from-orange-400 via-amber-400 to-yellow-500 bg-clip-text text-transparent">
                 Furrchum
               </span>
-              <span className="block text-3xl md:text-4xl mt-2 text-white/90">
+              <span className="block text-xl sm:text-2xl md:text-3xl lg:text-4xl mt-2 text-white/90">
                 Where Love Meets Care
               </span>
             </h1>
-            <p className="text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed mb-10 font-light">
+            <p className="text-lg sm:text-xl md:text-2xl text-white/80 max-w-4xl mx-auto leading-relaxed mb-10 font-light px-4">
               Revolutionizing pet healthcare with 
               <span className="text-orange-300 font-medium"> cutting-edge technology</span> and 
               <span className="text-amber-300 font-medium"> boundless compassion</span>
             </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center px-4">
               <Button 
                 onClick={handleBeginJourney}
-                className="bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-700 hover:to-red-800 text-white font-bold px-10 py-3 text-lg rounded-full transform hover:scale-105 transition-all duration-300 shadow-xl"
+                className="bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-700 hover:to-red-800 text-white font-bold px-6 sm:px-10 py-3 text-base sm:text-lg rounded-full transform hover:scale-105 transition-all duration-300 shadow-xl w-full sm:w-auto"
               >
                 Begin the Journey
-                <ArrowRight className="ml-2 h-5 w-5" />
+                <ArrowRight className="ml-2 h-4 w-4 sm:h-5 sm:w-5" />
               </Button>
-              <Button className="bg-white/10 border border-white/30 text-white hover:bg-white/20 font-medium px-8 py-3 text-lg rounded-full backdrop-blur-sm transition-all duration-300">
+              <Button className="bg-white/10 border border-white/30 text-white hover:bg-white/20 font-medium px-6 sm:px-8 py-3 text-base sm:text-lg rounded-full backdrop-blur-sm transition-all duration-300 w-full sm:w-auto">
                 Watch Our Story
               </Button>
             </div>
@@ -167,9 +171,9 @@ const AboutPage = () => {
       </section>
 
       {/* Stats Section */}
-      <section className="py-16 bg-white relative">
+      <section className="py-12 sm:py-16 bg-white relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 sm:gap-8">
             {stats.map((stat, index) => (
               <div 
                 key={index}
@@ -178,9 +182,9 @@ const AboutPage = () => {
                   animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
                 }}
               >
-                <stat.icon className={`w-10 h-10 mx-auto mb-3 ${stat.color}`} />
-                <div className="text-3xl font-bold text-gray-900 mb-1">{stat.number}</div>
-                <div className="text-gray-600 font-medium text-sm">{stat.label}</div>
+                <stat.icon className={`w-8 h-8 sm:w-10 sm:h-10 mx-auto mb-3 ${stat.color}`} />
+                <div className="text-2xl sm:text-3xl font-bold text-gray-900 mb-1">{stat.number}</div>
+                <div className="text-gray-600 font-medium text-xs sm:text-sm">{stat.label}</div>
               </div>
             ))}
           </div>
@@ -190,50 +194,48 @@ const AboutPage = () => {
       {/* Story Section with Parallax - Orange Theme */}
       <section 
         ref={storyRef}
-        className="py-24 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 relative overflow-hidden"
+        className="py-16 sm:py-24 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 relative overflow-hidden"
       >
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-orange-500/5 to-amber-500/5 transform rotate-12 scale-150"></div>
         </div>
         
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div 
               className="transform transition-all duration-700"
               style={{
-                transform: `translateX(${Math.max(-50, scrollY * 0.05 - 100)}px)`,
-                opacity: Math.max(0, Math.min(1, (scrollY - 300) / 300))
+                transform: typeof window !== 'undefined' && window.innerWidth >= 1024 ? `translateX(${Math.max(-50, scrollY * 0.05 - 100)}px)` : 'none',
+                opacity: typeof window !== 'undefined' && window.innerWidth >= 1024 ? Math.max(0, Math.min(1, (scrollY - 300) / 300)) : 1
               }}
             >
               <div className="inline-block px-4 py-2 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-sm font-medium mb-6">
                 🐾 Our Beginning
               </div>
-              <h2 className="text-4xl font-bold text-gray-900 mb-6 leading-tight">
-                Born from a 
-                <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent"> moment of need</span>
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-6 leading-tight">
+                Born from a&nbsp;
+                <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">moment of need</span>
               </h2>
               <div className="space-y-4">
-                <p className="text-lg text-gray-700 leading-relaxed">
+                <p className="text-base sm:text-lg text-gray-700 leading-relaxed">
                   One evening, we witnessed a grandmother's desperate search for veterinary help for her beloved companion. 
                   <span className="font-semibold text-orange-600"> That moment changed everything.</span>
                 </p>
-                <p className="text-lg text-gray-700 leading-relaxed">
+                <p className="text-base sm:text-lg text-gray-700 leading-relaxed">
                   We realized that in our digital age, pet healthcare remained frustratingly analog. 
-                  <span className="font-semibold text-red-600"> Distance, time, and accessibility</span> were barriers between love and care.
+                  <span className="font-semibold text-red-600">Distance, time, and accessibility</span> were barriers between love and care.
                 </p>
-                <p className="text-lg text-gray-700 leading-relaxed">
+                <p className="text-base sm:text-lg text-gray-700 leading-relaxed">
                   Furrchum was born to eliminate these barriers forever — creating an ecosystem where 
-                  <span className="font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent"> 
-                    professional veterinary care is just a touch away.
-                  </span>
+                  <span className="font-semibold bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">professional veterinary care is just a touch away.</span>
                 </p>
               </div>
             </div>
             <div 
-              className="relative transform transition-all duration-700"
+              className="relative transform transition-all duration-700 mt-8 lg:mt-0"
               style={{
-                transform: `translateX(${Math.min(50, -(scrollY * 0.05 - 100))}px)`,
-                opacity: Math.max(0, Math.min(1, (scrollY - 300) / 300))
+                transform: typeof window !== 'undefined' && window.innerWidth >= 1024 ? `translateX(${Math.min(50, -(scrollY * 0.05 - 100))}px)` : 'none',
+                opacity: typeof window !== 'undefined' && window.innerWidth >= 1024 ? Math.max(0, Math.min(1, (scrollY - 300) / 300)) : 1
               }}
             >
               <div className="relative">
@@ -241,7 +243,7 @@ const AboutPage = () => {
                 <img 
                   src="/lovable-uploads/42e2d7bd-3440-457d-8a1e-fcd08a2d4014.png" 
                   alt="Veterinarian caring for pet" 
-                  className="relative rounded-2xl shadow-xl w-full h-80 object-cover transform hover:scale-105 transition-transform duration-500"
+                  className="relative rounded-2xl shadow-xl w-full h-60 sm:h-80 object-cover transform hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent rounded-2xl"></div>
               </div>
@@ -251,22 +253,22 @@ const AboutPage = () => {
       </section>
 
       {/* Mission Section - Orange Theme */}
-      <section className="py-24 bg-gradient-to-br from-orange-900 via-red-900 to-amber-900 text-white relative overflow-hidden">
+      <section className="py-16 sm:py-24 bg-gradient-to-br from-orange-900 via-red-900 to-amber-900 text-white relative overflow-hidden">
         <div className="absolute inset-0">
           <div className="absolute top-20 right-20 w-80 h-80 bg-gradient-to-r from-orange-600/10 to-red-600/10 rounded-full filter blur-3xl"></div>
           <div className="absolute bottom-20 left-20 w-80 h-80 bg-gradient-to-r from-red-600/10 to-amber-600/10 rounded-full filter blur-3xl"></div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="text-center mb-16">
-            <div className="inline-block px-6 py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-lg font-bold mb-6">
+          <div className="text-center mb-12 sm:mb-16">
+            <div className="inline-block px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-base sm:text-lg font-bold mb-6">
               🎯 Our Mission
             </div>
-            <h2 className="text-5xl font-bold mb-6 leading-tight">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-6 leading-tight">
               Transforming 
               <span className="bg-gradient-to-r from-orange-400 to-amber-500 bg-clip-text text-transparent"> Pet Healthcare</span>
             </h2>
-            <p className="text-xl text-white/80 max-w-4xl mx-auto leading-relaxed">
+            <p className="text-lg sm:text-xl text-white/80 max-w-4xl mx-auto leading-relaxed">
               Making veterinary care accessible, intelligent, and instantaneous for every pet family across India and beyond.
             </p>
           </div>
@@ -294,13 +296,13 @@ const AboutPage = () => {
             ].map((item, index) => (
               <div 
                 key={index}
-                className="text-center p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300 transform hover:scale-105"
+                className="text-center p-4 sm:p-6 rounded-xl bg-white/5 backdrop-blur-sm border border-white/10 hover:bg-white/10 transition-all duration-300 transform hover:scale-105"
               >
-                <div className={`w-14 h-14 mx-auto mb-4 rounded-full bg-gradient-to-r ${item.color} flex items-center justify-center`}>
-                  <item.icon className="w-7 h-7 text-white" />
+                <div className={`w-12 h-12 sm:w-14 sm:h-14 mx-auto mb-4 rounded-full bg-gradient-to-r ${item.color} flex items-center justify-center`}>
+                  <item.icon className="w-6 h-6 sm:w-7 sm:h-7 text-white" />
                 </div>
-                <h3 className="text-xl font-bold mb-3">{item.title}</h3>
-                <p className="text-white/70">{item.description}</p>
+                <h3 className="text-lg sm:text-xl font-bold mb-3">{item.title}</h3>
+                <p className="text-white/70 text-sm sm:text-base">{item.description}</p>
               </div>
             ))}
           </div>
@@ -310,34 +312,34 @@ const AboutPage = () => {
       {/* Values Section with Scroll Animations */}
       <section 
         ref={valuesRef}
-        className="py-24 bg-white relative overflow-hidden"
+        className="py-16 sm:py-24 bg-white relative overflow-hidden"
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <div className="inline-block px-6 py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-lg font-bold mb-6">
+          <div className="text-center mb-12 sm:mb-16">
+            <div className="inline-block px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-base sm:text-lg font-bold mb-6">
               💛 Our Values
             </div>
-            <h2 className="text-5xl font-bold text-gray-900 mb-6">
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-gray-900 mb-6">
               What Drives 
-              <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent">Everything We Do</span>
+              <span className="bg-gradient-to-r from-orange-600 to-red-600 bg-clip-text text-transparent"> Everything We Do</span>
             </h2>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {values.map((value, index) => (
               <div 
                 key={index}
-                className={`group relative p-6 rounded-2xl ${value.bgColor} hover:shadow-xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1`}
+                className={`group relative p-4 sm:p-6 rounded-2xl ${value.bgColor} hover:shadow-xl transition-all duration-300 transform hover:scale-105 hover:-translate-y-1`}
                 style={{
                   animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
                 }}
               >
                 <div className="relative z-10">
-                  <div className={`w-12 h-12 mb-4 rounded-xl bg-gradient-to-r ${value.color} flex items-center justify-center transform group-hover:rotate-6 transition-transform duration-300`}>
-                    <value.icon className="w-6 h-6 text-white" />
+                  <div className={`w-10 h-10 sm:w-12 sm:h-12 mb-4 rounded-xl bg-gradient-to-r ${value.color} flex items-center justify-center transform group-hover:rotate-6 transition-transform duration-300`}>
+                    <value.icon className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                   </div>
-                  <h3 className="text-xl font-bold text-gray-900 mb-3">{value.title}</h3>
-                  <p className="text-gray-700 leading-relaxed">{value.description}</p>
+                  <h3 className="text-lg sm:text-xl font-bold text-gray-900 mb-3">{value.title}</h3>
+                  <p className="text-gray-700 leading-relaxed text-sm sm:text-base">{value.description}</p>
                 </div>
                 <div className={`absolute inset-0 bg-gradient-to-r ${value.color} opacity-0 group-hover:opacity-5 rounded-2xl transition-opacity duration-300`}></div>
               </div>
@@ -349,29 +351,29 @@ const AboutPage = () => {
       {/* Vision Section - Orange Theme */}
       <section 
         ref={visionRef}
-        className="py-24 bg-gradient-to-br from-orange-900 via-red-900 to-amber-900 text-white relative overflow-hidden"
+        className="py-16 sm:py-24 bg-gradient-to-br from-orange-900 via-red-900 to-amber-900 text-white relative overflow-hidden"
       >
         <div className="absolute inset-0">
           <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-r from-orange-600/5 to-red-600/5 transform -rotate-12 scale-150"></div>
         </div>
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12 items-center">
             <div className="relative order-2 lg:order-1">
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/20 to-red-600/20 rounded-2xl blur-lg"></div>
                 <img 
                   src="/lovable-uploads/d90a72b9-e0fd-4086-9692-b3c0a15463a7.png" 
                   alt="Professional veterinary team" 
-                  className="relative rounded-2xl shadow-xl w-full h-80 object-cover transform hover:scale-105 transition-transform duration-500"
+                  className="relative rounded-2xl shadow-xl w-full h-60 sm:h-80 object-cover transform hover:scale-105 transition-transform duration-500"
                 />
               </div>
             </div>
             <div className="order-1 lg:order-2">
-              <div className="inline-block px-6 py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-lg font-bold mb-6">
+              <div className="inline-block px-4 sm:px-6 py-2 sm:py-3 bg-gradient-to-r from-orange-600 to-red-700 text-white rounded-full text-base sm:text-lg font-bold mb-6">
                 🚀 Our Vision
               </div>
-              <h2 className="text-4xl font-bold mb-6 leading-tight">
+              <h2 className="text-3xl sm:text-4xl font-bold mb-6 leading-tight">
                 Building India's 
                 <span className="bg-gradient-to-r from-orange-400 to-amber-400 bg-clip-text text-transparent">
                   Pet Care Revolution
@@ -379,7 +381,7 @@ const AboutPage = () => {
               </h2>
               
               <div className="space-y-4 mb-6">
-                <p className="text-lg text-white/90 leading-relaxed">
+                <p className="text-base sm:text-lg text-white/90 leading-relaxed">
                   Creating a future where geographical boundaries don't limit access to quality veterinary care.
                 </p>
                 
@@ -398,13 +400,13 @@ const AboutPage = () => {
                 </div>
               </div>
 
-              <blockquote className="text-lg italic text-orange-200 border-l-4 border-orange-400 pl-4 mb-6">
+              <blockquote className="text-base sm:text-lg italic text-orange-200 border-l-4 border-orange-400 pl-4 mb-6">
                 "Transforming a fragmented system into an intelligent, accessible network where every pet matters."
               </blockquote>
 
               <Button 
                 onClick={handleBeginJourney}
-                className="bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-700 hover:to-red-800 text-white font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg"
+                className="bg-gradient-to-r from-orange-600 to-red-700 hover:from-orange-700 hover:to-red-800 text-white font-bold px-6 py-3 rounded-full transform hover:scale-105 transition-all duration-300 shadow-lg w-full sm:w-auto"
               >
                 Join Our Mission
                 <Star className="ml-2 h-4 w-4" />
@@ -415,18 +417,18 @@ const AboutPage = () => {
       </section>
 
       {/* Call to Action - Orange Theme */}
-      <section className="py-16 bg-gradient-to-r from-orange-600 via-red-700 to-amber-700 text-white text-center">
+      <section className="py-12 sm:py-16 bg-gradient-to-r from-orange-600 via-red-700 to-amber-700 text-white text-center">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Transform Pet Care?</h2>
-          <p className="text-lg mb-6 opacity-90">Join thousands of pet families who trust Furrchum for their companions' health</p>
+          <h2 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4">Ready to Transform Pet Care?</h2>
+          <p className="text-base sm:text-lg mb-6 opacity-90">Join thousands of pet families who trust Furrchum for their companions' health</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Button 
               onClick={handleBeginJourney}
-              className="bg-white text-orange-700 hover:bg-gray-100 font-bold px-6 py-3 rounded-full transition-all duration-300"
+              className="bg-white text-orange-700 hover:bg-gray-100 font-bold px-6 py-3 rounded-full transition-all duration-300 w-full sm:w-auto"
             >
               Start Your Journey
             </Button>
-            <Button className="bg-orange-800/50 border border-white/30 text-white hover:bg-orange-800/70 font-medium px-6 py-3 rounded-full backdrop-blur-sm transition-all duration-300">
+            <Button className="bg-orange-800/50 border border-white/30 text-white hover:bg-orange-800/70 font-medium px-6 py-3 rounded-full backdrop-blur-sm transition-all duration-300 w-full sm:w-auto" onClick={handlePartnerWithUs}>
               Partner With Us
             </Button>
           </div>

@@ -30,6 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from 'sonner';
 import VetAppointmentDetailsModal from '@/components/VetAppointmentDetailsModal';
+import { format } from 'date-fns';
 
 interface Booking {
   id: string;
@@ -39,7 +40,7 @@ interface Booking {
   consultation_type: string;
   notes: string | null;
   status: string;
-  pet_id: string;
+  pet_id: string | null;
   vet_id: string;
   pet_owner_id: string;
   created_at: string;
@@ -49,19 +50,19 @@ interface Pet {
   id: string;
   name: string;
   type: string;
-  breed?: string;
-  age?: number;
-  weight?: number;
-  gender?: string;
-  color?: string;
-  medical_history?: string;
-  allergies?: string;
-  medication?: string;
+  breed?: string | null;
+  age?: number | null;
+  weight?: number | null;
+  gender?: string | null;
+  color?: string | null;
+  medical_history?: string | null;
+  allergies?: string | null;
+  medication?: string | null;
 }
 
 interface PetOwner {
   id: string;
-  full_name?: string;
+  full_name?: string | null;
 }
 
 const VetAppointmentsPage = () => {
@@ -86,10 +87,15 @@ const VetAppointmentsPage = () => {
       setLoadingAppointments(true);
       console.log('Fetching appointments for vet:', user?.id);
       
+      if (!user?.id) {
+        console.error('No user ID available');
+        return;
+      }
+      
       const { data: bookingsData, error } = await supabase
         .from('bookings')
         .select('*')
-        .eq('vet_id', user?.id)
+        .eq('vet_id', user.id)
         .order('booking_date', { ascending: true })
         .order('start_time', { ascending: true });
 
@@ -117,7 +123,7 @@ const VetAppointmentsPage = () => {
   };
 
   const fetchPetsAndOwners = async (bookings: Booking[]) => {
-    const petIds = [...new Set(bookings.map(booking => booking.pet_id).filter(Boolean))];
+    const petIds = [...new Set(bookings.map(booking => booking.pet_id).filter((id): id is string => id !== null))];
     const ownerIds = [...new Set(bookings.map(booking => booking.pet_owner_id).filter(Boolean))];
     
     console.log('Fetching pets for IDs:', petIds);
@@ -153,11 +159,13 @@ const VetAppointmentsPage = () => {
             // Set empty pets with pet IDs as keys so we can show "Pet not found" instead of "Loading"
             const emptyPetsRecord: Record<string, Pet> = {};
             petIds.forEach(petId => {
-              emptyPetsRecord[petId] = {
-                id: petId,
-                name: 'Pet not found',
-                type: 'Unknown'
-              };
+              if (petId) {
+                emptyPetsRecord[petId] = {
+                  id: petId,
+                  name: 'Pet not found',
+                  type: 'Unknown'
+                };
+              }
             });
             setPets(emptyPetsRecord);
           }
@@ -212,7 +220,7 @@ const VetAppointmentsPage = () => {
 
   const openAppointmentDetails = (appointment: Booking) => {
     console.log('Opening appointment details for:', appointment.id);
-    console.log('Pet data available:', pets[appointment.pet_id]);
+    console.log('Pet data available:', appointment.pet_id ? pets[appointment.pet_id] : null);
     console.log('Owner data available:', petOwners[appointment.pet_owner_id]);
     
     setSelectedAppointment(appointment);
@@ -291,7 +299,7 @@ const VetAppointmentsPage = () => {
   };
 
   const filteredAppointments = appointments.filter(appointment => {
-    const pet = pets[appointment.pet_id];
+    const pet = appointment.pet_id ? pets[appointment.pet_id] : null;
     const owner = petOwners[appointment.pet_owner_id];
     
     const matchesSearch = searchQuery === "" || 
@@ -335,36 +343,32 @@ const VetAppointmentsPage = () => {
             </header>
             
             <main className="flex-1 container mx-auto px-4 py-6">
+              {/* Search and Filter */}
               <Card className="mb-6">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-lg font-medium">Appointment Management</CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div className="relative">
-                      <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        placeholder="Search pet, owner, or notes..."
-                        className="pl-8"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                      />
+                <CardContent className="p-4 sm:p-6">
+                  <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex-1">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                        <Input
+                          placeholder="Search by pet name or owner..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <Filter className="h-4 w-4 text-muted-foreground" />
-                      <Select
-                        value={filterStatus}
-                        onValueChange={setFilterStatus}
-                      >
+                    <div className="w-full sm:w-48">
+                      <Select value={filterStatus} onValueChange={setFilterStatus}>
                         <SelectTrigger>
                           <SelectValue placeholder="Filter by status" />
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="all">All Statuses</SelectItem>
-                          <SelectItem value="pending">Pending</SelectItem>
-                          <SelectItem value="confirmed">Confirmed</SelectItem>
+                          <SelectItem value="scheduled">Scheduled</SelectItem>
                           <SelectItem value="completed">Completed</SelectItem>
                           <SelectItem value="cancelled">Cancelled</SelectItem>
+                          <SelectItem value="rescheduled">Rescheduled</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
@@ -372,113 +376,176 @@ const VetAppointmentsPage = () => {
                 </CardContent>
               </Card>
 
-              <div className="bg-white rounded-lg shadow-md overflow-hidden">
-                <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader className="bg-primary">
-                      <TableRow>
-                        <TableHead className="text-white font-medium">
-                          <div className="flex items-center">
-                            <CalendarIcon className="h-4 w-4 mr-2" /> Date
+              {/* Appointments List */}
+              {loadingAppointments ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-primary" />
+                    <p className="text-gray-600">Loading appointments...</p>
+                  </CardContent>
+                </Card>
+              ) : filteredAppointments.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <CalendarIcon className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 mb-2">No appointments found</h3>
+                    <p className="text-gray-600">
+                      {appointments.length === 0 
+                        ? "You don't have any appointments yet." 
+                        : "No appointments match your search criteria."}
+                    </p>
+                  </CardContent>
+                </Card>
+              ) : (
+                <>
+                  {/* Mobile Card View */}
+                  <div className="block lg:hidden space-y-4">
+                    {filteredAppointments.map((appointment) => (
+                      <Card key={appointment.id} className="hover:shadow-md transition-shadow">
+                        <CardContent className="p-4">
+                          <div className="flex justify-between items-start mb-3">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <UserCircle className="h-4 w-4 text-gray-400" />
+                                <span className="font-medium text-sm">
+                                  {petOwners[appointment.pet_owner_id]?.full_name || 'Loading...'}
+                                </span>
+                              </div>
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-sm font-medium">
+                                  {appointment.pet_id && pets[appointment.pet_id] ? 
+                                    `${pets[appointment.pet_id].name} (${pets[appointment.pet_id].type})` : 
+                                    'Pet not found'}
+                                </span>
+                              </div>
+                            </div>
+                            {renderStatusBadge(appointment.status)}
                           </div>
-                        </TableHead>
-                        <TableHead className="text-white font-medium">
-                          <div className="flex items-center">
-                            <Clock className="h-4 w-4 mr-2" /> Time
-                          </div>
-                        </TableHead>
-                        <TableHead className="text-white font-medium">Type</TableHead>
-                        <TableHead className="text-white font-medium">
-                          <div className="flex items-center">
-                            <UserCircle className="h-4 w-4 mr-2" /> Pet & Owner
-                          </div>
-                        </TableHead>
-                        <TableHead className="text-white font-medium">
-                          <div className="flex items-center">
-                            <ThumbsUp className="h-4 w-4 mr-2" /> Notes
-                          </div>
-                        </TableHead>
-                        <TableHead className="text-white font-medium">Status</TableHead>
-                        <TableHead className="text-white font-medium">Action</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredAppointments.length > 0 ? (
-                        filteredAppointments.map((appointment) => {
-                          const pet = pets[appointment.pet_id];
-                          const owner = petOwners[appointment.pet_owner_id];
                           
-                          return (
-                            <TableRow key={appointment.id} className="hover:bg-slate-50">
-                              <TableCell>{appointment.booking_date}</TableCell>
-                              <TableCell>{appointment.start_time.slice(0, 5)}</TableCell>
-                              <TableCell>
-                                <Badge variant="outline" className={appointment.consultation_type === 'video' ? 'bg-blue-100 text-blue-800 border-blue-200' : 'bg-purple-100 text-purple-800 border-purple-200'}>
-                                  {appointment.consultation_type}
-                                </Badge>
-                              </TableCell>
-                              <TableCell>
-                                <div>
-                                  <div className="font-medium">{pet?.name || 'Pet not found'}</div>
-                                  <div className="text-sm text-gray-500">{owner?.full_name || 'Owner not found'}</div>
-                                </div>
-                              </TableCell>
-                              <TableCell>
-                                <div className="max-w-xs truncate">
-                                  {appointment.notes || 'No notes'}
-                                </div>
-                              </TableCell>
-                              <TableCell>{renderStatusBadge(appointment.status)}</TableCell>
-                              <TableCell>
-                                <div className="flex gap-2">
-                                  <Button 
-                                    variant="outline" 
-                                    size="sm"
-                                    onClick={() => openAppointmentDetails(appointment)}
-                                  >
-                                    <Eye className="h-4 w-4" />
-                                  </Button>
-                                  <DropdownMenu>
-                                    <DropdownMenuTrigger asChild>
-                                      <Button variant="ghost" size="sm">
-                                        <MoreVertical className="h-4 w-4" />
-                                        <span className="sr-only">Actions</span>
-                                      </Button>
-                                    </DropdownMenuTrigger>
-                                    <DropdownMenuContent align="end">
-                                      <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'confirmed')}>
-                                        Mark as Confirmed
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'completed')}>
-                                        Mark as Completed
-                                      </DropdownMenuItem>
-                                      <DropdownMenuItem className="text-red-500" onClick={() => handleStatusUpdate(appointment.id, 'cancelled')}>
-                                        Cancel Appointment
-                                      </DropdownMenuItem>
-                                    </DropdownMenuContent>
-                                  </DropdownMenu>
-                                </div>
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })
-                      ) : (
-                        <TableRow>
-                          <TableCell colSpan={7} className="text-center py-8 text-muted-foreground">
-                            {loadingAppointments ? 'Loading appointments...' : 'No appointments found matching your filters.'}
-                          </TableCell>
-                        </TableRow>
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
-                
-                <div className="flex justify-between items-center p-4 border-t">
-                  <div className="text-sm text-muted-foreground">
-                    Showing {filteredAppointments.length} of {appointments.length} appointments
+                          <div className="space-y-2 mb-3">
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <CalendarIcon className="h-4 w-4" />
+                              <span>{format(new Date(appointment.booking_date), 'MMM dd, yyyy')}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <Clock className="h-4 w-4" />
+                              <span>{appointment.start_time} - {appointment.end_time}</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-sm text-gray-600">
+                              <FileText className="h-4 w-4" />
+                              <span className="capitalize">{appointment.consultation_type.replace('_', ' ')}</span>
+                            </div>
+                          </div>
+
+                          <div className="flex flex-wrap gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openAppointmentDetails(appointment)}
+                              className="flex-1 min-w-0"
+                            >
+                              <Eye className="h-3 w-3 mr-1" />
+                              <span className="text-xs">View</span>
+                            </Button>
+                            
+                            <DropdownMenu>
+                              <DropdownMenuTrigger asChild>
+                                <Button size="sm" variant="outline" className="px-2">
+                                  <MoreVertical className="h-3 w-3" />
+                                </Button>
+                              </DropdownMenuTrigger>
+                              <DropdownMenuContent align="end">
+                                <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'completed')}>
+                                  <ThumbsUp className="mr-2 h-4 w-4" />
+                                  Mark Complete
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'cancelled')}>
+                                  Cancel Appointment
+                                </DropdownMenuItem>
+                              </DropdownMenuContent>
+                            </DropdownMenu>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                </div>
-              </div>
+
+                  {/* Desktop Table View */}
+                  <Card className="hidden lg:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Pet Owner</TableHead>
+                          <TableHead>Pet</TableHead>
+                          <TableHead>Date & Time</TableHead>
+                          <TableHead>Type</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Actions</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredAppointments.map((appointment) => (
+                          <TableRow key={appointment.id}>
+                            <TableCell className="font-medium">
+                              {petOwners[appointment.pet_owner_id]?.full_name || 'Loading...'}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span className="font-medium">
+                                  {appointment.pet_id && pets[appointment.pet_id] ? pets[appointment.pet_id].name : 'Pet not found'}
+                                </span>
+                                <span className="text-sm text-gray-500 capitalize">
+                                  {appointment.pet_id && pets[appointment.pet_id] ? pets[appointment.pet_id].type : 'Unknown'}
+                                </span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex flex-col">
+                                <span>{format(new Date(appointment.booking_date), 'MMM dd, yyyy')}</span>
+                                <span className="text-sm text-gray-500">{appointment.start_time} - {appointment.end_time}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell className="capitalize">
+                              {appointment.consultation_type.replace('_', ' ')}
+                            </TableCell>
+                            <TableCell>
+                              {renderStatusBadge(appointment.status)}
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => openAppointmentDetails(appointment)}
+                                >
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                
+                                <DropdownMenu>
+                                  <DropdownMenuTrigger asChild>
+                                    <Button size="sm" variant="outline">
+                                      <MoreVertical className="h-4 w-4" />
+                                    </Button>
+                                  </DropdownMenuTrigger>
+                                  <DropdownMenuContent align="end">
+                                    <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'completed')}>
+                                      <ThumbsUp className="mr-2 h-4 w-4" />
+                                      Mark Complete
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem onClick={() => handleStatusUpdate(appointment.id, 'cancelled')}>
+                                      Cancel Appointment
+                                    </DropdownMenuItem>
+                                  </DropdownMenuContent>
+                                </DropdownMenu>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </Card>
+                </>
+              )}
             </main>
           </div>
         </SidebarInset>
@@ -489,7 +556,7 @@ const VetAppointmentsPage = () => {
         isOpen={isDetailsModalOpen}
         onClose={closeAppointmentDetails}
         appointment={selectedAppointment}
-        pet={selectedAppointment ? pets[selectedAppointment.pet_id] : null}
+        pet={selectedAppointment?.pet_id ? pets[selectedAppointment.pet_id] : null}
         petOwner={selectedAppointment ? petOwners[selectedAppointment.pet_owner_id] : null}
         onReschedule={handleRescheduleAppointment}
         onStatusUpdate={handleStatusUpdate}

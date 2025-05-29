@@ -148,18 +148,18 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
   }, [photoPreview]);
 
   return (
-    <div className="flex flex-col h-full">
-      <DialogHeader className="p-6 pb-0">
-        <DialogTitle className="text-2xl font-bold">Add New Pet</DialogTitle>
+    <div className="flex flex-col h-full max-h-[90vh] sm:max-h-[95vh]">
+      <DialogHeader className="p-4 sm:p-6 pb-0 flex-shrink-0">
+        <DialogTitle className="text-xl sm:text-2xl font-bold">Add New Pet</DialogTitle>
         <DialogClose className="absolute right-4 top-4 rounded-sm opacity-70 hover:opacity-100" />
       </DialogHeader>
 
-      <form onSubmit={handleSubmit} className="flex-1 overflow-auto p-6 pt-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 sm:p-6 pt-4">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
           {/* Left Column */}
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label htmlFor="name">Pet Name *</Label>
+          <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-2 sm:space-y-3">
+              <Label htmlFor="name" className="text-sm font-medium">Pet Name *</Label>
               <Input
                 id="name"
                 name="name"
@@ -167,17 +167,18 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
                 required
                 value={petData.name}
                 onChange={handleChange}
+                className="h-10 sm:h-11"
               />
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="type">Pet Type *</Label>
+            <div className="space-y-2 sm:space-y-3">
+              <Label htmlFor="type" className="text-sm font-medium">Pet Type *</Label>
               <Select
                 value={petData.type}
                 onValueChange={(value) => handleSelectChange('type', value)}
                 required
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10 sm:h-11">
                   <SelectValue placeholder="Select pet type" />
                 </SelectTrigger>
                 <SelectContent>
@@ -193,20 +194,21 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
               </Select>
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="breed">Breed</Label>
+            <div className="space-y-2 sm:space-y-3">
+              <Label htmlFor="breed" className="text-sm font-medium">Breed</Label>
               <Input
                 id="breed"
                 name="breed"
                 placeholder="Enter breed"
                 value={petData.breed}
                 onChange={handleChange}
+                className="h-10 sm:h-11"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-3">
-                <Label htmlFor="age">Age (years)</Label>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+              <div className="space-y-2 sm:space-y-3">
+                <Label htmlFor="age" className="text-sm font-medium">Age (years)</Label>
                 <Input
                   id="age"
                   name="age"
@@ -216,10 +218,11 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
                   placeholder="Enter age"
                   value={petData.age}
                   onChange={handleChange}
+                  className="h-10 sm:h-11"
                 />
               </div>
-              <div className="space-y-3">
-                <Label htmlFor="weight">Weight (kg)</Label>
+              <div className="space-y-2 sm:space-y-3">
+                <Label htmlFor="weight" className="text-sm font-medium">Weight (kg)</Label>
                 <Input
                   id="weight"
                   name="weight"
@@ -229,17 +232,18 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
                   placeholder="Enter weight"
                   value={petData.weight}
                   onChange={handleChange}
+                  className="h-10 sm:h-11"
                 />
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="gender">Gender</Label>
+            <div className="space-y-2 sm:space-y-3">
+              <Label htmlFor="gender" className="text-sm font-medium">Gender</Label>
               <Select
                 value={petData.gender}
                 onValueChange={(value) => handleSelectChange('gender', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10 sm:h-11">
                   <SelectValue placeholder="Select gender" />
                 </SelectTrigger>
                 <SelectContent>
@@ -250,42 +254,43 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
               </Select>
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="color">Color</Label>
+            <div className="space-y-2 sm:space-y-3">
+              <Label htmlFor="color" className="text-sm font-medium">Color</Label>
               <Input
                 id="color"
                 name="color"
                 placeholder="Enter color"
                 value={petData.color}
                 onChange={handleChange}
+                className="h-10 sm:h-11"
               />
             </div>
           </div>
 
           {/* Right Column */}
-          <div className="space-y-6">
-            <div className="space-y-3">
-              <Label>Pet Photo</Label>
-              <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-6 bg-gray-50">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="space-y-2 sm:space-y-3">
+              <Label className="text-sm font-medium">Pet Photo</Label>
+              <div className="flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg p-4 sm:p-6 bg-gray-50">
                 {photoPreview ? (
                   <div className="relative">
                     <img
                       src={photoPreview}
                       alt="Pet preview"
-                      className="max-h-48 max-w-full rounded-md"
+                      className="max-h-32 sm:max-h-48 max-w-full rounded-md"
                     />
                     <button
                       type="button"
                       onClick={clearPhotoPreview}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-3 w-3 sm:h-4 sm:w-4" />
                     </button>
                   </div>
                 ) : (
                   <div className="flex flex-col items-center">
-                    <Upload className="h-12 w-12 text-gray-400 mb-2" />
-                    <p className="text-sm text-gray-500 mb-4">Click to upload or drag and drop</p>
+                    <Upload className="h-8 w-8 sm:h-12 sm:w-12 text-gray-400 mb-2" />
+                    <p className="text-xs sm:text-sm text-gray-500 mb-2 sm:mb-4 text-center">Click to upload or drag and drop</p>
                     <input
                       type="file"
                       id="photo"
@@ -295,7 +300,7 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
                     />
                     <label
                       htmlFor="photo"
-                      className="bg-primary text-white py-2 px-4 rounded-md cursor-pointer hover:bg-primary/90"
+                      className="bg-primary text-white py-2 px-3 sm:px-4 rounded-md cursor-pointer hover:bg-primary/90 text-sm"
                     >
                       Select Photo
                     </label>
@@ -304,24 +309,25 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
               </div>
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="chipNumber">Microchip Number</Label>
+            <div className="space-y-2 sm:space-y-3">
+              <Label htmlFor="chipNumber" className="text-sm font-medium">Microchip Number</Label>
               <Input
                 id="chipNumber"
                 name="chipNumber"
                 placeholder="Enter microchip number"
                 value={petData.chipNumber}
                 onChange={handleChange}
+                className="h-10 sm:h-11"
               />
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="vaccinationStatus">Vaccination Status</Label>
+            <div className="space-y-2 sm:space-y-3">
+              <Label htmlFor="vaccinationStatus" className="text-sm font-medium">Vaccination Status</Label>
               <Select
                 value={petData.vaccinationStatus}
                 onValueChange={(value) => handleSelectChange('vaccinationStatus', value)}
               >
-                <SelectTrigger>
+                <SelectTrigger className="h-10 sm:h-11">
                   <SelectValue placeholder="Select status" />
                 </SelectTrigger>
                 <SelectContent>
@@ -333,20 +339,21 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
               </Select>
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="medicalHistory">Medical History</Label>
+            <div className="space-y-2 sm:space-y-3">
+              <Label htmlFor="medicalHistory" className="text-sm font-medium">Medical History</Label>
               <Textarea
                 id="medicalHistory"
                 name="medicalHistory"
                 placeholder="Enter any relevant medical history"
-                rows={3}
+                rows={2}
                 value={petData.medicalHistory}
                 onChange={handleChange}
+                className="min-h-[60px] sm:min-h-[80px] resize-none"
               />
             </div>
 
-            <div className="space-y-3">
-              <Label htmlFor="allergies">Allergies</Label>
+            <div className="space-y-2 sm:space-y-3">
+              <Label htmlFor="allergies" className="text-sm font-medium">Allergies</Label>
               <Textarea
                 id="allergies"
                 name="allergies"
@@ -354,23 +361,26 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
                 rows={2}
                 value={petData.allergies}
                 onChange={handleChange}
+                className="min-h-[60px] sm:min-h-[80px] resize-none"
               />
             </div>
           </div>
         </div>
 
-        <div className="mt-8 flex justify-end space-x-4">
+        <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row justify-end space-y-2 sm:space-y-0 sm:space-x-4 pt-4 border-t border-gray-200 flex-shrink-0">
           <Button
             type="button"
             variant="outline"
             onClick={onCancel}
             disabled={isSubmitting}
+            className="w-full sm:w-auto"
           >
             Cancel
           </Button>
           <Button
             type="submit"
             disabled={isSubmitting || !petData.name}
+            className="w-full sm:w-auto"
           >
             {isSubmitting ? (
               <>

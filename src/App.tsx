@@ -32,6 +32,7 @@ import TestVideoCallPage from "./pages/TestVideoCallPage";
 import SuperAdminAuth from "./pages/SuperAdminAuth";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import SuperAdminGuard from "./components/SuperAdminGuard";
+import FAQPage from "./pages/FAQPage";
 
 // Policy Pages
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
@@ -119,6 +120,11 @@ const App = () => {
               <Route path="/payments" element={
                 <RouteGuard>
                   <PaymentsPage />
+                </RouteGuard>
+              } />
+              <Route path="/faq" element={
+                <RouteGuard>
+                  <FAQPage />
                 </RouteGuard>
               } />
               <Route path="/profile" element={
