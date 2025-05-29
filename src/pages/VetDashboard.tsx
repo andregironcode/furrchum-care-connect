@@ -283,9 +283,11 @@ const VetDashboard = () => {
                     <CardTitle>Quick Actions</CardTitle>
                   </CardHeader>
                   <CardContent className="flex flex-col gap-4">
-                    <Button className="w-full justify-start">
-                      <Users className="mr-2 h-4 w-4" /> Manage Patients
-                    </Button>
+                    <Link to="/vet-patients" className="w-full">
+                      <Button className="w-full justify-start">
+                        <Users className="mr-2 h-4 w-4" /> Manage Patients
+                      </Button>
+                    </Link>
                     <Link to="/vet-appointments" className="w-full">
                       <Button className="w-full justify-start">
                         <Calendar className="mr-2 h-4 w-4" /> Schedule Appointment
@@ -293,7 +295,7 @@ const VetDashboard = () => {
                     </Link>
                     <Link to="/vet-prescriptions" className="w-full">
                       <Button className="w-full justify-start">
-                        <FileText className="mr-2 h-4 w-4" /> Update Records
+                        <FileText className="mr-2 h-4 w-4" /> Manage Prescriptions
                       </Button>
                     </Link>
                   </CardContent>

@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -14,7 +13,6 @@ import {
   MoreVertical, 
   ThumbsUp, 
   UserCircle,
-  CalendarPlus,
   Filter,
   Search,
   Eye,
@@ -342,7 +340,7 @@ const VetAppointmentsPage = () => {
                   <CardTitle className="text-lg font-medium">Appointment Management</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div className="relative">
                       <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                       <Input
@@ -369,12 +367,6 @@ const VetAppointmentsPage = () => {
                           <SelectItem value="cancelled">Cancelled</SelectItem>
                         </SelectContent>
                       </Select>
-                    </div>
-                    <div>
-                      <Button className="w-full sm:w-auto bg-primary hover:bg-primary/90">
-                        <CalendarPlus className="mr-2 h-4 w-4" />
-                        New Appointment
-                      </Button>
                     </div>
                   </div>
                 </CardContent>

@@ -881,7 +881,7 @@ const BookingPage = () => {
                       <Button 
                         variant="link" 
                         className="p-0 ml-2 h-auto"
-                        onClick={() => navigate('/profile/pets')}
+                        onClick={() => navigate('/add-pets')}
                       >
                         Add Pet
                       </Button>
