@@ -358,13 +358,17 @@ export type Database = {
           approved_at: string | null
           approved_by: string | null
           availability: string | null
+          bank_account_number: string | null
+          bank_name: string | null
           clinic_images: string[] | null
           clinic_location: string | null
           consultation_fee: number | null
           created_at: string
           first_name: string
           gender: string | null
+          gst_number: string | null
           id: string
+          ifsc_code: string | null
           image_url: string | null
           languages: string[] | null
           last_name: string
@@ -372,6 +376,7 @@ export type Database = {
           location: Json | null
           offers_in_person: boolean | null
           offers_video_calls: boolean | null
+          pan_number: string | null
           phone: string | null
           rating: number | null
           specialization: string | null
@@ -385,13 +390,17 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           availability?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           clinic_images?: string[] | null
           clinic_location?: string | null
           consultation_fee?: number | null
           created_at?: string
           first_name: string
           gender?: string | null
+          gst_number?: string | null
           id: string
+          ifsc_code?: string | null
           image_url?: string | null
           languages?: string[] | null
           last_name: string
@@ -399,6 +408,7 @@ export type Database = {
           location?: Json | null
           offers_in_person?: boolean | null
           offers_video_calls?: boolean | null
+          pan_number?: string | null
           phone?: string | null
           rating?: number | null
           specialization?: string | null
@@ -412,13 +422,17 @@ export type Database = {
           approved_at?: string | null
           approved_by?: string | null
           availability?: string | null
+          bank_account_number?: string | null
+          bank_name?: string | null
           clinic_images?: string[] | null
           clinic_location?: string | null
           consultation_fee?: number | null
           created_at?: string
           first_name?: string
           gender?: string | null
+          gst_number?: string | null
           id?: string
+          ifsc_code?: string | null
           image_url?: string | null
           languages?: string[] | null
           last_name?: string
@@ -426,6 +440,7 @@ export type Database = {
           location?: Json | null
           offers_in_person?: boolean | null
           offers_video_calls?: boolean | null
+          pan_number?: string | null
           phone?: string | null
           rating?: number | null
           specialization?: string | null

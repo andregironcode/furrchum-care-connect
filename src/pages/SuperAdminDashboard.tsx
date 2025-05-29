@@ -91,6 +91,12 @@ interface SupabaseVetProfile {
   profile_image?: string | null;
   image_url?: string | null;
   clinic_images?: string[] | null;
+  // Banking fields
+  pan_number?: string | null;
+  gst_number?: string | null;
+  bank_name?: string | null;
+  bank_account_number?: string | null;
+  ifsc_code?: string | null;
 }
 
 interface SupabaseUserProfile {

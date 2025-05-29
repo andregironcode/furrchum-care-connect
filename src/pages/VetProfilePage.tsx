@@ -85,6 +85,12 @@ type VetProfileDB = {
   qualifications: string | null;
   services: string | null;
   state: string | null;
+  // Banking fields
+  pan_number: string | null;
+  gst_number: string | null;
+  bank_name: string | null;
+  bank_account_number: string | null;
+  ifsc_code: string | null;
 };
 
 // Client-side representation with proper types
@@ -106,6 +112,12 @@ interface VetProfile {
   clinic_images: string[];
   offers_telemedicine: boolean; // Our UI field that maps to offers_video_calls in DB
   offers_in_person: boolean;
+  // Banking fields
+  pan_number: string;
+  gst_number?: string; // Optional
+  bank_name: string;
+  bank_account_number: string;
+  ifsc_code: string;
   user_id?: string;
   // Optional fields that might come from the database
   offers_video_calls?: boolean;
@@ -163,7 +175,7 @@ const VetProfilePage = () => {
     specialization: z.string().min(1, { message: 'Specialization is required' }),
     about: z.string().min(1, { message: 'About section is required' }),
     consultation_fee: z.number().min(0, { message: 'Consultation fee must be 0 or greater' }),
-    image_url: z.string().min(1, { message: 'Profile image is required' }),
+    image_url: z.string().optional().or(z.literal('')),
     years_experience: z.number().min(0, { message: 'Years of experience must be 0 or greater' }).int({ message: 'Must be a whole number' }),
     phone: z.string().min(10, { message: 'Phone number must be at least 10 digits' }).max(15, { message: 'Phone number is too long' }),
     gender: z.string().min(1, { message: 'Gender is required' }),
@@ -173,10 +185,26 @@ const VetProfilePage = () => {
     clinic_location: z.string().min(1, { message: 'Clinic location is required' }),
     clinic_images: z.array(z.string()).optional().or(z.array(z.string()).length(0)),
     offers_telemedicine: z.boolean(),
-    offers_in_person: z.boolean()
+    offers_in_person: z.boolean(),
+    // Banking fields validation
+    pan_number: z.string().min(1, { message: 'PAN number is required' }).regex(/^[A-Z]{5}[0-9]{4}[A-Z]{1}$/, { message: 'PAN number must be in format ABCDE1234F' }),
+    gst_number: z.string().optional().or(z.literal('')).or(z.string().regex(/^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z]{1}[1-9A-Z]{1}[Z]{1}[0-9A-Z]{1}$/, { message: 'GST number must be in valid format' })),
+    bank_name: z.string().min(1, { message: 'Bank name is required' }),
+    bank_account_number: z.string().min(1, { message: 'Bank account number is required' }).regex(/^[0-9]+$/, { message: 'Bank account number must contain only numbers' }),
+    ifsc_code: z.string().min(1, { message: 'IFSC code is required' }).regex(/^[A-Z]{4}0[A-Z0-9]{6}$/, { message: 'IFSC code must be in format ABCD0123456' })
   }).refine(data => data.offers_telemedicine || data.offers_in_person, {
     message: "Online consultations are compulsory for all veterinarians",
     path: ["offers_telemedicine"]
+  }).refine(data => {
+    // Only require image if this is a new profile (no existing image) and no file is selected
+    const hasExistingImage = profile?.image_url && profile.image_url.length > 0;
+    const hasNewImage = selectedImage !== null;
+    const hasImageUrl = data.image_url && data.image_url.length > 0;
+    
+    return hasExistingImage || hasNewImage || hasImageUrl;
+  }, {
+    message: "Profile image is required",
+    path: ["image_url"]
   });
 
   const form = useForm<VetProfile>({
@@ -199,6 +227,12 @@ const VetProfilePage = () => {
       clinic_images: [],
       offers_telemedicine: true, // Make online consultations compulsory by default
       offers_in_person: false,
+      // Banking fields
+      pan_number: '',
+      gst_number: '',
+      bank_name: '',
+      bank_account_number: '',
+      ifsc_code: '',
       ...defaultValues,
     },
   });
@@ -227,7 +261,13 @@ const VetProfilePage = () => {
         clinic_location: '',
         clinic_images: [],
         offers_video_calls: true, // Make online consultations compulsory
-        offers_in_person: true // Set default to true to pass validation
+        offers_in_person: true, // Set default to true to pass validation
+        // Banking fields
+        pan_number: '',
+        gst_number: '',
+        bank_name: '',
+        bank_account_number: '',
+        ifsc_code: '',
       };
 
       const { data, error } = await supabase
@@ -258,7 +298,13 @@ const VetProfilePage = () => {
         clinic_location: data.clinic_location || '',
         clinic_images: Array.isArray(data.clinic_images) ? data.clinic_images : [],
         offers_telemedicine: Boolean(data.offers_video_calls),
-        offers_in_person: Boolean(data.offers_in_person)
+        offers_in_person: Boolean(data.offers_in_person),
+        // Banking fields
+        pan_number: data.pan_number || '',
+        gst_number: data.gst_number || '',
+        bank_name: data.bank_name || '',
+        bank_account_number: data.bank_account_number || '',
+        ifsc_code: data.ifsc_code || '',
       };
       
       return sanitizedProfile;
@@ -368,7 +414,13 @@ ALTER TABLE vet_profiles
           clinic_images: Array.isArray(dbProfile.clinic_images) ? dbProfile.clinic_images : [],
           // Map database field to UI field
           offers_telemedicine: Boolean(dbProfile.offers_video_calls),
-          offers_in_person: Boolean(dbProfile.offers_in_person)
+          offers_in_person: Boolean(dbProfile.offers_in_person),
+          // Banking fields
+          pan_number: dbProfile.pan_number || '',
+          gst_number: dbProfile.gst_number || '',
+          bank_name: dbProfile.bank_name || '',
+          bank_account_number: dbProfile.bank_account_number || '',
+          ifsc_code: dbProfile.ifsc_code || '',
         };
         
         setProfile(sanitizedProfile);
@@ -741,6 +793,12 @@ ALTER TABLE vet_profiles
         clinic_location: values.clinic_location,
         offers_video_calls: true, // Always enforce online consultations
         offers_in_person: values.offers_in_person,
+        // Banking fields
+        pan_number: values.pan_number,
+        gst_number: values.gst_number || null,
+        bank_name: values.bank_name,
+        bank_account_number: values.bank_account_number,
+        ifsc_code: values.ifsc_code,
         updated_at: new Date().toISOString()
       };
       
@@ -794,7 +852,13 @@ ALTER TABLE vet_profiles
         clinic_location: savedProfile.clinic_location || '',
         clinic_images: Array.isArray(savedProfile.clinic_images) ? savedProfile.clinic_images : [],
         offers_telemedicine: Boolean(savedProfile.offers_video_calls),
-        offers_in_person: Boolean(savedProfile.offers_in_person)
+        offers_in_person: Boolean(savedProfile.offers_in_person),
+        // Banking fields
+        pan_number: savedProfile.pan_number || '',
+        gst_number: savedProfile.gst_number || '',
+        bank_name: savedProfile.bank_name || '',
+        bank_account_number: savedProfile.bank_account_number || '',
+        ifsc_code: savedProfile.ifsc_code || '',
       };
       
       console.log('10. Profile updated successfully:', sanitizedProfile);
@@ -1013,6 +1077,42 @@ ALTER TABLE vet_profiles
                           <div>
                             <h3 className="text-sm font-medium">PIN Code</h3>
                             <p className="text-lg">{profile?.zip_code || "Not provided"}</p>
+                          </div>
+
+                          {/* Banking & Tax Information Display */}
+                          <div className="space-y-4 pt-6 border-t">
+                            <h3 className="text-lg font-medium text-gray-900 mb-4">Banking & Tax Information</h3>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div>
+                                <h4 className="text-sm font-medium">PAN Number</h4>
+                                <p className="text-lg">{profile?.pan_number || "Not provided"}</p>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-medium">GST Number</h4>
+                                <p className="text-lg">{profile?.gst_number || "Not provided"}</p>
+                              </div>
+                            </div>
+
+                            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                              <div>
+                                <h4 className="text-sm font-medium">Bank Name</h4>
+                                <p className="text-lg">{profile?.bank_name || "Not provided"}</p>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-medium">Account Number</h4>
+                                <p className="text-lg">
+                                  {profile?.bank_account_number ? 
+                                    `****${profile.bank_account_number.slice(-4)}` : 
+                                    "Not provided"
+                                  }
+                                </p>
+                              </div>
+                              <div>
+                                <h4 className="text-sm font-medium">IFSC Code</h4>
+                                <p className="text-lg">{profile?.ifsc_code || "Not provided"}</p>
+                              </div>
+                            </div>
                           </div>
 
                           <div>
@@ -1424,6 +1524,114 @@ ALTER TABLE vet_profiles
                                 </FormItem>
                               )}
                             />
+
+                            {/* Banking and Tax Information Section */}
+                            <div className="space-y-4 pt-6 border-t">
+                              <h3 className="text-lg font-medium text-gray-900">Banking & Tax Information</h3>
+                              <p className="text-sm text-gray-600">Required for payment processing and tax compliance.</p>
+                              
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <FormField
+                                  control={form.control}
+                                  name="pan_number"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>PAN Number <span className="text-red-500">*</span></FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          {...field} 
+                                          placeholder="ABCDE1234F"
+                                          className="uppercase"
+                                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                                        />
+                                      </FormControl>
+                                      <FormDescription>
+                                        Permanent Account Number (required for tax purposes)
+                                      </FormDescription>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                
+                                <FormField
+                                  control={form.control}
+                                  name="gst_number"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>GST Number</FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          {...field} 
+                                          placeholder="22ABCDE1234F1Z5"
+                                          className="uppercase"
+                                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                                        />
+                                      </FormControl>
+                                      <FormDescription>
+                                        Goods and Services Tax Number (optional)
+                                      </FormDescription>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+
+                              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <FormField
+                                  control={form.control}
+                                  name="bank_name"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Bank Name <span className="text-red-500">*</span></FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          {...field} 
+                                          placeholder="e.g., State Bank of India"
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                
+                                <FormField
+                                  control={form.control}
+                                  name="bank_account_number"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>Account Number <span className="text-red-500">*</span></FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          {...field} 
+                                          placeholder="1234567890"
+                                          type="number"
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                                
+                                <FormField
+                                  control={form.control}
+                                  name="ifsc_code"
+                                  render={({ field }) => (
+                                    <FormItem>
+                                      <FormLabel>IFSC Code <span className="text-red-500">*</span></FormLabel>
+                                      <FormControl>
+                                        <Input 
+                                          {...field} 
+                                          placeholder="SBIN0123456"
+                                          className="uppercase"
+                                          onChange={(e) => field.onChange(e.target.value.toUpperCase())}
+                                        />
+                                      </FormControl>
+                                      <FormMessage />
+                                    </FormItem>
+                                  )}
+                                />
+                              </div>
+                            </div>
 
                             <div className="flex justify-end space-x-4">
                               <Button

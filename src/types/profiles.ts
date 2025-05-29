@@ -60,6 +60,12 @@ export interface VetProfile {
   clinic_images?: string[];
   location?: any;
   image_url?: string;
+  // Banking fields
+  pan_number?: string;
+  gst_number?: string;
+  bank_name?: string;
+  bank_account_number?: string;
+  ifsc_code?: string;
 }
 
 // Type for appointment/booking data

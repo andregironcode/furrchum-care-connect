@@ -230,6 +230,35 @@ const VetDetailsModal: React.FC<VetDetailsModalProps> = ({ vet, onClose }) => {
             </div>
           </div>
           
+          {/* Banking & Tax Information */}
+          <div className="space-y-4">
+            <h3 className="text-lg font-semibold border-b pb-2">Banking & Tax Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-gray-500">PAN Number</p>
+                <p className="font-medium">{vet.pan_number || 'Not provided'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">GST Number</p>
+                <p className="font-medium">{vet.gst_number || 'Not provided'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Bank Name</p>
+                <p className="font-medium">{vet.bank_name || 'Not provided'}</p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">Bank Account Number</p>
+                <p className="font-medium">
+                  {vet.bank_account_number || 'Not provided'}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-gray-500">IFSC Code</p>
+                <p className="font-medium">{vet.ifsc_code || 'Not provided'}</p>
+              </div>
+            </div>
+          </div>
+          
           {/* Location Information */}
           <div className="space-y-4">
             <h3 className="text-lg font-semibold border-b pb-2">Location Information</h3>

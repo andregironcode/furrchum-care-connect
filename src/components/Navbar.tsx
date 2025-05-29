@@ -69,7 +69,7 @@ const Navbar = () => {
 
           {/* Desktop User Account Dropdown - Only for authenticated users */}
           <div className="hidden md:flex items-center space-x-4">
-            {user && (
+            {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button variant="outline" className="border-primary text-primary hover:bg-primary hover:text-white font-medium">
@@ -96,6 +96,25 @@ const Navbar = () => {
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+            ) : (
+              <>
+                {/* Login Button */}
+                <Button 
+                  variant="outline" 
+                  className="border-primary text-primary hover:bg-primary hover:text-white font-medium"
+                  onClick={() => handleNavigate('/auth')}
+                >
+                  Sign In
+                </Button>
+                
+                {/* Register Button */}
+                <Button 
+                  className="bg-accent hover:bg-accent/90 text-white font-medium"
+                  onClick={() => handleNavigate('/auth')}
+                >
+                  Sign Up
+                </Button>
+              </>
             )}
           </div>
 
