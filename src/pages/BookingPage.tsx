@@ -414,7 +414,7 @@ const BookingPage = () => {
     
     if (!user) {
       toast.error('You must be logged in to book an appointment');
-      navigate('/login');
+      navigate('/auth');
       return;
     }
     
@@ -442,14 +442,16 @@ const BookingPage = () => {
     setError(null);
     
     try {
+      // Calculate end time
+      const endTime = format(new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000), 'HH:mm');
+      
       // If it's a video call, create a meeting first
       let meetingDetails: {
         meetingId: string;
         roomUrl: string;
         hostRoomUrl: string | null;
-        startDate: string;
-        endDate: string;
       } | null = null;
+      
       if (consultationType === 'video_call') {
         try {
           // Create appointment date from selected date and time
@@ -462,16 +464,10 @@ const BookingPage = () => {
             throw new Error('Failed to create video meeting: Invalid response from Whereby');
           }
           
-          // Calculate end time
-          const endTimeObj = new Date(appointmentDate.getTime() + duration * 60000);
-          const endTimeString = format(endTimeObj, 'HH:mm');
-          
           meetingDetails = {
             meetingId: meeting.meetingId,
             roomUrl: meeting.roomUrl,
-            hostRoomUrl: meeting.hostRoomUrl || null,
-            startDate: meeting.startDate,
-            endDate: meeting.endDate
+            hostRoomUrl: meeting.hostRoomUrl || null
           };
           
           console.log('Created meeting:', meetingDetails);
@@ -487,31 +483,10 @@ const BookingPage = () => {
         }
       }
       
-      // Prepare payment data
-      const endTime = format(new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000), 'HH:mm');
-      const paymentData = {
-        vetId: vetId,
-        vetName: `${vet.first_name} ${vet.last_name}`,
-        petId: selectedPetId,
-        petName: selectedPet?.name,
-        date: format(date, 'yyyy-MM-dd'),
-        timeSlot: `${timeSlot} - ${endTime}`,
-        consultationType: 'schedule',
-        consultationMode: consultationType === 'video_call' ? 'video' : 'in_person',
-        fee: vet.consultation_fee || 0,
-        userId: user.id,
-        notes: notes,
-        // If we have meeting details, include them
-        meetingDetails: meetingDetails
-      };
-      
-      // Store booking data in session storage for the payment page
-      sessionStorage.setItem('bookingData', JSON.stringify(paymentData));
-      
       try {
         const now = new Date().toISOString();
         
-        // Create a pending booking first (without meeting details)
+        // Create a confirmed booking directly (skipping payment)
         const bookingData = {
           vet_id: vetId,
           pet_owner_id: user.id,
@@ -521,77 +496,75 @@ const BookingPage = () => {
           end_time: endTime,
           consultation_type: consultationType,
           notes: notes || '',
-          status: 'pending' as const,
-          payment_status: 'pending' as const,
-          // Meeting details will be added after payment
-          meeting_id: null,
-          meeting_url: null,
-          host_meeting_url: null,
+          status: 'confirmed' as const, // Directly set to confirmed
+          payment_status: 'paid' as const, // Skip payment process
+          // Include meeting details if this is a video call
+          meeting_id: meetingDetails?.meetingId || null,
+          meeting_url: meetingDetails?.roomUrl || null,
+          host_meeting_url: meetingDetails?.hostRoomUrl || null,
           created_at: now,
           updated_at: now
         } satisfies Omit<BookingData, 'id'>;
         
-        // Insert the pending booking into the database
-        const { data: pendingBooking, error: bookingError } = await supabase
+        // Insert the confirmed booking into the database
+        const { data: confirmedBooking, error: bookingError } = await supabase
           .from('bookings')
           .insert([bookingData])
           .select()
           .single();
         
         if (bookingError) {
-          throw new Error(bookingError.message || 'Failed to create pending booking');
+          throw new Error(bookingError.message || 'Failed to create booking');
         }
         
-        if (!pendingBooking) {
+        if (!confirmedBooking) {
           throw new Error('No booking data returned from server');
         }
         
-        // Store all necessary data for the payment page
-        const paymentSessionData = {
-          ...paymentData,
-          bookingId: pendingBooking.id,
-          consultationType,
-          // Store meeting details in session if this is a video call
-          ...(consultationType === 'video_call' && meetingDetails ? {
-            meetingDetails: {
-              meetingId: meetingDetails.meetingId,
-              roomUrl: meetingDetails.roomUrl,
-              hostRoomUrl: meetingDetails.hostRoomUrl
+        console.log('Successfully created booking:', confirmedBooking);
+        
+        // Show success message
+        toast.success(
+          consultationType === 'video_call' 
+            ? `Video consultation booked successfully! Meeting details will be available in your appointments.`
+            : `In-person appointment booked successfully!`, 
+          {
+            duration: 5000,
+            action: {
+              label: 'View Appointments',
+              onClick: () => navigate('/appointments')
             }
-          } : {})
-        };
+          }
+        );
         
-        sessionStorage.setItem('bookingData', JSON.stringify(paymentSessionData));
+        // Redirect to appointments page
+        navigate('/appointments');
         
-        // Redirect to payment page
-        navigate('/payment');
       } catch (error) {
         console.error('Error creating booking:', error);
+        
+        // If booking creation failed but we created a meeting, clean it up
+        if (meetingDetails?.meetingId) {
+          console.warn('Attempting to clean up orphaned meeting:', meetingDetails.meetingId);
+          try {
+            await deleteMeeting(meetingDetails.meetingId);
+            console.log('Successfully cleaned up orphaned meeting:', meetingDetails.meetingId);
+          } catch (cleanupError) {
+            console.error('Failed to clean up orphaned meeting:', cleanupError);
+          }
+        }
+        
         throw error; // Re-throw to be caught by the outer try-catch
       }
       
     } catch (err) {
-      console.error('Error preparing booking:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to prepare booking. Please try again.';
+      console.error('Error creating booking:', err);
+      const errorMessage = err instanceof Error ? err.message : 'Failed to create booking. Please try again.';
       setError(errorMessage);
       toast.error(errorMessage, {
         duration: 5000,
         position: 'top-center' as const
       });
-      
-      // Handle any meeting cleanup if needed
-      if (err && typeof err === 'object' && 'meetingId' in err) {
-        const meetingId = (err as { meetingId: string }).meetingId;
-        console.warn('Attempting to clean up orphaned meeting:', meetingId);
-        // Attempt to delete the meeting if it was created but the booking failed
-        try {
-          await deleteMeeting(meetingId);
-          console.log('Successfully cleaned up orphaned meeting:', meetingId);
-        } catch (cleanupError) {
-          console.error('Failed to clean up orphaned meeting:', cleanupError);
-          // We don't want to throw here as it would overshadow the original error
-        }
-      }
     } finally {
       setIsSubmitting(false);
     }
