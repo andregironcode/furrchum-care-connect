@@ -10,11 +10,10 @@ import { Loader2, AlertCircle, Users, Calendar, FileText, ShieldAlert, Phone } f
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import VetSidebar from '@/components/VetSidebar';
 import ApprovalStatusBanner from '@/components/ApprovalStatusBanner';
-import { UserProfile, VetProfile, Appointment } from '@/types/profiles';
+import { VetProfile, Appointment } from '@/types/profiles';
 
 const VetDashboard = () => {
   const { user, isLoading } = useAuth();
-  const [profile, setProfile] = useState<UserProfile | null>(null);
   const [vetProfile, setVetProfile] = useState<VetProfile | null>(null);
   const [recentAppointments, setRecentAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -25,15 +24,8 @@ const VetDashboard = () => {
       if (!user) return;
       
       try {
-        // Fetch user profile
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', user.id)
-          .single();
-
-        if (profileError) throw profileError;
-        setProfile(profileData as UserProfile);
+        // We don't need to fetch from profiles table for vet dashboard
+        // The user information is already available from auth context
         
         // Fetch vet profile
         const { data: vetData, error: vetError } = await supabase
@@ -185,10 +177,8 @@ const VetDashboard = () => {
     return <Navigate to="/auth" />;
   }
 
-  // Redirect pet owners to their dashboard
-  if (profile && profile.user_type === 'pet_owner') {
-    return <Navigate to="/dashboard" />;
-  }
+  // Note: We removed profile-based redirection since we're no longer fetching from profiles table
+  // The route protection should be handled by checking if user has a vet_profile
 
   return (
     <SidebarProvider>
