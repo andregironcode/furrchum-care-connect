@@ -41,6 +41,38 @@ const PetOwnerDashboard = () => {
       const fetchProfileData = async () => {
         setIsLoading(true);
         try {
+          // Use optimized RPC function to get all pet owner dashboard data in single query
+          const { data: dashboardData, error: dashboardError } = await (supabase as any)
+            .rpc('get_pet_owner_dashboard_data', { owner_user_id: user.id });
+          
+          if (dashboardError) {
+            console.error('Error fetching optimized dashboard data:', dashboardError);
+            // Fallback to individual query
+            await fetchDataIndividually();
+            return;
+          }
+          
+          if (dashboardData) {
+            // Set profile from optimized response
+            if (dashboardData.profile) {
+              setProfile(dashboardData.profile as Profile);
+            }
+            
+            // Additional data like pets and appointments are available but not currently used in this simple dashboard
+            // They can be accessed via dashboardData.pets and dashboardData.recentAppointments if needed
+          }
+        } catch (error: any) {
+          console.error('Error loading optimized dashboard data:', error);
+          // Fallback to individual query
+          await fetchDataIndividually();
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
+      // Fallback function for individual queries (original logic)
+      const fetchDataIndividually = async () => {
+        try {
           // Get the profile data
           const { data: profileData, error: profileError } = await supabase
             .from('profiles')
@@ -58,8 +90,6 @@ const PetOwnerDashboard = () => {
         } catch (error: any) {
           console.error('Error loading profile data:', error);
           setError('Something went wrong while loading your dashboard');
-        } finally {
-          setIsLoading(false);
         }
       };
 

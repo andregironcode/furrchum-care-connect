@@ -81,7 +81,7 @@ const PetOwnerSidebar = () => {
             <img 
               src="/lovable-uploads/020d6fdc-02f4-4190-acb2-59288e109f8d.png" 
               alt="Furrchum Logo" 
-              className="h-28 w-28" 
+              className="h-32 w-32" 
             />
           </Link>
         </div>

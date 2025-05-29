@@ -49,16 +49,16 @@ const Navbar = () => {
   return (
     <nav className="bg-white/90 backdrop-blur-md sticky top-0 z-50 border-b border-primary/10 shadow-sm">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-20">
+        <div className="flex justify-between items-center h-28">
           <div className="flex items-center space-x-3">
             <Link to="/">
               <img 
                 src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" 
                 alt="Furrchum Logo" 
-                className="h-12 w-auto" 
+                className="h-20 w-auto" 
               />
             </Link>
-            <span className="font-bold text-accent-600 text-xl hidden sm:inline-block">Furrchum</span>
+            <span className="font-bold text-accent-600 text-2xl hidden sm:inline-block">Furrchum</span>
           </div>
           
           <div className="hidden md:flex items-center space-x-8">

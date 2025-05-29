@@ -1,4 +1,3 @@
-
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
 import {
@@ -71,7 +70,7 @@ const VetSidebar = () => {
             <img 
               src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" 
               alt="Furrchum Logo" 
-              className="h-28 w-28" 
+              className="h-32 w-32" 
             />
           </Link>
         </div>

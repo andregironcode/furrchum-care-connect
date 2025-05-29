@@ -473,7 +473,16 @@ const SuperAdminDashboard = () => {
       let processedAppointments: AppointmentWithDetails[] = [];
       let processedPrescriptions: SupabasePrescription[] = [];
       
-      // Fetch all pet owners with emails using RPC function (users tab should only show pet owners since vets have their own tab)
+      // Use optimized RPC function to get analytics - single query instead of multiple
+      const { data: analyticsData, error: analyticsError } = await (supabase as any)
+        .rpc('get_dashboard_analytics');
+      
+      if (analyticsError) {
+        console.error('Error fetching analytics:', analyticsError);
+        // Continue without analytics instead of failing
+      }
+      
+      // Fetch all pet owners with emails using optimized RPC function
       try {
         const { data: allUsersData, error: rpcError } = await (supabase as any)
           .rpc('get_all_users_with_emails');
@@ -507,232 +516,105 @@ const SuperAdminDashboard = () => {
       // Log the vets data to help with debugging
       console.log('Fetched vets:', vetsData?.length || 0, 'vets', vetsData);
       
-      // Ensure we're getting pending vets for approval
-      const pendingVets = vetsData?.filter(vet => 
-        vet.approval_status === 'pending' || 
-        vet.approval_status === null || 
-        vet.approval_status === undefined
-      ) || [];
-      console.log('Pending vets for approval:', pendingVets.length, pendingVets);
+      // OPTIMIZED APPROACH: Use single queries with proper JOINs instead of N+1 queries
       
-      // Fetch all appointments with related data
+      // Fetch appointments with related data in single optimized query
       try {
-        // First, fetch the bookings data
-        const { data: bookingsData, error: bookingsError } = await supabase
+        const { data: appointmentsWithRelatedData, error: appointmentsError } = await supabase
           .from('bookings')
-          .select('*')
+          .select(`
+            *,
+            pets!left(id, name, type, owner_id),
+            profiles!bookings_pet_owner_id_fkey(id, full_name),
+            vet_profiles!bookings_vet_id_fkey(id, first_name, last_name)
+          `)
           .order('booking_date', { ascending: false })
-          .throwOnError();
+          .limit(1000); // Reasonable limit for performance
         
-        if (bookingsError) {
-          console.error('Error fetching bookings:', bookingsError);
-          setError('Failed to fetch appointments');
-          // Continue with empty appointments array
-          processedAppointments = [];
-        } else if (!bookingsData || bookingsData.length === 0) {
+        if (appointmentsError) {
+          console.error('Error fetching appointments:', appointmentsError);
           processedAppointments = [];
         } else {
-          // Get unique vet IDs and pet IDs from bookings
-          const vetIds = [...new Set(bookingsData.map(booking => booking.vet_id))];
-          const petIds = [...new Set(bookingsData.map(booking => booking.pet_id).filter(id => id !== null) as string[])];
-          const ownerIds = [...new Set(bookingsData.map(booking => booking.pet_owner_id))];
-          
-          // Fetch vet profiles
-          const { data: vetProfilesData, error: vetProfilesError } = await supabase
-            .from('vet_profiles')
-            .select('id, first_name, last_name')
-            .in('id', vetIds)
-            .throwOnError();
-          
-          if (vetProfilesError) {
-            console.error('Error fetching vet profiles:', vetProfilesError);
-          }
-          
-          // Fetch pet data
-          const { data: petsData, error: petsError } = await supabase
-            .from('pets')
-            .select('id, name, type, owner_id')
-            .in('id', petIds)
-            .throwOnError();
-          
-          if (petsError) {
-            console.error('Error fetching pets:', petsError);
-          }
-          
-          // Fetch user profiles for appointments
-          const { data: profilesData, error: profilesError } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', ownerIds)
-            .throwOnError();
-          
-          if (profilesError) {
-            console.error('Error fetching profiles for appointments:', profilesError);
-            // Continue execution even if there's an error
-          }
-          
-          // Create lookup maps for faster access
-          const vetProfilesMap = (vetProfilesData || []).reduce<Record<string, any>>((map, profile) => {
-            map[profile.id] = profile;
-            return map;
-          }, {});
-          
-          const petsMap = (petsData || []).reduce<Record<string, any>>((map, pet) => {
-            map[pet.id] = pet;
-            return map;
-          }, {});
-          
-          const profilesMap = (profilesData || []).reduce<Record<string, any>>((map, profile) => {
-            map[profile.id] = profile;
-            return map;
-          }, {});
-          
-          // Process the appointments data to ensure it matches our interface
-          processedAppointments = bookingsData.map((booking) => {
-            // Safely access nested properties with null checks
-            const vetId = booking.vet_id || '';
-            const petId = booking.pet_id || '';
-            const ownerId = booking.pet_owner_id || '';
-            
-            // Get related data with null checks
-            const vetProfile = vetId ? (vetProfilesMap[vetId] || null) : null;
-            const petData = petId ? (petsMap[petId] || null) : null;
-            const ownerProfile = ownerId ? (profilesMap[ownerId] || null) : null;
-            
-            return {
-              id: booking.id,
-              booking_date: booking.booking_date,
-              start_time: booking.start_time,
-              end_time: booking.end_time,
-              status: booking.status,
-              notes: booking.notes,
-              vet_id: vetId,
-              pet_id: petId,
-              pet_owner_id: ownerId,
-              consultation_type: booking.consultation_type,
-              created_at: booking.created_at,
-              updated_at: booking.updated_at,
-              // Add the related data
-              vet_profiles: vetProfile,
-              pets: petData,
-              profiles: ownerProfile,
-              // Add the derived fields for compatibility
-              first_name: vetProfile?.first_name || '',
-              last_name: vetProfile?.last_name || '',
-              name: petData?.name || '',
-              type: petData?.type || '',
-              owner_id: petData?.owner_id || '',
-              full_name: ownerProfile?.full_name || '',
-              email: ownerProfile?.email || '',
-              phone_number: ownerProfile?.phone_number || ''
-            } as AppointmentWithDetails;
-          });
+          // Process the optimized appointment data
+          processedAppointments = (appointmentsWithRelatedData || []).map((booking: any) => ({
+            id: booking.id,
+            booking_date: booking.booking_date,
+            start_time: booking.start_time,
+            end_time: booking.end_time,
+            status: booking.status,
+            notes: booking.notes,
+            vet_id: booking.vet_id || '',
+            pet_id: booking.pet_id || '',
+            pet_owner_id: booking.pet_owner_id || '',
+            consultation_type: booking.consultation_type,
+            created_at: booking.created_at,
+            updated_at: booking.updated_at,
+            // Add the related data directly from JOINs
+            vet_profiles: booking.vet_profiles,
+            pets: booking.pets,
+            profiles: booking.profiles,
+            // Flatten for compatibility
+            first_name: booking.vet_profiles?.first_name || '',
+            last_name: booking.vet_profiles?.last_name || '',
+            name: booking.pets?.name || '',
+            type: booking.pets?.type || '',
+            owner_id: booking.pets?.owner_id || '',
+            full_name: booking.profiles?.full_name || '',
+            email: '', // Will be filled from profiles if needed
+            phone_number: ''
+          }));
         }
       } catch (error) {
-        console.error('Error in appointments fetch:', error);
-        setError('Failed to fetch appointments');
+        console.error('Error in optimized appointments fetch:', error);
         processedAppointments = [];
       }
       
-      // Fetch all transactions
+      // Fetch prescriptions with related data in single optimized query
+      try {
+        const { data: prescriptionsWithRelatedData, error: prescriptionsError } = await supabase
+          .from('prescriptions')
+          .select(`
+            *,
+            pets!prescriptions_pet_id_fkey(id, name, type, breed),
+            profiles!prescriptions_pet_owner_id_fkey(id, full_name),
+            vet_profiles!prescriptions_vet_id_fkey(id, first_name, last_name, specialization)
+          `)
+          .order('prescribed_date', { ascending: false })
+          .limit(1000); // Reasonable limit for performance
+        
+        if (prescriptionsError) {
+          console.error('Error fetching prescriptions:', prescriptionsError);
+          processedPrescriptions = [];
+        } else {
+          // Process the optimized prescription data
+          processedPrescriptions = (prescriptionsWithRelatedData || []).map((prescription: any) => ({
+            ...prescription,
+            pet: prescription.pets,
+            owner: prescription.profiles,
+            vet: prescription.vet_profiles
+          }));
+        }
+      } catch (error) {
+        console.error('Error in optimized prescriptions fetch:', error);
+        processedPrescriptions = [];
+      }
+      
+      // Fetch transactions with optimized query
       const { data: transactionsData, error: transactionError } = await supabase
         .from('transactions')
         .select('*')
         .order('created_at', { ascending: false })
+        .limit(1000) // Reasonable limit
         .throwOnError();
       
       if (transactionError) {
         setError('Failed to fetch transactions');
-        // Continue with empty transactions array
         setTransactions([]);
       } else {
         setTransactions(transactionsData || []);
       }
       
-      // Fetch all prescriptions with related data
-      try {
-        const { data: prescriptionsData, error: prescriptionsError } = await supabase
-          .from('prescriptions')
-          .select('*')
-          .order('prescribed_date', { ascending: false })
-          .throwOnError();
-        
-        if (prescriptionsError) {
-          console.error('Error fetching prescriptions:', prescriptionsError);
-          setError('Failed to fetch prescriptions');
-          processedPrescriptions = [];
-        } else if (!prescriptionsData || prescriptionsData.length === 0) {
-          processedPrescriptions = [];
-        } else {
-          // Get unique IDs for related data
-          const prescriptionPetIds = [...new Set(prescriptionsData.map(p => p.pet_id))];
-          const prescriptionOwnerIds = [...new Set(prescriptionsData.map(p => p.pet_owner_id))];
-          const prescriptionVetIds = [...new Set(prescriptionsData.map(p => p.vet_id))];
-          
-          // Fetch pets data for prescriptions
-          const { data: prescriptionPetsData, error: prescriptionPetsError } = await supabase
-            .from('pets')
-            .select('id, name, type, breed')
-            .in('id', prescriptionPetIds)
-            .throwOnError();
-          
-          if (prescriptionPetsError) {
-            console.error('Error fetching pets for prescriptions:', prescriptionPetsError);
-          }
-          
-          // Fetch owners data for prescriptions
-          const { data: prescriptionOwnersData, error: prescriptionOwnersError } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', prescriptionOwnerIds)
-            .throwOnError();
-          
-          if (prescriptionOwnersError) {
-            console.error('Error fetching owners for prescriptions:', prescriptionOwnersError);
-          }
-          
-          // Fetch vets data for prescriptions
-          const { data: prescriptionVetsData, error: prescriptionVetsError } = await supabase
-            .from('vet_profiles')
-            .select('id, first_name, last_name, specialization')
-            .in('id', prescriptionVetIds)
-            .throwOnError();
-          
-          if (prescriptionVetsError) {
-            console.error('Error fetching vets for prescriptions:', prescriptionVetsError);
-          }
-          
-          // Create lookup maps
-          const prescriptionPetsMap = (prescriptionPetsData || []).reduce<Record<string, any>>((map, pet) => {
-            map[pet.id] = pet;
-            return map;
-          }, {});
-          
-          const prescriptionOwnersMap = (prescriptionOwnersData || []).reduce<Record<string, any>>((map, owner) => {
-            map[owner.id] = owner;
-            return map;
-          }, {});
-          
-          const prescriptionVetsMap = (prescriptionVetsData || []).reduce<Record<string, any>>((map, vet) => {
-            map[vet.id] = vet;
-            return map;
-          }, {});
-          
-          // Process prescriptions data
-          processedPrescriptions = prescriptionsData.map((prescription) => ({
-            ...prescription,
-            pet: prescriptionPetsMap[prescription.pet_id] || null,
-            owner: prescriptionOwnersMap[prescription.pet_owner_id] || null,
-            vet: prescriptionVetsMap[prescription.vet_id] || null
-          }));
-        }
-      } catch (error) {
-        console.error('Error in prescriptions fetch:', error);
-        setError('Failed to fetch prescriptions');
-        processedPrescriptions = [];
-      }
-      
-      // Process and normalize the vet data to ensure approval_status is one of the expected values
+      // Process vet data with approval status normalization
       const processedVets = (vetsData || []).map((vet: any) => ({
         ...vet,
         approval_status: (['pending', 'approved', 'rejected'].includes(vet.approval_status) 
@@ -740,14 +622,14 @@ const SuperAdminDashboard = () => {
           : 'pending') as 'pending' | 'approved' | 'rejected'
       }));
       
-      // Count appointments and prescriptions for each user
+      // OPTIMIZED: Count calculations without fetching all data again
       const usersWithCounts = fetchedUsers.map(user => {
-        // Count appointments where user is the pet owner
+        // Count appointments where user is the pet owner - from already fetched data
         const appointmentCount = processedAppointments.filter(appointment => 
           appointment.pet_owner_id === user.id
         ).length;
         
-        // Count prescriptions where user is the pet owner
+        // Count prescriptions where user is the pet owner - from already fetched data
         const prescriptionCount = processedPrescriptions.filter(prescription => 
           prescription.pet_owner_id === user.id
         ).length;
@@ -759,14 +641,14 @@ const SuperAdminDashboard = () => {
         };
       });
       
-      // Fetch all pets data for analytics
+      // Fetch pets data for analytics - single optimized query
       let petsData: any[] = [];
       try {
         const { data: allPetsData, error: petsError } = await supabase
           .from('pets')
-          .select('*')
+          .select('id, name, type, breed, created_at, owner_id')
           .order('created_at', { ascending: false })
-          .throwOnError();
+          .limit(5000); // Reasonable limit
         
         if (petsError) {
           console.error('Error fetching pets:', petsError);
@@ -777,15 +659,52 @@ const SuperAdminDashboard = () => {
         console.error('Error in pets fetch:', error);
       }
 
-      // Calculate analytics data
-      const analyticsData = calculateAnalytics(
-        usersWithCounts,
-        processedVets,
-        petsData,
-        processedAppointments,
-        processedPrescriptions,
-        transactionsData || []
-      );
+      // Use pre-calculated analytics if available, otherwise calculate
+      let calculatedAnalytics;
+      if (analyticsData && !analyticsError) {
+        // Use database-calculated analytics for better performance
+        calculatedAnalytics = {
+          overview: {
+            totalUsers: (analyticsData as any).totalUsers || usersWithCounts.length,
+            totalVets: (analyticsData as any).totalVets || processedVets.length,
+            totalPets: (analyticsData as any).totalPets || petsData.length,
+            totalAppointments: (analyticsData as any).totalAppointments || processedAppointments.length,
+            totalPrescriptions: (analyticsData as any).totalPrescriptions || processedPrescriptions.length,
+            totalRevenue: (analyticsData as any).totalRevenue || 0,
+            pendingVetApprovals: (analyticsData as any).pendingVetApprovals || 0,
+            activeAppointments: (analyticsData as any).activeAppointments || 0
+          },
+          trends: {
+            userGrowth: [], // Can be populated from analyticsData.recentStats if needed
+            appointmentTrends: [],
+            prescriptionTrends: []
+          },
+          distribution: {
+            userTypes: [
+              { name: 'Pet Owners', value: usersWithCounts.length, color: '#3b82f6' },
+              { name: 'Veterinarians', value: processedVets.length, color: '#10b981' }
+            ],
+            appointmentTypes: [],
+            appointmentStatus: [],
+            petTypes: [],
+            vetSpecializations: []
+          },
+          performance: {
+            topVets: [],
+            recentActivity: []
+          }
+        };
+      } else {
+        // Fallback to client-side calculation (less optimal but functional)
+        calculatedAnalytics = calculateAnalytics(
+          usersWithCounts,
+          processedVets,
+          petsData,
+          processedAppointments,
+          processedPrescriptions,
+          transactionsData || []
+        );
+      }
       
       // Set state with fetched data
       setUsers(usersWithCounts);
@@ -793,7 +712,7 @@ const SuperAdminDashboard = () => {
       setAppointments(processedAppointments);
       setPrescriptions(processedPrescriptions);
       setPets(petsData);
-      setAnalytics(analyticsData);
+      setAnalytics(calculatedAnalytics);
       
     } catch (error) {
       setError('An unexpected error occurred while fetching data');

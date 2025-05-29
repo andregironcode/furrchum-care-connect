@@ -241,9 +241,9 @@ const AboutPage = () => {
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/20 to-red-600/20 rounded-2xl blur-lg"></div>
                 <img 
-                  src="/lovable-uploads/42e2d7bd-3440-457d-8a1e-fcd08a2d4014.png" 
-                  alt="Veterinarian caring for pet" 
-                  className="relative rounded-2xl shadow-xl w-full h-60 sm:h-80 object-cover transform hover:scale-105 transition-transform duration-500"
+                  src="/lovable-uploads/20250512_2150_Virtual Vet Consultation_simple_compose_01jv2mnymhe24argzr54vv0ya0.png" 
+                  alt="Virtual Vet Consultation" 
+                  className="relative rounded-2xl shadow-xl w-full h-64 sm:h-72 object-contain transform hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent rounded-2xl"></div>
               </div>
@@ -306,6 +306,19 @@ const AboutPage = () => {
               </div>
             ))}
           </div>
+
+          {/* Mission Visual */}
+          <div className="mt-16 flex justify-center">
+            <div className="relative max-w-2xl">
+              <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/20 to-red-600/20 rounded-2xl blur-lg"></div>
+              <img 
+                src="/lovable-uploads/20250529_2323_Tech-Savvy Pet Care_simple_compose_01jwejr4z1fahspey6bw5kctvm.png" 
+                alt="Tech-Savvy Pet Care" 
+                className="relative rounded-2xl shadow-xl w-full h-64 sm:h-72 object-contain transform hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/10 to-transparent rounded-2xl"></div>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -363,9 +376,9 @@ const AboutPage = () => {
               <div className="relative">
                 <div className="absolute -inset-4 bg-gradient-to-r from-orange-500/20 to-red-600/20 rounded-2xl blur-lg"></div>
                 <img 
-                  src="/lovable-uploads/d90a72b9-e0fd-4086-9692-b3c0a15463a7.png" 
-                  alt="Professional veterinary team" 
-                  className="relative rounded-2xl shadow-xl w-full h-60 sm:h-80 object-cover transform hover:scale-105 transition-transform duration-500"
+                  src="/lovable-uploads/20250522_1312_Sunny Balcony Hug_simple_compose_01jvvf2jcffmhsv7cy9j1pb64z.png" 
+                  alt="Sunny Balcony Hug - Pet Care" 
+                  className="relative rounded-2xl shadow-xl w-full h-64 sm:h-72 object-contain transform hover:scale-105 transition-transform duration-500"
                 />
               </div>
             </div>

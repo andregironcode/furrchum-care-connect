@@ -1,4 +1,3 @@
-
 import { Link } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 
@@ -19,9 +18,9 @@ const Footer = () => {
               <img 
                 src="/lovable-uploads/e8e11fbb-c7e5-4aac-9d0d-e6da3e74dd59.png" 
                 alt="FurrChum Logo" 
-                className="h-10 w-auto mr-2" 
+                className="h-16 w-auto mr-3" 
               />
-              <span className="font-semibold text-gray-800">FurrChum</span>
+              <span className="font-semibold text-gray-800 text-lg">FurrChum</span>
             </div>
             <p className="text-sm text-gray-600 mb-4">
               Quality pet healthcare accessible to everyone, anytime and anywhere.
@@ -257,9 +256,9 @@ const Footer = () => {
         
         {/* Copyright and Social */}
         <div className="border-t border-gray-200 pt-4 flex flex-col md:flex-row justify-between items-center">
-          <p className="text-sm text-gray-600 mb-4 md:mb-0">
-            © {currentYear} FurrChum Care Connect. All rights reserved.
-          </p>
+          <div className="text-sm text-gray-600 mb-4 md:mb-0">
+            <p>© 2025, Furrchum Technologies Pvt. Ltd. All Rights Reserved.</p>
+          </div>
           
           <div className="flex space-x-6">
             <a href="https://www.instagram.com/furrchum?igsh=eDI1MWtlbHBlN3Iw&utm_source=qr" target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-gray-900 transition-colors">

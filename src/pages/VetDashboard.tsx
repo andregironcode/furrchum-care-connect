@@ -24,9 +24,66 @@ const VetDashboard = () => {
       if (!user) return;
       
       try {
-        // We don't need to fetch from profiles table for vet dashboard
-        // The user information is already available from auth context
+        // Use optimized RPC function to get all vet dashboard data in single query
+        const { data: dashboardData, error: dashboardError } = await (supabase as any)
+          .rpc('get_vet_dashboard_data', { vet_user_id: user.id });
         
+        if (dashboardError) {
+          console.error('Error fetching dashboard data:', dashboardError);
+          // Fallback to individual queries if RPC fails
+          await fetchDataIndividually();
+          return;
+        }
+        
+        if (dashboardData) {
+          // Set vet profile from optimized response
+          if (dashboardData.vetProfile) {
+            const transformedVetData: VetProfile = {
+              id: dashboardData.vetProfile.id || '',
+              first_name: dashboardData.vetProfile.first_name || '',
+              last_name: dashboardData.vetProfile.last_name || '',
+              created_at: dashboardData.vetProfile.created_at || '',
+              approval_status: (dashboardData.vetProfile.approval_status as 'pending' | 'approved' | 'rejected') || 'pending',
+            } as VetProfile;
+            setVetProfile(transformedVetData);
+          }
+          
+          // Set appointments from optimized response
+          if (dashboardData.recentAppointments && Array.isArray(dashboardData.recentAppointments)) {
+            const formattedAppointments = dashboardData.recentAppointments.map((appt: any) => ({
+              id: appt.id,
+              booking_date: appt.booking_date,
+              start_time: appt.start_time,
+              end_time: appt.end_time,
+              consultation_type: appt.consultation_type,
+              status: appt.status,
+              notes: appt.notes,
+              pet_id: '',
+              pet_owner_id: '',
+              vet_id: user?.id || '',
+              created_at: '',
+              updated_at: '',
+              pets: { name: appt.pet_name, type: appt.pet_type },
+              profiles: { full_name: appt.owner_name }
+            } as Appointment));
+            
+            setRecentAppointments(formattedAppointments);
+          }
+        }
+      } catch (err) {
+        console.error('Error fetching optimized vet profile:', err);
+        // Fallback to individual queries
+        await fetchDataIndividually();
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    // Fallback function for individual queries (original logic)
+    const fetchDataIndividually = async () => {
+      if (!user) return;
+      
+      try {
         // Fetch vet profile
         const { data: vetData, error: vetError } = await supabase
           .from('vet_profiles')
@@ -51,105 +108,45 @@ const VetDashboard = () => {
           } as VetProfile;
           setVetProfile(transformedVetData);
           
-          // Fetch recent appointments with proper error handling
+          // Fetch recent appointments with optimized query
           try {
-            // First, try the direct approach with foreign key relationship
-            let appointmentsData: any[] = [];
-            let appointmentsError: any = null;
-            
-            // Attempt 1: Use foreign key relationship (after migration)
-            const directQuery = await supabase
+            const { data: appointmentsData, error: appointmentsError } = await supabase
               .from('bookings')
               .select(`
                 *,
-                pets(name, type),
+                pets!left(name, type),
                 profiles!bookings_pet_owner_id_fkey(full_name)
               `)
               .eq('vet_id', user.id)
               .order('booking_date', { ascending: false })
               .limit(5);
             
-            if (directQuery.error && directQuery.error.code === 'PGRST200') {
-              // Foreign key relationship doesn't exist yet, use manual approach
-              console.log('Foreign key relationship not found, using manual join approach');
-              
-              // Attempt 2: Manual join approach
-              const bookingsResponse = await supabase
-                .from('bookings')
-                .select('*')
-                .eq('vet_id', user.id)
-                .order('booking_date', { ascending: false })
-                .limit(5);
-              
-              if (bookingsResponse.error) throw bookingsResponse.error;
-              
-              appointmentsData = bookingsResponse.data || [];
-              
-              // If we have bookings, fetch related data manually
-              if (appointmentsData.length > 0) {
-                const petIds = [...new Set(appointmentsData.map((b: any) => b.pet_id).filter(Boolean))] as string[];
-                const ownerIds = [...new Set(appointmentsData.map((b: any) => b.pet_owner_id).filter(Boolean))] as string[];
-                
-                // Fetch pets data
-                const petsData = petIds.length > 0 ? 
-                  await supabase.from('pets').select('id, name, type').in('id', petIds) : 
-                  { data: [], error: null };
-                
-                // Fetch profiles data (profiles table only has full_name, not email/phone_number)
-                const profilesData = ownerIds.length > 0 ? 
-                  await supabase.from('profiles').select('id, full_name').in('id', ownerIds) : 
-                  { data: [], error: null };
-                
-                // Create lookup maps
-                const petsMap = new Map((petsData.data || []).map((p: any) => [p.id, p]));
-                const profilesMap = new Map((profilesData.data || []).map((p: any) => [p.id, p]));
-                
-                // Merge the data
-                appointmentsData = appointmentsData.map((booking: any) => ({
-                  ...booking,
-                  pets: booking.pet_id ? petsMap.get(booking.pet_id) || null : null,
-                  profiles: booking.pet_owner_id ? profilesMap.get(booking.pet_owner_id) || null : null
-                }));
-              }
+            if (appointmentsError) {
+              console.error('Error fetching appointments:', appointmentsError);
+              setRecentAppointments([]);
             } else {
-              // Direct query worked
-              appointmentsData = directQuery.data || [];
-              appointmentsError = directQuery.error;
-            }
-            
-            if (appointmentsError) throw appointmentsError;
-            
-            // Map to properly formatted appointments
-            if (appointmentsData && appointmentsData.length > 0) {
-              const formattedAppointments = appointmentsData.map((appt: any) => {
-                // Create a type-safe appointment object
-                const appointment: Appointment = {
-                  id: appt.id,
-                  booking_date: appt.booking_date,
-                  start_time: appt.start_time,
-                  end_time: appt.end_time,
-                  consultation_type: appt.consultation_type,
-                  status: appt.status,
-                  notes: appt.notes,
-                  pet_id: appt.pet_id,
-                  pet_owner_id: appt.pet_owner_id,
-                  vet_id: appt.vet_id,
-                  created_at: appt.created_at,
-                  updated_at: appt.updated_at,
-                  // Handle nested data safely
-                  pets: appt.pets || null,
-                  profiles: appt.profiles || null
-                };
-                return appointment;
-              });
+              // Map to properly formatted appointments
+              const formattedAppointments = (appointmentsData || []).map((appt: any) => ({
+                id: appt.id,
+                booking_date: appt.booking_date,
+                start_time: appt.start_time,
+                end_time: appt.end_time,
+                consultation_type: appt.consultation_type,
+                status: appt.status,
+                notes: appt.notes,
+                pet_id: appt.pet_id,
+                pet_owner_id: appt.pet_owner_id,
+                vet_id: appt.vet_id,
+                created_at: appt.created_at,
+                updated_at: appt.updated_at,
+                pets: appt.pets || null,
+                profiles: appt.profiles || null
+              } as Appointment));
               
               setRecentAppointments(formattedAppointments);
-            } else {
-              setRecentAppointments([]);
             }
           } catch (appointmentError) {
             console.error('Error fetching appointments:', appointmentError);
-            // Don't throw the error, just log it and continue without appointments
             setRecentAppointments([]);
           }
         }
@@ -157,8 +154,6 @@ const VetDashboard = () => {
         console.error('Error fetching vet profile:', err);
         const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred';
         setError(errorMessage);
-      } finally {
-        setLoading(false);
       }
     };
 
