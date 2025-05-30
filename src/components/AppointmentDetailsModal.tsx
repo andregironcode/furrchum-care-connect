@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Calendar, Clock, MapPin, Phone, Mail, User, Stethoscope, FileText, X, Edit, Check } from "lucide-react";
 import { toast } from 'sonner';
+import { useAuth } from '@/context/AuthContext';
 
 interface Appointment {
   id: string;
@@ -108,6 +109,9 @@ const AppointmentDetailsModal = ({
   onCancelAppointment,
   onRescheduleAppointment
 }: AppointmentDetailsModalProps) => {
+  // Get current user context
+  const { user } = useAuth();
+  
   // State for reschedule functionality
   const [isRescheduling, setIsRescheduling] = useState(false);
   const [newDate, setNewDate] = useState('');
@@ -228,6 +232,9 @@ const AppointmentDetailsModal = ({
   // Check reschedule permissions
   const rescheduleCheck = canReschedule(appointment.booking_date, appointment.start_time);
   const canUserReschedule = onRescheduleAppointment && rescheduleCheck.allowed;
+
+  // Check if current user is the veterinarian for this appointment
+  const isCurrentUserVet = user && user.id === appointment.vet_id;
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -516,7 +523,11 @@ const AppointmentDetailsModal = ({
                   console.log('Meeting URLs for appointment:', {
                     fromAppointment: appointment.meeting_url,
                     fromLocalStorage: meetingDetails?.roomUrl,
-                    useUrl: meetingUrl
+                    useUrl: meetingUrl,
+                    currentUserId: user?.id,
+                    appointmentVetId: appointment.vet_id,
+                    isCurrentUserVet,
+                    hostUrlAvailable: !!hostMeetingUrl
                   });
                   
                   if (!meetingUrl) {
@@ -537,7 +548,8 @@ const AppointmentDetailsModal = ({
                         Join Video Call
                       </Button>
                       
-                      {hostMeetingUrl && (
+                      {/* Only show "Join as Host" button to the veterinarian for this appointment */}
+                      {hostMeetingUrl && isCurrentUserVet && (
                         <div className="mt-2">
                           <p className="text-sm text-muted-foreground mb-1">For veterinarians only:</p>
                           <Button
