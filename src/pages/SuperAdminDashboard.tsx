@@ -578,31 +578,67 @@ const SuperAdminDashboard = () => {
       
       // Fetch prescriptions with related data in single optimized query
       try {
-        const { data: prescriptionsWithRelatedData, error: prescriptionsError } = await supabase
+        // First get all prescriptions (like vet/pet dashboards do)
+        const { data: prescriptionsData, error: prescriptionsError } = await supabase
           .from('prescriptions')
-          .select(`
-            *,
-            pets!prescriptions_pet_id_fkey(id, name, type, breed),
-            profiles!prescriptions_pet_owner_id_fkey(id, full_name),
-            vet_profiles!prescriptions_vet_id_fkey(id, first_name, last_name, specialization)
-          `)
+          .select('*')
           .order('prescribed_date', { ascending: false })
-          .limit(1000); // Reasonable limit for performance
+          .limit(1000);
         
         if (prescriptionsError) {
           console.error('Error fetching prescriptions:', prescriptionsError);
           processedPrescriptions = [];
+        } else if (prescriptionsData && prescriptionsData.length > 0) {
+          // Get unique IDs for related data
+          const petIds = [...new Set(prescriptionsData.map(p => p.pet_id))];
+          const ownerIds = [...new Set(prescriptionsData.map(p => p.pet_owner_id))];
+          const vetIds = [...new Set(prescriptionsData.map(p => p.vet_id))];
+
+          // Fetch related data in parallel (like other dashboards do)
+          const [
+            { data: petsData, error: petsError },
+            { data: ownersData, error: ownersError }, 
+            { data: vetsData, error: vetsError }
+          ] = await Promise.all([
+            supabase.from('pets').select('id, name, type, breed').in('id', petIds),
+            supabase.from('profiles').select('id, full_name').in('id', ownerIds),
+            supabase.from('vet_profiles').select('id, first_name, last_name, specialization').in('id', vetIds)
+          ]);
+
+          if (petsError) console.error('Error fetching pets for prescriptions:', petsError);
+          if (ownersError) console.error('Error fetching owners for prescriptions:', ownersError);
+          if (vetsError) console.error('Error fetching vets for prescriptions:', vetsError);
+
+          // Process and combine the data
+          processedPrescriptions = prescriptionsData.map((prescription: any) => {
+            const pet = petsData?.find(p => p.id === prescription.pet_id);
+            const owner = ownersData?.find(o => o.id === prescription.pet_owner_id);
+            const vet = vetsData?.find(v => v.id === prescription.vet_id);
+            
+            return {
+              ...prescription,
+              pet: pet ? {
+                name: pet.name,
+                type: pet.type,
+                breed: pet.breed
+              } : undefined,
+              owner: owner ? {
+                full_name: owner.full_name
+              } : undefined,
+              vet: vet ? {
+                first_name: vet.first_name,
+                last_name: vet.last_name,
+                specialization: vet.specialization
+              } : undefined
+            };
+          });
+          
+          console.log('Successfully fetched prescriptions:', processedPrescriptions.length);
         } else {
-          // Process the optimized prescription data
-          processedPrescriptions = (prescriptionsWithRelatedData || []).map((prescription: any) => ({
-            ...prescription,
-            pet: prescription.pets,
-            owner: prescription.profiles,
-            vet: prescription.vet_profiles
-          }));
+          processedPrescriptions = [];
         }
       } catch (error) {
-        console.error('Error in optimized prescriptions fetch:', error);
+        console.error('Error in prescriptions fetch:', error);
         processedPrescriptions = [];
       }
       
