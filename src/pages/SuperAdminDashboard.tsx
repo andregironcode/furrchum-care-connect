@@ -28,6 +28,7 @@ import UserDetailsModal from '@/components/UserDetailsModal';
 import VetApprovalCard from '@/components/VetApprovalCard';
 import VetDetailsModal from '@/components/VetDetailsModal';
 import PrescriptionDetailsModal from '@/components/PrescriptionDetailsModal';
+import AppointmentDetailsModal from '@/components/AppointmentDetailsModal';
 import { UserProfile, VetProfile, Appointment, Transaction } from '@/types/profiles';
 import { downloadFile, openFile } from '@/utils/supabaseStorage';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
@@ -446,6 +447,10 @@ const SuperAdminDashboard = () => {
   // State for prescription details modal
   const [selectedPrescription, setSelectedPrescription] = useState<SupabasePrescription | null>(null);
   const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
+  
+  // State for appointment details modal
+  const [selectedAppointment, setSelectedAppointment] = useState<AppointmentWithDetails | null>(null);
+  const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   
   // State for delete confirmations
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -912,6 +917,64 @@ const SuperAdminDashboard = () => {
   const handlePrescriptionModalClose = () => {
     setIsPrescriptionModalOpen(false);
     setSelectedPrescription(null);
+  };
+  
+  // Handle appointment click
+  const handleAppointmentClick = (appointment: AppointmentWithDetails) => {
+    setSelectedAppointment(appointment);
+    setIsAppointmentModalOpen(true);
+  };
+  
+  // Handle appointment modal close
+  const handleAppointmentModalClose = () => {
+    setIsAppointmentModalOpen(false);
+    setSelectedAppointment(null);
+  };
+  
+  // Handle appointment rescheduling (super admin can always reschedule)
+  const handleRescheduleAppointment = async (appointmentId: string, newDate: string, newStartTime: string, newEndTime: string) => {
+    try {
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          booking_date: newDate,
+          start_time: newStartTime,
+          end_time: newEndTime,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appointmentId);
+
+      if (error) throw new Error(error.message);
+      
+      // Update local state
+      setAppointments(prevAppointments => 
+        prevAppointments.map(appointment => 
+          appointment.id === appointmentId 
+            ? { 
+                ...appointment, 
+                booking_date: newDate,
+                start_time: newStartTime,
+                end_time: newEndTime
+              } 
+            : appointment
+        )
+      );
+      
+      toast({
+        title: 'Success',
+        description: 'Appointment rescheduled successfully',
+      });
+      
+      // Close the modal
+      setIsAppointmentModalOpen(false);
+      
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to reschedule appointment',
+        variant: 'destructive',
+      });
+    }
   };
   
   // Handle delete confirmation
@@ -1715,14 +1778,24 @@ Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
                           <TableCell className="capitalize">{appointment.consultation_type}</TableCell>
                           <TableCell>{getStatusBadge(appointment.status || 'pending')}</TableCell>
                           <TableCell>
-                            <Button
-                              size="sm"
-                              variant="destructive"
-                              onClick={() => handleDeleteClick('appointment', appointment.id, 
-                                `${appointment.pets?.name || 'Unknown Pet'} - ${new Date(appointment.booking_date).toLocaleDateString()}`)}
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="default"
+                                onClick={() => handleAppointmentClick(appointment)}
+                                className="bg-primary hover:bg-primary/90 text-primary-foreground"
+                              >
+                                View
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => handleDeleteClick('appointment', appointment.id, 
+                                  `${appointment.pets?.name || 'Unknown Pet'} - ${new Date(appointment.booking_date).toLocaleDateString()}`)}
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
                           </TableCell>
                         </TableRow>
                       ))
@@ -2264,6 +2337,41 @@ Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
             prescription={selectedPrescription} 
             isOpen={isPrescriptionModalOpen}
             onClose={handlePrescriptionModalClose} 
+          />
+        )}
+        
+        {/* Appointment Details Modal */}
+        {selectedAppointment && isAppointmentModalOpen && (
+          <AppointmentDetailsModal 
+            appointment={{
+              id: selectedAppointment.id,
+              booking_date: selectedAppointment.booking_date,
+              start_time: selectedAppointment.start_time,
+              end_time: selectedAppointment.end_time,
+              consultation_type: selectedAppointment.consultation_type,
+              notes: selectedAppointment.notes,
+              status: selectedAppointment.status || 'pending',
+              pet_id: selectedAppointment.pet_id || '',
+              vet_id: selectedAppointment.vet_id,
+              meeting_id: null,
+              meeting_url: null,
+              host_meeting_url: null
+            }}
+            pet={selectedAppointment.pets ? {
+              id: selectedAppointment.pet_id || '',
+              name: selectedAppointment.pets.name,
+              species: selectedAppointment.pets.type,
+              owner_id: selectedAppointment.pets.owner_id || ''
+            } : null}
+            vet={selectedAppointment.vet_profiles ? {
+              id: selectedAppointment.vet_id,
+              first_name: selectedAppointment.vet_profiles.first_name,
+              last_name: selectedAppointment.vet_profiles.last_name
+            } : null}
+            isOpen={isAppointmentModalOpen}
+            onClose={handleAppointmentModalClose} 
+            onCancelAppointment={(id: string) => handleDeleteClick('appointment', id, 'appointment')}
+            onRescheduleAppointment={handleRescheduleAppointment}
           />
         )}
         

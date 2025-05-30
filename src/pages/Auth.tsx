@@ -1,11 +1,11 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Navigate, useNavigate } from 'react-router-dom';
+import { Navigate, useNavigate, Link } from 'react-router-dom';
 import Navbar from '@/components/Navbar';
 import Footer from '@/components/Footer';
 import { Loader2, AlertCircle } from 'lucide-react';
@@ -243,13 +243,12 @@ const AuthTabs = () => {
                 />
                 <Label htmlFor="terms" className="text-sm font-normal leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
                   I agree to the{' '}
-                  <button 
-                    type="button" 
+                  <Link 
+                    to="/terms-conditions"
                     className="text-primary hover:underline"
-                    onClick={() => {/* Will link to terms doc when provided */}}
                   >
                     terms and conditions
-                  </button>
+                  </Link>
                 </Label>
               </div>
 

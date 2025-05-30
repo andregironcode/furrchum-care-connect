@@ -63,6 +63,8 @@ interface Pet {
 interface PetOwner {
   id: string;
   full_name?: string | null;
+  phone_number?: string | null;
+  address?: string | null;
 }
 
 const VetAppointmentsPage = () => {
@@ -180,7 +182,7 @@ const VetAppointmentsPage = () => {
       try {
         const { data: ownersData, error: ownersError } = await supabase
           .from('profiles')
-          .select('id, full_name')
+          .select('id, full_name, phone_number, address')
           .in('id', ownerIds);
           
         if (ownersError) {

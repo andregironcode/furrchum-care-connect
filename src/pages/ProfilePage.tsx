@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -6,11 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Loader2, AlertCircle, User, Mail, Save, Key } from 'lucide-react';
+import { Loader2, AlertCircle, User, Mail, Save, Key, Phone, MapPin } from 'lucide-react';
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -25,7 +25,9 @@ const ProfilePage = () => {
     email: '',
     old_password: '',
     password: '',
-    confirm_password: ''
+    confirm_password: '',
+    phone_number: '',
+    address: ''
   });
 
   useEffect(() => {
@@ -44,7 +46,9 @@ const ProfilePage = () => {
           setFormData(prev => ({
             ...prev,
             full_name: data.full_name || '',
-            email: user.email || ''
+            email: user.email || '',
+            phone_number: data.phone_number || '',
+            address: data.address || ''
           }));
         }
       } catch (error: any) {
@@ -60,7 +64,7 @@ const ProfilePage = () => {
     }
   }, [user, isLoading]);
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
   };
@@ -71,11 +75,19 @@ const ProfilePage = () => {
     setError(null);
     
     try {
-      // Update profile name
+      if (!user?.id) {
+        throw new Error('User not found');
+      }
+      
+      // Update profile with name, phone, and address
       const { error: updateError } = await supabase
         .from('profiles')
-        .update({ full_name: formData.full_name })
-        .eq('id', user?.id);
+        .update({ 
+          full_name: formData.full_name,
+          phone_number: formData.phone_number || null,
+          address: formData.address || null
+        })
+        .eq('id', user.id);
 
       if (updateError) throw updateError;
       
@@ -196,6 +208,18 @@ const ProfilePage = () => {
                         <Mail className="h-4 w-4 text-gray-500" />
                         <span>{user?.email}</span>
                       </div>
+                      {profile?.phone_number && (
+                        <div className="flex items-center gap-2">
+                          <Phone className="h-4 w-4 text-gray-500" />
+                          <span>{profile.phone_number}</span>
+                        </div>
+                      )}
+                      {profile?.address && (
+                        <div className="flex items-center gap-2">
+                          <MapPin className="h-4 w-4 text-gray-500" />
+                          <span className="text-xs">{profile.address}</span>
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -237,6 +261,26 @@ const ProfilePage = () => {
                                   className="bg-gray-50"
                                 />
                                 <p className="text-xs text-gray-500">Contact support to change email</p>
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="phone_number">Phone Number</Label>
+                                <Input 
+                                  id="phone_number" 
+                                  name="phone_number"
+                                  placeholder="Enter your phone number"
+                                  value={formData.phone_number}
+                                  onChange={handleInputChange}
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor="address">Address</Label>
+                                <Textarea 
+                                  id="address" 
+                                  name="address"
+                                  placeholder="Enter your address"
+                                  value={formData.address}
+                                  onChange={handleInputChange}
+                                />
                               </div>
                             </div>
                             

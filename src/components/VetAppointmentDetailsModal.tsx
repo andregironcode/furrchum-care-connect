@@ -39,7 +39,9 @@ interface Pet {
 
 interface PetOwner {
   id: string;
-  full_name?: string;
+  full_name?: string | null;
+  phone_number?: string | null;
+  address?: string | null;
 }
 
 interface VetAppointmentDetailsModalProps {
@@ -339,13 +341,48 @@ const VetAppointmentDetailsModal = ({
           {/* Pet Owner Information */}
           <div>
             <h3 className="text-lg font-semibold mb-3">Pet Owner Information</h3>
-            <div className="flex items-center gap-2">
-              <User className="h-4 w-4 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Owner Name</p>
-                <p className="font-medium">{petOwner.full_name || 'Unknown Owner'}</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="flex items-center gap-2">
+                <User className="h-4 w-4 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Owner Name</p>
+                  <p className="font-medium">{petOwner.full_name || 'Unknown Owner'}</p>
+                </div>
               </div>
+              
+              {petOwner.phone_number && (
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Phone Number</p>
+                    <p className="font-medium">{petOwner.phone_number}</p>
+                  </div>
+                </div>
+              )}
             </div>
+            
+            {petOwner.address && (
+              <div className="mt-4 flex items-start gap-2">
+                <MapPin className="h-4 w-4 text-primary mt-1" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Address (For Medicine Delivery)</p>
+                  <p className="font-medium">{petOwner.address}</p>
+                </div>
+              </div>
+            )}
+            
+            {!petOwner.phone_number && !petOwner.address && (
+              <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+                <div className="flex items-start gap-2">
+                  <FileText className="h-4 w-4 text-amber-600 mt-0.5" />
+                  <div>
+                    <p className="text-sm text-amber-800">
+                      Contact information not provided by pet owner. You may ask them to share their phone number and address during the consultation for medicine delivery.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           <Separator className="my-4" />

@@ -209,6 +209,51 @@ const AppointmentsPage = () => {
     }
   }, [user, isDetailsModalOpen, selectedAppointment]);
   
+  // Handle appointment rescheduling
+  const handleRescheduleAppointment = useCallback(async (appointmentId: string, newDate: string, newStartTime: string, newEndTime: string) => {
+    if (!user || !appointmentId) return;
+    
+    try {
+      // Update the booking with new date and time
+      const { error } = await supabase
+        .from('bookings')
+        .update({ 
+          booking_date: newDate,
+          start_time: newStartTime,
+          end_time: newEndTime,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', appointmentId)
+        .eq('pet_owner_id', user.id); // Ensure the booking belongs to this user
+      
+      if (error) throw error;
+      
+      // Update the local state
+      setBookings(prevBookings => 
+        prevBookings.map(booking => 
+          booking.id === appointmentId 
+            ? { 
+                ...booking, 
+                booking_date: newDate,
+                start_time: newStartTime,
+                end_time: newEndTime
+              } 
+            : booking
+        )
+      );
+      
+      // Close the details modal if it's open
+      if (isDetailsModalOpen && selectedAppointment?.id === appointmentId) {
+        setIsDetailsModalOpen(false);
+      }
+      
+      toast.success('Appointment rescheduled successfully');
+    } catch (error: any) {
+      console.error('Error rescheduling appointment:', error);
+      toast.error('Failed to reschedule appointment');
+    }
+  }, [user, isDetailsModalOpen, selectedAppointment]);
+  
   // Handle opening the appointment details modal
   const openAppointmentDetails = useCallback((booking: Booking) => {
     if (!booking) return;
@@ -497,6 +542,7 @@ const AppointmentsPage = () => {
             full_name: 'Your Veterinarian'
           }}
           onCancelAppointment={handleCancelAppointment}
+          onRescheduleAppointment={handleRescheduleAppointment}
         />
       )}
     </SidebarProvider>

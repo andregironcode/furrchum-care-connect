@@ -3,7 +3,10 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } f
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { Calendar, Clock, MapPin, Phone, Mail, User, Stethoscope, FileText, X } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Calendar, Clock, MapPin, Phone, Mail, User, Stethoscope, FileText, X, Edit, Check } from "lucide-react";
+import { toast } from 'sonner';
 
 interface Appointment {
   id: string;
@@ -47,6 +50,7 @@ interface AppointmentDetailsModalProps {
   pet: Pet | null;
   vet: Vet | null;
   onCancelAppointment: (id: string) => void;
+  onRescheduleAppointment?: (id: string, newDate: string, newStartTime: string, newEndTime: string) => void;
 }
 
 const getStatusBadgeVariant = (status: string) => {
@@ -59,14 +63,48 @@ const getStatusBadgeVariant = (status: string) => {
   }
 };
 
+// Helper function to check if user is super admin
+const isSuperAdmin = (): boolean => {
+  return localStorage.getItem('superAdminAuth') === 'true';
+};
+
+// Helper function to check if reschedule is allowed based on time restrictions
+const canReschedule = (appointmentDate: string, startTime: string): { allowed: boolean; reason?: string } => {
+  const now = new Date();
+  const appointmentDateTime = new Date(`${appointmentDate}T${startTime}`);
+  const threeHoursBeforeAppointment = new Date(appointmentDateTime.getTime() - (3 * 60 * 60 * 1000));
+  
+  // Super admins can always reschedule
+  if (isSuperAdmin()) {
+    return { allowed: true };
+  }
+  
+  // Check if current time is within 3 hours of appointment
+  if (now >= threeHoursBeforeAppointment) {
+    return { 
+      allowed: false, 
+      reason: "Cannot reschedule within 3 hours of appointment time" 
+    };
+  }
+  
+  return { allowed: true };
+};
+
 const AppointmentDetailsModal = ({ 
   isOpen, 
   onClose, 
   appointment, 
   pet, 
   vet,
-  onCancelAppointment 
+  onCancelAppointment,
+  onRescheduleAppointment
 }: AppointmentDetailsModalProps) => {
+  // State for reschedule functionality
+  const [isRescheduling, setIsRescheduling] = useState(false);
+  const [newDate, setNewDate] = useState('');
+  const [newStartTime, setNewStartTime] = useState('');
+  const [newEndTime, setNewEndTime] = useState('');
+  
   // Always define state hooks at the top level
   const [meetingDetails, setMeetingDetails] = useState<{
     roomUrl?: string;
@@ -133,9 +171,55 @@ const AppointmentDetailsModal = ({
     }
   }, [isOpen, appointment, pet, vet]);
 
+  // Helper function to handle reschedule
+  const handleReschedule = () => {
+    if (!appointment || !onRescheduleAppointment) return;
+    
+    if (!newDate || !newStartTime || !newEndTime) {
+      toast.error('Please fill in all fields');
+      return;
+    }
+    
+    // Validate that the new date/time is in the future
+    const newDateTime = new Date(`${newDate}T${newStartTime}`);
+    const now = new Date();
+    
+    if (newDateTime <= now) {
+      toast.error('Please select a future date and time');
+      return;
+    }
+    
+    onRescheduleAppointment(appointment.id, newDate, newStartTime, newEndTime);
+    setIsRescheduling(false);
+    setNewDate('');
+    setNewStartTime('');
+    setNewEndTime('');
+    onClose();
+  };
+
+  const startRescheduling = () => {
+    if (!appointment) return;
+    
+    setIsRescheduling(true);
+    setNewDate(appointment.booking_date);
+    setNewStartTime(appointment.start_time);
+    setNewEndTime(appointment.end_time);
+  };
+
+  const cancelRescheduling = () => {
+    setIsRescheduling(false);
+    setNewDate('');
+    setNewStartTime('');
+    setNewEndTime('');
+  };
+
   // Early return for safety (in case component renders despite the hooks check)
   if (!isOpen || !appointment || !pet || !vet) return null;
   
+  // Check reschedule permissions
+  const rescheduleCheck = canReschedule(appointment.booking_date, appointment.start_time);
+  const canUserReschedule = onRescheduleAppointment && rescheduleCheck.allowed;
+
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
@@ -155,22 +239,56 @@ const AppointmentDetailsModal = ({
           {/* Appointment Info Section */}
           <div>
             <h3 className="text-lg font-semibold mb-3">Appointment Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="flex items-center gap-2">
-                <Calendar className="h-4 w-4 text-primary" />
+            
+            {isRescheduling ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
-                  <p className="text-sm text-muted-foreground">Date</p>
-                  <p className="font-medium">{appointment.booking_date}</p>
+                  <Label htmlFor="reschedule-date">Date</Label>
+                  <Input
+                    id="reschedule-date"
+                    type="date"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]} // Prevent past dates
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="reschedule-start">Start Time</Label>
+                  <Input
+                    id="reschedule-start"
+                    type="time"
+                    value={newStartTime}
+                    onChange={(e) => setNewStartTime(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="reschedule-end">End Time</Label>
+                  <Input
+                    id="reschedule-end"
+                    type="time"
+                    value={newEndTime}
+                    onChange={(e) => setNewEndTime(e.target.value)}
+                  />
                 </div>
               </div>
-              <div className="flex items-center gap-2">
-                <Clock className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Time</p>
-                  <p className="font-medium">{appointment.start_time.slice(0, 5)} - {appointment.end_time.slice(0, 5)}</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Date</p>
+                    <p className="font-medium">{appointment.booking_date}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Clock className="h-4 w-4 text-primary" />
+                  <div>
+                    <p className="text-sm text-muted-foreground">Time</p>
+                    <p className="font-medium">{appointment.start_time.slice(0, 5)} - {appointment.end_time.slice(0, 5)}</p>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             
             <div className="mt-4 flex items-start gap-2">
               <FileText className="h-4 w-4 text-primary mt-1" />
@@ -270,6 +388,35 @@ const AppointmentDetailsModal = ({
             <Separator />
             <div>
               <h3 className="text-lg font-semibold mb-3">Video Consultation</h3>
+              
+              {/* Medicine Delivery Information Message */}
+              <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0">
+                    <Stethoscope className="h-5 w-5 text-blue-600 mt-0.5" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-blue-900 mb-1">
+                      Medicine Delivery Information
+                    </p>
+                    <p className="text-sm text-blue-800 mb-3">
+                      Please share your phone number and address with the vet so they can deliver prescribed medicines for your furrchum (furry friend).
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="border-blue-300 text-blue-700 hover:bg-blue-100"
+                        onClick={() => window.open('/profile', '_blank')}
+                      >
+                        <User className="h-4 w-4 mr-1" />
+                        Update Contact Info
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
               <div className="space-y-4">
                 {(() => {
                   const now = new Date();
@@ -361,17 +508,56 @@ const AppointmentDetailsModal = ({
         )}
 
         <div className="flex flex-col sm:flex-row gap-3 mt-4">
-          {(appointment.status === 'pending' || appointment.status === 'confirmed') && (
-            <Button
-              variant="destructive"
-              onClick={() => {
-                onCancelAppointment(appointment.id);
-                onClose();
-              }}
-              className="w-full sm:w-auto"
-            >
-              <X className="mr-2 h-4 w-4" /> Cancel Appointment
-            </Button>
+          {isRescheduling ? (
+            <>
+              <Button
+                onClick={handleReschedule}
+                className="w-full sm:w-auto"
+              >
+                <Check className="mr-2 h-4 w-4" /> Confirm Reschedule
+              </Button>
+              <Button
+                variant="outline"
+                onClick={cancelRescheduling}
+                className="w-full sm:w-auto"
+              >
+                Cancel
+              </Button>
+            </>
+          ) : (
+            <>
+              {(appointment.status === 'pending' || appointment.status === 'confirmed') && (
+                <>
+                  {/* Reschedule button - only show if user can reschedule */}
+                  {canUserReschedule && (
+                    <Button
+                      onClick={startRescheduling}
+                      className="w-full sm:w-auto"
+                    >
+                      <Edit className="mr-2 h-4 w-4" /> Reschedule
+                    </Button>
+                  )}
+                  
+                  {/* Show warning if reschedule is restricted */}
+                  {onRescheduleAppointment && !rescheduleCheck.allowed && (
+                    <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
+                      {rescheduleCheck.reason}
+                    </div>
+                  )}
+                  
+                  <Button
+                    variant="destructive"
+                    onClick={() => {
+                      onCancelAppointment(appointment.id);
+                      onClose();
+                    }}
+                    className="w-full sm:w-auto"
+                  >
+                    <X className="mr-2 h-4 w-4" /> Cancel Appointment
+                  </Button>
+                </>
+              )}
+            </>
           )}
           <Button 
             variant="outline" 
