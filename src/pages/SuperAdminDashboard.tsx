@@ -61,6 +61,7 @@ interface AppointmentWithDetails {
     full_name: string | null;
     email?: string | null;
     phone_number?: string | null;
+    address?: string | null;
   } | null;
 }
 
@@ -530,7 +531,7 @@ const SuperAdminDashboard = () => {
           .select(`
             *,
             pets!left(id, name, type, owner_id),
-            profiles!bookings_pet_owner_id_fkey(id, full_name),
+            profiles!bookings_pet_owner_id_fkey(id, full_name, phone_number, address),
             vet_profiles!bookings_vet_id_fkey(id, first_name, last_name)
           `)
           .order('booking_date', { ascending: false })
@@ -566,7 +567,8 @@ const SuperAdminDashboard = () => {
             owner_id: booking.pets?.owner_id || '',
             full_name: booking.profiles?.full_name || '',
             email: '', // Will be filled from profiles if needed
-            phone_number: ''
+            phone_number: '',
+            address: booking.profiles?.address || ''
           }));
         }
       } catch (error) {
@@ -2367,6 +2369,12 @@ Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
               id: selectedAppointment.vet_id,
               first_name: selectedAppointment.vet_profiles.first_name,
               last_name: selectedAppointment.vet_profiles.last_name
+            } : null}
+            petOwner={selectedAppointment.profiles ? {
+              id: selectedAppointment.pet_owner_id,
+              full_name: selectedAppointment.profiles.full_name,
+              phone_number: selectedAppointment.profiles.phone_number,
+              address: selectedAppointment.profiles.address
             } : null}
             isOpen={isAppointmentModalOpen}
             onClose={handleAppointmentModalClose} 

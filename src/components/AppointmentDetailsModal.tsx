@@ -43,12 +43,20 @@ interface Vet {
   about?: string | null;
 }
 
+interface PetOwner {
+  id: string;
+  full_name?: string | null;
+  phone_number?: string | null;
+  address?: string | null;
+}
+
 interface AppointmentDetailsModalProps {
   isOpen: boolean;
   onClose: () => void;
   appointment: Appointment | null;
   pet: Pet | null;
   vet: Vet | null;
+  petOwner?: PetOwner | null;
   onCancelAppointment: (id: string) => void;
   onRescheduleAppointment?: (id: string, newDate: string, newStartTime: string, newEndTime: string) => void;
 }
@@ -96,6 +104,7 @@ const AppointmentDetailsModal = ({
   appointment, 
   pet, 
   vet,
+  petOwner,
   onCancelAppointment,
   onRescheduleAppointment
 }: AppointmentDetailsModalProps) => {
@@ -380,6 +389,48 @@ const AppointmentDetailsModal = ({
               </div>
             )}
           </div>
+
+          <Separator />
+
+          {/* Pet Owner Information - For Super Admin */}
+          {petOwner && (
+            <>
+              <div>
+                <h3 className="text-lg font-semibold mb-3">Pet Owner Information</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-2">
+                    <User className="h-4 w-4 text-primary" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Owner Name</p>
+                      <p className="font-medium">{petOwner.full_name || 'Unknown Owner'}</p>
+                    </div>
+                  </div>
+                  
+                  {petOwner.phone_number && (
+                    <div className="flex items-center gap-2">
+                      <Phone className="h-4 w-4 text-primary" />
+                      <div>
+                        <p className="text-sm text-muted-foreground">Phone Number</p>
+                        <p className="font-medium">{petOwner.phone_number}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {petOwner.address && (
+                  <div className="mt-4 flex items-start gap-2">
+                    <MapPin className="h-4 w-4 text-primary mt-1" />
+                    <div>
+                      <p className="text-sm text-muted-foreground">Address (For Medicine Delivery)</p>
+                      <p className="font-medium">{petOwner.address}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <Separator />
+            </>
+          )}
         </div>
 
         {/* Video Call Section */}

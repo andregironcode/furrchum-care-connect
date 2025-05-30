@@ -82,6 +82,8 @@ const AuthTabs = () => {
     }
     
     try {
+      console.log('Starting signup process for:', signUpData.email);
+      
       await signUp(
         signUpData.email, 
         signUpData.password, 
@@ -96,9 +98,32 @@ const AuthTabs = () => {
         password: signUpData.password
       });
       
+      // Clear the signup form
+      setSignUpData({
+        email: '',
+        password: '',
+        fullName: '',
+        userType: 'pet_owner',
+        agreeToTerms: false,
+      });
+      
     } catch (error: any) {
-      console.error(error);
-      setError(error.message || 'Failed to create account');
+      console.error('Signup form error:', error);
+      
+      // Handle specific error types
+      let errorMessage = 'Failed to create account';
+      
+      if (error.message) {
+        errorMessage = error.message;
+      } else if (error.toString().includes('Load failed')) {
+        errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+      } else if (error.toString().includes('NetworkError')) {
+        errorMessage = 'Network error occurred. Please check your internet connection and try again.';
+      } else if (error.toString().includes('TypeError: Failed to fetch')) {
+        errorMessage = 'Unable to connect to server. Please check your internet connection and try again.';
+      }
+      
+      setError(errorMessage);
     } finally {
       setIsSubmitting(false);
     }

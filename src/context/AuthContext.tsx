@@ -64,6 +64,14 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         throw new Error('Password must be at least 6 characters long');
       }
       
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(email)) {
+        throw new Error('Please enter a valid email address');
+      }
+      
+      console.log('Attempting signup for:', { email, userType, fullName });
+      
       // Using metadata to pass user information
       const { data, error } = await supabase.auth.signUp({
         email,
@@ -77,15 +85,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
 
       if (error) {
-        // Provide more specific error messages
+        console.error('Supabase auth error:', error);
+        
+        // Provide more specific error messages based on error types
         if (error.message.includes('Database error saving new user')) {
-          throw new Error('There was an issue creating your profile. Please try again or contact support if the problem persists.');
+          throw new Error('There was an issue creating your profile. Please check your internet connection and try again.');
         } else if (error.message.includes('User already registered')) {
           throw new Error('An account with this email already exists. Please try signing in instead.');
         } else if (error.message.includes('Invalid email')) {
           throw new Error('Please enter a valid email address.');
+        } else if (error.message.includes('Password should be at least')) {
+          throw new Error('Password must be at least 6 characters long.');
+        } else if (error.message.includes('Load failed') || error.message.includes('Network error')) {
+          throw new Error('Network connection failed. Please check your internet connection and try again.');
+        } else if (error.message.includes('rate limit') || error.message.includes('too many requests')) {
+          throw new Error('Too many signup attempts. Please wait a few minutes and try again.');
+        } else {
+          // Log the full error for debugging
+          console.error('Signup error details:', {
+            message: error.message,
+            status: error.status,
+            code: (error as any).code
+          });
+          throw new Error(error.message || 'Failed to create account. Please try again.');
         }
-        throw error;
+      }
+      
+      if (!data.user) {
+        throw new Error('Signup failed. Please try again.');
+      }
+      
+      console.log('Signup successful:', data.user.id);
+      
+      // Wait a moment for the database trigger to complete
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Verify the profile was created
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('id, full_name, user_type')
+          .eq('id', data.user.id)
+          .single();
+          
+        if (profileError) {
+          console.warn('Profile verification failed:', profileError);
+          // Don't throw error here, as the user was created successfully
+        } else {
+          console.log('Profile created successfully:', profileData);
+        }
+      } catch (verificationError) {
+        console.warn('Profile verification error:', verificationError);
+        // Don't throw error here, as the user was created successfully
       }
       
       // Send welcome email via our server-side API
