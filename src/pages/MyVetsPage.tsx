@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate, useNavigate } from 'react-router-dom';
@@ -16,15 +15,15 @@ interface Vet {
   id: string;
   first_name: string;
   last_name: string;
-  specialization: string;
-  years_experience: number;
-  rating: number;
-  image_url?: string;
-  consultation_fee?: number;
-  clinic_location?: string;
-  offers_video_calls: boolean;
-  offers_in_person: boolean;
-  phone?: string;
+  specialization: string | null;
+  years_experience: number | null;
+  rating: number | null;
+  image_url?: string | null;
+  consultation_fee?: number | null;
+  clinic_location?: string | null;
+  offers_video_calls: boolean | null;
+  offers_in_person: boolean | null;
+  phone?: string | null;
 }
 
 const MyVetsPage = () => {
@@ -194,7 +193,7 @@ const VetCard = ({ vet }: { vet: Vet }) => {
         {vet.consultation_fee && (
           <div className="mb-4">
             <p className="text-sm text-gray-500 mb-1">Consultation Fee</p>
-            <p className="font-medium">${vet.consultation_fee}</p>
+            <p className="font-medium">₹{vet.consultation_fee}</p>
           </div>
         )}
         {vet.clinic_location && (

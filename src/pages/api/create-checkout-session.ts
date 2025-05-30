@@ -3,7 +3,7 @@ import Stripe from 'stripe';
 
 // Initialize Stripe with the secret key from environment variables
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2023-10-16', // Use the latest API version
+  apiVersion: '2025-04-30.basil', // Use the latest API version
 });
 
 export default async function handler(
@@ -22,7 +22,7 @@ export default async function handler(
     }
 
     // Calculate the price with a 5% service fee
-    const amount = Math.round(bookingData.fee * 1.05 * 100); // Convert to cents
+    const amount = Math.round(bookingData.fee * 1.05 * 100); // Convert to paise (smallest unit of INR)
 
     // Create Checkout Session
     const session = await stripe.checkout.sessions.create({
