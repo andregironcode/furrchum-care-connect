@@ -1,5 +1,4 @@
-
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SidebarProvider, SidebarInset, SidebarTrigger } from '@/components/ui/sidebar';
 import VetSidebar from '@/components/VetSidebar';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -18,6 +17,7 @@ import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import CreatePrescriptionModal from '@/components/CreatePrescriptionModal';
+import PrescriptionDetailsModal from '@/components/PrescriptionDetailsModal';
 import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 
@@ -52,6 +52,35 @@ const VetPrescriptionsPage = () => {
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  
+  // State for prescription details modal
+  const [selectedPrescription, setSelectedPrescription] = useState<{
+    id: string;
+    medication_name: string;
+    dosage: string;
+    frequency: string;
+    duration: string;
+    instructions?: string | null;
+    diagnosis?: string | null;
+    prescribed_date: string;
+    status: string;
+    created_at: string;
+    updated_at: string;
+    pet?: {
+      name: string;
+      type: string;
+      breed?: string;
+    };
+    owner?: {
+      full_name?: string;
+    };
+    vet?: {
+      first_name: string;
+      last_name: string;
+      specialization?: string;
+    };
+  } | null>(null);
+  const [isPrescriptionModalOpen, setIsPrescriptionModalOpen] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -64,11 +93,18 @@ const VetPrescriptionsPage = () => {
       setLoading(true);
       setError(null);
 
+      // Ensure user exists and has an ID
+      if (!user?.id) {
+        console.error('No user ID found');
+        setError('User not authenticated');
+        return;
+      }
+
       // First get prescriptions for this vet
       const { data: prescriptionsData, error: prescriptionsError } = await supabase
         .from('prescriptions')
         .select('*')
-        .eq('vet_id', user?.id)
+        .eq('vet_id', user.id)
         .order('prescribed_date', { ascending: false });
 
       if (prescriptionsError) throw prescriptionsError;
@@ -109,13 +145,15 @@ const VetPrescriptionsPage = () => {
         
         return {
           ...prescription,
+          instructions: prescription.instructions || undefined,
+          diagnosis: prescription.diagnosis || undefined,
           pet: pet ? {
             name: pet.name,
             type: pet.type,
-            breed: pet.breed
+            breed: pet.breed || undefined
           } : undefined,
           owner: owner ? {
-            full_name: owner.full_name
+            full_name: owner.full_name || undefined
           } : undefined
         };
       });
@@ -157,6 +195,26 @@ const VetPrescriptionsPage = () => {
         variant: "destructive",
       });
     }
+  };
+
+  // Handler for opening prescription details modal
+  const handleViewPrescriptionDetails = (prescription: Prescription) => {
+    // Transform the prescription to match the modal's expected interface
+    const modalPrescription = {
+      ...prescription,
+      created_at: new Date().toISOString(), // fallback since we don't have this field
+      updated_at: new Date().toISOString(), // fallback since we don't have this field
+      instructions: prescription.instructions || undefined, // convert null to undefined
+    };
+    
+    setSelectedPrescription(modalPrescription as any);
+    setIsPrescriptionModalOpen(true);
+  };
+
+  // Handler for closing prescription details modal
+  const handleClosePrescriptionModal = () => {
+    setSelectedPrescription(null);
+    setIsPrescriptionModalOpen(false);
   };
 
   const getStatusBadgeVariant = (status: string) => {
@@ -315,7 +373,9 @@ const VetPrescriptionsPage = () => {
                                   </Button>
                                 </DropdownMenuTrigger>
                                 <DropdownMenuContent align="end">
-                                  <DropdownMenuItem>View Details</DropdownMenuItem>
+                                  <DropdownMenuItem onClick={() => handleViewPrescriptionDetails(prescription)}>
+                                    View Details
+                                  </DropdownMenuItem>
                                   {prescription.status === 'active' && (
                                     <>
                                       <DropdownMenuItem
@@ -355,6 +415,13 @@ const VetPrescriptionsPage = () => {
           isOpen={isCreateModalOpen}
           onClose={() => setIsCreateModalOpen(false)}
           onPrescriptionCreated={fetchPrescriptions}
+        />
+        
+        {/* Prescription Details Modal */}
+        <PrescriptionDetailsModal
+          prescription={selectedPrescription}
+          isOpen={isPrescriptionModalOpen}
+          onClose={handleClosePrescriptionModal}
         />
       </div>
     </SidebarProvider>
