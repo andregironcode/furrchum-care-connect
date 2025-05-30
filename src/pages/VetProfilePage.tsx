@@ -297,6 +297,7 @@ const VetProfilePage = () => {
         license_url: data.license_url || '',
         clinic_location: data.clinic_location || '',
         clinic_images: Array.isArray(data.clinic_images) ? data.clinic_images : [],
+        // Map database field to UI field
         offers_telemedicine: Boolean(data.offers_video_calls),
         offers_in_person: Boolean(data.offers_in_person),
         // Banking fields
@@ -620,66 +621,201 @@ ALTER TABLE vet_profiles
     }
   };
 
-  const uploadFile = async (file: File, bucket: string, folder: string) => {
-    try {
-      const fileExt = file.name.split('.').pop();
-      const fileName = `${folder}/${user?.id}/${uuidv4()}.${fileExt}`;
-      
-      const { error: uploadError } = await supabase.storage
-        .from(bucket)
-        .upload(fileName, file);
+  const uploadFile = async (file: File, bucket: string, folder: string, retries = 3): Promise<string> => {
+    let lastError: Error | null = null;
+    
+    for (let attempt = 1; attempt <= retries; attempt++) {
+      try {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${folder}/${user?.id}/${uuidv4()}.${fileExt}`;
         
-      if (uploadError) throw uploadError;
-      
-      const { data } = supabase.storage
-        .from(bucket)
-        .getPublicUrl(fileName);
+        console.log(`Upload attempt ${attempt}/${retries} for file: ${fileName}`);
         
-      return data.publicUrl;
-    } catch (error) {
-      console.error('Error uploading file:', error);
-      throw error;
+        // Check if file already exists (though UUID makes this unlikely)
+        const { data: existingFiles } = await supabase.storage
+          .from(bucket)
+          .list(`${folder}/${user?.id}`, {
+            limit: 1,
+            search: fileName.split('/').pop()
+          });
+        
+        if (existingFiles && existingFiles.length > 0) {
+          console.warn(`File ${fileName} already exists, generating new name`);
+          continue; // Try again with new UUID
+        }
+        
+        // Attempt upload with timeout
+        const uploadPromise = supabase.storage
+          .from(bucket)
+          .upload(fileName, file, {
+            cacheControl: '3600',
+            upsert: false
+          });
+        
+        // Add timeout to prevent hanging
+        const timeoutPromise = new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Upload timeout')), 30000)
+        );
+        
+        const { error: uploadError } = await Promise.race([uploadPromise, timeoutPromise]) as any;
+        
+        if (uploadError) {
+          lastError = new Error(`Upload failed: ${uploadError.message}`);
+          console.error(`Attempt ${attempt} failed:`, lastError);
+          
+          // If it's a quota or permission error, don't retry
+          if (uploadError.message?.includes('quota') || uploadError.message?.includes('permission')) {
+            throw lastError;
+          }
+          
+          // Wait before retry (exponential backoff)
+          if (attempt < retries) {
+            const waitTime = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+            console.log(`Waiting ${waitTime}ms before retry...`);
+            await new Promise(resolve => setTimeout(resolve, waitTime));
+            continue;
+          }
+          throw lastError;
+        }
+        
+        // Verify upload success by getting public URL
+        const { data } = supabase.storage
+          .from(bucket)
+          .getPublicUrl(fileName);
+        
+        if (!data?.publicUrl) {
+          throw new Error('Failed to generate public URL');
+        }
+        
+        console.log(`Upload successful on attempt ${attempt}: ${data.publicUrl}`);
+        return data.publicUrl;
+        
+      } catch (error) {
+        lastError = error as Error;
+        console.error(`Upload attempt ${attempt} error:`, error);
+        
+        if (attempt === retries) {
+          throw lastError;
+        }
+        
+        // Wait before retry
+        const waitTime = Math.pow(2, attempt) * 1000;
+        await new Promise(resolve => setTimeout(resolve, waitTime));
+      }
     }
+    
+    throw lastError || new Error('Upload failed after all retries');
   };
 
-  const uploadProfileImage = async (userId: string) => {
+  const uploadProfileImage = async (userId: string): Promise<string | null> => {
     if (!selectedImage) return null;
     
     try {
       setUploadingImage(true);
-      return await uploadFile(selectedImage, 'vet_profiles', 'profile_images');
-    } catch (error) {
-      toast.error('Failed to upload profile image');
+      console.log('Starting profile image upload for user:', userId);
+      
+      const result = await uploadFile(selectedImage, 'vet_profiles', 'profile_images');
+      
+      toast.success('Profile image uploaded successfully!');
+      console.log('Profile image upload successful:', result);
+      
+      // Clear the selected image since it's now uploaded
+      setSelectedImage(null);
+      
+      return result;
+    } catch (error: any) {
+      console.error('Profile image upload failed:', error);
+      
+      // Provide specific error messages
+      let errorMessage = 'Failed to upload profile image';
+      if (error.message?.includes('timeout')) {
+        errorMessage = 'Upload timed out. Please check your connection and try again.';
+      } else if (error.message?.includes('quota')) {
+        errorMessage = 'Storage quota exceeded. Please contact support.';
+      } else if (error.message?.includes('permission')) {
+        errorMessage = 'Permission denied. Please try logging out and back in.';
+      } else if (error.message?.includes('size')) {
+        errorMessage = 'File size too large. Please use an image under 5MB.';
+      }
+      
+      toast.error(errorMessage);
       return null;
     } finally {
       setUploadingImage(false);
     }
   };
 
-  const uploadLicense = async (userId: string) => {
+  const uploadLicense = async (userId: string): Promise<string | null> => {
     if (!selectedLicense) return null;
     
     try {
       setUploadingLicense(true);
-      return await uploadFile(selectedLicense, 'vet_profiles', 'licenses');
-    } catch (error) {
-      toast.error('Failed to upload license');
+      console.log('Starting license upload for user:', userId);
+      
+      const result = await uploadFile(selectedLicense, 'vet_profiles', 'licenses');
+      
+      toast.success('License uploaded successfully!');
+      console.log('License upload successful:', result);
+      
+      // Clear the selected license since it's now uploaded
+      setSelectedLicense(null);
+      
+      return result;
+    } catch (error: any) {
+      console.error('License upload failed:', error);
+      
+      let errorMessage = 'Failed to upload license';
+      if (error.message?.includes('timeout')) {
+        errorMessage = 'Upload timed out. Please check your connection and try again.';
+      } else if (error.message?.includes('quota')) {
+        errorMessage = 'Storage quota exceeded. Please contact support.';
+      } else if (error.message?.includes('permission')) {
+        errorMessage = 'Permission denied. Please try logging out and back in.';
+      }
+      
+      toast.error(errorMessage);
       return null;
     } finally {
       setUploadingLicense(false);
     }
   };
 
-  const uploadClinicImages = async (userId: string) => {
+  const uploadClinicImages = async (userId: string): Promise<string[]> => {
     if (selectedClinicImages.length === 0) return [];
     
     try {
       setUploadingClinicImages(true);
-      const uploadPromises = selectedClinicImages.map(file => 
-        uploadFile(file, 'vet_profiles', 'clinic_images')
-      );
-      return await Promise.all(uploadPromises);
-    } catch (error) {
+      console.log(`Starting clinic images upload for user: ${userId}, ${selectedClinicImages.length} images`);
+      
+      // Upload images sequentially to avoid overwhelming the server
+      const uploadResults: string[] = [];
+      
+      for (let i = 0; i < selectedClinicImages.length; i++) {
+        const file = selectedClinicImages[i];
+        try {
+          console.log(`Uploading clinic image ${i + 1}/${selectedClinicImages.length}`);
+          const result = await uploadFile(file, 'vet_profiles', 'clinic_images');
+          uploadResults.push(result);
+          
+          // Show progress to user
+          toast.success(`Clinic image ${i + 1}/${selectedClinicImages.length} uploaded successfully`);
+        } catch (error) {
+          console.error(`Failed to upload clinic image ${i + 1}:`, error);
+          toast.error(`Failed to upload clinic image ${i + 1}. Continuing with others...`);
+          // Continue with other images
+        }
+      }
+      
+      console.log('Clinic images upload completed:', uploadResults.length, 'successful');
+      
+      // Clear selected images for successfully uploaded ones
+      if (uploadResults.length > 0) {
+        setSelectedClinicImages([]);
+      }
+      
+      return uploadResults;
+    } catch (error: any) {
+      console.error('Clinic images upload failed:', error);
       toast.error('Failed to upload clinic images');
       return [];
     } finally {
@@ -724,9 +860,11 @@ ALTER TABLE vet_profiles
       
       console.log('5. Form validation passed');
       
-      // Handle image uploads
+      // Handle image uploads with better error recovery
       let imageUrl = profile?.image_url || '';
       let licenseUrl = profile?.license_url || '';
+      let uploadErrors: string[] = [];
+      
       console.log('6. Initial URLs:', { imageUrl, licenseUrl });
       
       // Get the current form values for clinic_images
@@ -735,34 +873,56 @@ ALTER TABLE vet_profiles
 
       // Upload new profile image if selected
       if (selectedImage) {
+        console.log('8a. Uploading profile image...');
         const newImageUrl = await uploadProfileImage(user.id);
         if (newImageUrl) {
           imageUrl = newImageUrl;
+          console.log('8a. Profile image upload successful:', newImageUrl);
+        } else {
+          uploadErrors.push('Profile image upload failed');
+          console.warn('8a. Profile image upload failed, continuing with existing URL');
         }
       }
 
       // Upload new license if selected
       if (selectedLicense) {
+        console.log('8b. Uploading license...');
         const newLicenseUrl = await uploadLicense(user.id);
         if (newLicenseUrl) {
           licenseUrl = newLicenseUrl;
+          console.log('8b. License upload successful:', newLicenseUrl);
+        } else {
+          uploadErrors.push('License upload failed');
+          console.warn('8b. License upload failed, continuing with existing URL');
         }
       }
 
       // Handle clinic images upload
       if (selectedClinicImages.length > 0) {
+        console.log('8c. Uploading clinic images...');
         const newClinicImages = await uploadClinicImages(user.id);
         
-        // Ensure we don't exceed 5 images total
-        const totalImages = clinicImages.length + newClinicImages.length;
-        if (totalImages > 5) {
-          // Only add enough to reach 5 total
-          const availableSlots = Math.max(0, 5 - clinicImages.length);
-          clinicImages = [...clinicImages, ...newClinicImages.slice(0, availableSlots)];
-          toast.warning(`Only added ${availableSlots} images to stay within the 5 image limit`);
+        if (newClinicImages.length > 0) {
+          // Ensure we don't exceed 5 images total
+          const totalImages = clinicImages.length + newClinicImages.length;
+          if (totalImages > 5) {
+            // Only add enough to reach 5 total
+            const availableSlots = Math.max(0, 5 - clinicImages.length);
+            clinicImages = [...clinicImages, ...newClinicImages.slice(0, availableSlots)];
+            toast.warning(`Only added ${availableSlots} images to stay within the 5 image limit`);
+          } else {
+            clinicImages = [...clinicImages, ...newClinicImages];
+          }
+          console.log('8c. Clinic images upload successful:', newClinicImages.length, 'images');
         } else {
-          clinicImages = [...clinicImages, ...newClinicImages.filter((url): url is string => Boolean(url))];
+          uploadErrors.push('Clinic images upload failed');
+          console.warn('8c. All clinic images upload failed');
         }
+      }
+      
+      // Show upload summary if there were any issues
+      if (uploadErrors.length > 0) {
+        toast.warning(`Profile saved but some uploads failed: ${uploadErrors.join(', ')}. You can try uploading them again.`);
       }
       
       // Get coordinates from ZIP code if it has changed
@@ -1195,12 +1355,20 @@ ALTER TABLE vet_profiles
                               {selectedImage ? (
                                 <div className="text-center">
                                   <p className="text-sm text-green-600 font-medium">{selectedImage.name}</p>
-                                  <p className="text-xs text-muted-foreground mt-1">Image ready to upload</p>
+                                  <p className="text-xs text-muted-foreground mt-1">
+                                    {uploadingImage ? 'Uploading...' : 'Image ready to upload'}
+                                  </p>
+                                  {uploadingImage && (
+                                    <div className="flex items-center justify-center mt-2">
+                                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                      <span className="text-xs">Please wait...</span>
+                                    </div>
+                                  )}
                                 </div>
                               ) : (
                                 <div className="text-center">
                                   <p className="text-sm text-muted-foreground">Click the camera icon to upload your photo</p>
-                                  <p className="text-xs text-muted-foreground mt-1">Supported formats: JPG, JPEG, PNG</p>
+                                  <p className="text-xs text-muted-foreground mt-1">Supported formats: JPG, JPEG, PNG (max 5MB)</p>
                                 </div>
                               )}
                               
