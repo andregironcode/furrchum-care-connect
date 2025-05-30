@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Navigate } from 'react-router-dom';
@@ -112,8 +111,46 @@ const PrescriptionsPage = () => {
     return <Navigate to="/auth" />;
   }
 
-  const activePrescriptions = prescriptions.filter(rx => rx.status === 'active');
-  const expiredPrescriptions = prescriptions.filter(rx => rx.status === 'expired' || rx.status === 'completed');
+  // Helper function to calculate if a prescription is actually expired based on date + duration
+  const isPrescriptionExpired = (prescription: Prescription): boolean => {
+    try {
+      const prescribedDate = new Date(prescription.prescribed_date);
+      const today = new Date();
+      
+      // Extract number of days from duration (e.g., "7 days" -> 7, "2 weeks" -> 14)
+      const duration = prescription.duration.toLowerCase();
+      let durationDays = 0;
+      
+      if (duration.includes('day')) {
+        const match = duration.match(/(\d+)/);
+        durationDays = match ? parseInt(match[1]) : 0;
+      } else if (duration.includes('week')) {
+        const match = duration.match(/(\d+)/);
+        durationDays = match ? parseInt(match[1]) * 7 : 0;
+      } else if (duration.includes('month')) {
+        const match = duration.match(/(\d+)/);
+        durationDays = match ? parseInt(match[1]) * 30 : 0;
+      } else {
+        // If we can't parse duration, assume it's not expired
+        return false;
+      }
+      
+      // Calculate expiry date
+      const expiryDate = new Date(prescribedDate);
+      expiryDate.setDate(expiryDate.getDate() + durationDays);
+      
+      // Check if expired (past expiry date) OR manually marked as completed/expired
+      return today > expiryDate || prescription.status === 'completed' || prescription.status === 'expired' || prescription.status === 'discontinued';
+    } catch (error) {
+      console.error('Error calculating prescription expiry:', error);
+      // If there's an error, fall back to status-based checking
+      return prescription.status === 'completed' || prescription.status === 'expired' || prescription.status === 'discontinued';
+    }
+  };
+
+  // Filter prescriptions properly
+  const activePrescriptions = prescriptions.filter(rx => !isPrescriptionExpired(rx));
+  const expiredPrescriptions = prescriptions.filter(rx => isPrescriptionExpired(rx));
 
   return (
     <SidebarProvider>
@@ -178,7 +215,44 @@ const PrescriptionsPage = () => {
 
 // Prescription Card Component
 const PrescriptionCard = ({ prescription }: { prescription: Prescription }) => {
-  const isExpired = prescription.status === 'expired' || prescription.status === 'completed';
+  // Use the same logic to determine if prescription is expired
+  const isPrescriptionExpired = (prescription: Prescription): boolean => {
+    try {
+      const prescribedDate = new Date(prescription.prescribed_date);
+      const today = new Date();
+      
+      // Extract number of days from duration (e.g., "7 days" -> 7, "2 weeks" -> 14)
+      const duration = prescription.duration.toLowerCase();
+      let durationDays = 0;
+      
+      if (duration.includes('day')) {
+        const match = duration.match(/(\d+)/);
+        durationDays = match ? parseInt(match[1]) : 0;
+      } else if (duration.includes('week')) {
+        const match = duration.match(/(\d+)/);
+        durationDays = match ? parseInt(match[1]) * 7 : 0;
+      } else if (duration.includes('month')) {
+        const match = duration.match(/(\d+)/);
+        durationDays = match ? parseInt(match[1]) * 30 : 0;
+      } else {
+        // If we can't parse duration, assume it's not expired
+        return false;
+      }
+      
+      // Calculate expiry date
+      const expiryDate = new Date(prescribedDate);
+      expiryDate.setDate(expiryDate.getDate() + durationDays);
+      
+      // Check if expired (past expiry date) OR manually marked as completed/expired
+      return today > expiryDate || prescription.status === 'completed' || prescription.status === 'expired' || prescription.status === 'discontinued';
+    } catch (error) {
+      console.error('Error calculating prescription expiry:', error);
+      // If there's an error, fall back to status-based checking
+      return prescription.status === 'completed' || prescription.status === 'expired' || prescription.status === 'discontinued';
+    }
+  };
+
+  const isExpired = isPrescriptionExpired(prescription);
   
   return (
     <Card className={`hover:shadow-lg transition-shadow border-${isExpired ? 'gray' : 'primary'}-300`}>
