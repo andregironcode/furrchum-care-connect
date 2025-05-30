@@ -324,13 +324,6 @@ const PrescriptionCard = ({ prescription }: { prescription: Prescription }) => {
           </div>
         )}
       </CardContent>
-      <CardFooter className="flex justify-between gap-2">
-        {isExpired && (
-          <Button variant="outline" className="ml-auto border-gray-300 text-gray-600">
-            Request Renewal
-          </Button>
-        )}
-      </CardFooter>
     </Card>
   );
 };
