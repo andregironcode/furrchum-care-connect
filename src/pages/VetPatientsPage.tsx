@@ -396,6 +396,272 @@ const VetPatientsPage = () => {
           </div>
         </SidebarInset>
       </div>
+
+      {/* Pet Details Modal */}
+      {selectedPet && (
+        <Dialog open={!!selectedPet} onOpenChange={() => setSelectedPet(null)}>
+          <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Users className="h-5 w-5" />
+                {selectedPet.name} - Patient Details
+              </DialogTitle>
+              <DialogDescription>
+                Comprehensive information about the patient including medical records, prescriptions, and appointment history
+              </DialogDescription>
+            </DialogHeader>
+
+            {detailsLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                <span className="ml-2">Loading patient details...</span>
+              </div>
+            ) : (
+              <Tabs defaultValue="overview" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="overview">Overview</TabsTrigger>
+                  <TabsTrigger value="medical">Medical Records</TabsTrigger>
+                  <TabsTrigger value="prescriptions">Prescriptions</TabsTrigger>
+                  <TabsTrigger value="appointments">Appointments</TabsTrigger>
+                </TabsList>
+
+                <TabsContent value="overview" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users className="h-5 w-5" />
+                        Basic Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <p className="text-sm text-gray-500">Name</p>
+                          <p className="font-medium">{selectedPet.name}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-gray-500">Type</p>
+                          <p className="font-medium capitalize">{selectedPet.type}</p>
+                        </div>
+                        {selectedPet.breed && (
+                          <div>
+                            <p className="text-sm text-gray-500">Breed</p>
+                            <p className="font-medium">{selectedPet.breed}</p>
+                          </div>
+                        )}
+                        {selectedPet.age && (
+                          <div>
+                            <p className="text-sm text-gray-500">Age</p>
+                            <p className="font-medium">{selectedPet.age} years</p>
+                          </div>
+                        )}
+                        {selectedPet.weight && (
+                          <div>
+                            <p className="text-sm text-gray-500">Weight</p>
+                            <p className="font-medium">{selectedPet.weight} kg</p>
+                          </div>
+                        )}
+                        {selectedPet.gender && (
+                          <div>
+                            <p className="text-sm text-gray-500">Gender</p>
+                            <p className="font-medium capitalize">{selectedPet.gender}</p>
+                          </div>
+                        )}
+                        <div>
+                          <p className="text-sm text-gray-500">Status</p>
+                          <Badge variant={selectedPet.status === 'active' ? 'default' : 'secondary'}>
+                            {selectedPet.status || 'Active'}
+                          </Badge>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center">
+                          <FileText className="h-8 w-8 text-blue-600" />
+                          <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Medical Records</p>
+                            <p className="text-2xl font-bold text-gray-900">{medicalRecords.length}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center">
+                          <Activity className="h-8 w-8 text-green-600" />
+                          <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Prescriptions</p>
+                            <p className="text-2xl font-bold text-gray-900">{prescriptions.length}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                    <Card>
+                      <CardContent className="p-4">
+                        <div className="flex items-center">
+                          <Calendar className="h-8 w-8 text-purple-600" />
+                          <div className="ml-4">
+                            <p className="text-sm font-medium text-gray-600">Appointments</p>
+                            <p className="text-2xl font-bold text-gray-900">{appointments.length}</p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </div>
+                </TabsContent>
+
+                <TabsContent value="medical" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <FileText className="h-5 w-5" />
+                        Medical Records
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {medicalRecords.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">No medical records found</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {medicalRecords.map((record) => (
+                            <Card key={record.id} className="border-l-4 border-l-blue-500">
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                  <h4 className="font-medium">
+                                    {record.diagnosis || 'General Examination'}
+                                  </h4>
+                                  <span className="text-sm text-gray-500">
+                                    {new Date(record.record_date).toLocaleDateString()}
+                                  </span>
+                                </div>
+                                {record.treatment && (
+                                  <p className="text-sm text-gray-600 mb-2">
+                                    <strong>Treatment:</strong> {record.treatment}
+                                  </p>
+                                )}
+                                {record.notes && (
+                                  <p className="text-sm text-gray-600">
+                                    <strong>Notes:</strong> {record.notes}
+                                  </p>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="prescriptions" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Activity className="h-5 w-5" />
+                        Prescriptions
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {prescriptions.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">No prescriptions found</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {prescriptions.map((prescription) => (
+                            <Card key={prescription.id} className="border-l-4 border-l-green-500">
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                  <h4 className="font-medium">{prescription.medication_name}</h4>
+                                  <div className="flex items-center gap-2">
+                                    <Badge variant={prescription.status === 'active' ? 'default' : 'secondary'}>
+                                      {prescription.status}
+                                    </Badge>
+                                    <span className="text-sm text-gray-500">
+                                      {new Date(prescription.prescribed_date).toLocaleDateString()}
+                                    </span>
+                                  </div>
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm text-gray-600">
+                                  <p><strong>Dosage:</strong> {prescription.dosage}</p>
+                                  <p><strong>Frequency:</strong> {prescription.frequency}</p>
+                                  <p><strong>Duration:</strong> {prescription.duration}</p>
+                                </div>
+                                {prescription.diagnosis && (
+                                  <p className="text-sm text-gray-600 mt-2">
+                                    <strong>Diagnosis:</strong> {prescription.diagnosis}
+                                  </p>
+                                )}
+                                {prescription.instructions && (
+                                  <p className="text-sm text-gray-600 mt-2">
+                                    <strong>Instructions:</strong> {prescription.instructions}
+                                  </p>
+                                )}
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="appointments" className="space-y-4">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Calendar className="h-5 w-5" />
+                        Appointment History
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      {appointments.length === 0 ? (
+                        <p className="text-center text-gray-500 py-8">No appointments found</p>
+                      ) : (
+                        <div className="space-y-4">
+                          {appointments.map((appointment) => (
+                            <Card key={appointment.id} className="border-l-4 border-l-purple-500">
+                              <CardContent className="p-4">
+                                <div className="flex justify-between items-start mb-2">
+                                  <h4 className="font-medium">
+                                    {new Date(appointment.booking_date).toLocaleDateString()} - {appointment.start_time}
+                                  </h4>
+                                  <Badge variant={
+                                    appointment.status === 'completed' ? 'default' : 
+                                    appointment.status === 'confirmed' ? 'secondary' : 
+                                    appointment.status === 'cancelled' ? 'destructive' : 'outline'
+                                  }>
+                                    {appointment.status}
+                                  </Badge>
+                                </div>
+                                <div className="text-sm text-gray-600">
+                                  <p><strong>Type:</strong> {appointment.consultation_type.replace('_', ' ')}</p>
+                                  <p><strong>Time:</strong> {appointment.start_time} - {appointment.end_time}</p>
+                                  {appointment.notes && (
+                                    <p className="mt-2"><strong>Notes:</strong> {appointment.notes}</p>
+                                  )}
+                                </div>
+                              </CardContent>
+                            </Card>
+                          ))}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            )}
+
+            <div className="flex justify-end pt-4">
+              <Button onClick={() => setSelectedPet(null)} variant="outline">
+                Close
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
+      )}
     </SidebarProvider>
   );
 };
