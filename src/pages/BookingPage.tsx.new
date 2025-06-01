@@ -1,0 +1,685 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { format, addDays } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Label } from '@/components/ui/label';
+import { toast } from 'sonner';
+import { Clock, CalendarIcon, MapPin, Phone, Star, CheckCircle, Badge as BadgeIcon, Loader2, Video as VideoIcon, Users as UsersIcon } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { Textarea } from '@/components/ui/textarea';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { createMeeting } from '@/lib/whereby';
+
+interface VetDetails {
+  id: string;
+  first_name: string;
+  last_name: string;
+  specialization: string;
+  consultation_fee: number;
+  image_url: string;
+  availability: string;
+  about: string;
+  years_experience: number;
+  languages: string[];
+  rating: number;
+  zip_code: string;
+  phone: string;
+  clinic_location: string;
+  offers_video_calls: boolean;
+  offers_in_person: boolean;
+}
+
+interface Pet {
+  id: string;
+  name: string;
+  type: string;
+  breed: string;
+}
+
+interface VetAvailability {
+  id: string;
+  day_of_week: number;
+  start_time: string;
+  end_time: string;
+}
+
+const BookingPage = () => {
+  const { vetId } = useParams<{ vetId: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+  
+  const [vet, setVet] = useState<VetDetails | null>(null);
+  const [pets, setPets] = useState<Pet[]>([]);
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [timeSlots, setTimeSlots] = useState<string[]>([]);
+  const [timeSlot, setTimeSlot] = useState<string>('');
+  const [pet, setPet] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
+  const [consultationType, setConsultationType] = useState<'in_person' | 'video_call'>('in_person');
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingPets, setIsLoadingPets] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [availabilityByDay, setAvailabilityByDay] = useState<Record<number, VetAvailability>>({});
+
+  const fetchVetDetails = useCallback(async () => {
+    if (!vetId) return;
+    
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('vet_profiles')
+        .select(`
+          id, 
+          first_name, 
+          last_name, 
+          specialization, 
+          consultation_fee, 
+          image_url, 
+          availability,
+          about,
+          years_experience,
+          languages,
+          rating,
+          zip_code,
+          phone,
+          clinic_location,
+          offers_video_calls,
+          offers_in_person
+        `)
+        .eq('id', vetId)
+        .single();
+      
+      if (error) throw error;
+      setVet(data);
+    } catch (error) {
+      console.error('Error fetching vet details:', error);
+      toast.error('Failed to load veterinarian details');
+    } finally {
+      setIsLoading(false);
+    }
+  }, [vetId]);
+
+  const fetchUserPets = useCallback(async () => {
+    if (!user) return;
+    
+    setIsLoadingPets(true);
+    try {
+      const { data, error } = await supabase
+        .from('pets')
+        .select('*')
+        .eq('owner_id', user.id);
+      
+      if (error) throw error;
+      
+      // Convert the data to match our Pet interface
+      const formattedPets = (data || []).map(pet => ({
+        id: pet.id,
+        name: pet.name,
+        type: pet.type,
+        breed: pet.breed || ''
+      }));
+      
+      setPets(formattedPets);
+      
+      // Auto-select the first pet if available
+      if (formattedPets.length > 0) {
+        setPet(formattedPets[0].id);
+      }
+    } catch (error) {
+      console.error('Error fetching pets:', error);
+      toast.error('Failed to load your pets');
+      setPets([]);
+    } finally {
+      setIsLoadingPets(false);
+    }
+  }, [user]);
+
+  const fetchVetAvailability = useCallback(async () => {
+    if (!vetId) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('vet_availability')
+        .select('*')
+        .eq('vet_id', vetId);
+      
+      if (error) throw error;
+      
+      // Convert array to object with day_of_week as key
+      const availabilityMap: Record<number, VetAvailability> = {};
+      data?.forEach(avail => {
+        availabilityMap[avail.day_of_week] = avail;
+      });
+      
+      setAvailabilityByDay(availabilityMap);
+    } catch (error) {
+      console.error('Error fetching vet availability:', error);
+      toast.error('Failed to load availability');
+    }
+  }, [vetId]);
+
+  const generateTimeSlotsForDate = useCallback((selectedDate: Date) => {
+    if (!selectedDate || !availabilityByDay) return;
+    
+    const dayOfWeek = selectedDate.getDay();
+    const availability = availabilityByDay[dayOfWeek];
+    
+    if (!availability) {
+      setTimeSlots([]);
+      return;
+    }
+    
+    const startTime = availability.start_time;
+    const endTime = availability.end_time;
+    
+    if (!startTime || !endTime) {
+      setTimeSlots([]);
+      return;
+    }
+    
+    const startTimeParts = startTime.split(':');
+    const endTimeParts = endTime.split(':');
+    
+    const startHour = parseInt(startTimeParts[0], 10);
+    const startMinute = parseInt(startTimeParts[1], 10);
+    const endHour = parseInt(endTimeParts[0], 10);
+    
+    // Generate 30-minute slots
+    const slots: string[] = [];
+    let currentHour = startHour;
+    let currentMinute = startMinute;
+    
+    while (currentHour < endHour || (currentHour === endHour && currentMinute < parseInt(endTimeParts[1], 10))) {
+      const formattedHour = currentHour.toString().padStart(2, '0');
+      const formattedMinute = currentMinute.toString().padStart(2, '0');
+      slots.push(`${formattedHour}:${formattedMinute}`);
+      
+      // Advance 30 minutes
+      if (currentMinute === 30) {
+        currentHour += 1;
+        currentMinute = 0;
+      } else {
+        currentMinute = 30;
+      }
+    }
+    
+    setTimeSlots(slots);
+    
+    // Reset selected time slot if the current one is not available in the new day
+    if (timeSlot && !slots.includes(timeSlot)) {
+      setTimeSlot('');
+    }
+  }, [availabilityByDay, timeSlot]);
+
+  useEffect(() => {
+    if (!user) {
+      toast.error("Please login to book a consultation");
+      navigate("/auth");
+      return;
+    }
+    
+    if (vetId) {
+      fetchVetDetails();
+      fetchUserPets();
+      fetchVetAvailability();
+    }
+  }, [vetId, user, navigate, fetchVetDetails, fetchUserPets, fetchVetAvailability]);
+
+  useEffect(() => {
+    if (date && availabilityByDay) {
+      generateTimeSlotsForDate(date);
+    }
+  }, [date, availabilityByDay, generateTimeSlotsForDate]);
+
+  const formatTime = (time: string) => {
+    const [hours, minutes] = time.split(':');
+    const hour = parseInt(hours, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12;
+    return `${formattedHour}:${minutes} ${ampm}`;
+  };
+
+  const handleProceedToConfirmation = async () => {
+    // Validation
+    if (!date) {
+      toast.error("Please select a date for your appointment");
+      return;
+    }
+    
+    if (!timeSlot) {
+      toast.error("Please select a time slot");
+      return;
+    }
+    
+    if (!pet) {
+      toast.error("Please select a pet for the consultation");
+      return;
+    }
+    
+    if (!user) {
+      toast.error("You must be logged in to book an appointment");
+      navigate("/auth");
+      return;
+    }
+    
+    if (!vet) {
+      toast.error("Veterinarian information is missing");
+      return;
+    }
+    
+    // Check if the selected consultation type is available
+    if (consultationType === 'video_call' && !vet.offers_video_calls) {
+      toast.error("This veterinarian does not offer video call consultations");
+      return;
+    }
+    
+    if (consultationType === 'in_person' && !vet.offers_in_person) {
+      toast.error("This veterinarian does not offer in-person consultations");
+      return;
+    }
+    
+    setIsSubmitting(true);
+    
+    try {
+      // Calculate end time (30 minutes after start)
+      const [hours, minutes] = timeSlot.split(':');
+      const startTime = `${hours}:${minutes}:00`;
+      
+      // Parse the start time to calculate end time
+      const startHour = parseInt(hours, 10);
+      const startMinute = parseInt(minutes, 10);
+      
+      // Add 30 minutes
+      let endHour = startHour;
+      const endMinute = (startMinute + 30) % 60;
+      
+      // Handle hour overflow
+      if (startMinute + 30 >= 60) {
+        endHour += 1;
+      }
+      
+      const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}:00`;
+      
+      // Format the date for PostgreSQL
+      const formattedDate = format(date, 'yyyy-MM-dd');
+      
+      // Create meeting if it's a video call
+      let meetingData = null;
+      if (consultationType === 'video_call') {
+        try {
+          const meeting = await createMeeting({
+            endDate: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours from now
+            roomNamePrefix: `vet-consult-${vetId}-${Date.now()}`,
+            roomMode: 'normal',
+            fields: ['hostRoomUrl', 'viewerRoomUrl']
+          });
+          meetingData = meeting;
+        } catch (error) {
+          console.error("Error creating video meeting:", error);
+          toast.error("Failed to create video meeting. Please try again or select in-person consultation.");
+          return;
+        }
+      }
+      
+      // Insert booking into database
+      const { data, error } = await supabase
+        .from('bookings')
+        .insert([
+          {
+            vet_id: vetId,
+            pet_owner_id: user.id,
+            pet_id: pet,
+            booking_date: formattedDate,
+            start_time: startTime,
+            end_time: endTime,
+            consultation_type: consultationType,
+            notes: notes,
+            meeting_id: meetingData?.roomUrl?.split('/').pop() || null,
+            meeting_url: meetingData?.viewerRoomUrl || null,
+            host_meeting_url: meetingData?.hostRoomUrl || null,
+          }
+        ])
+        .select();
+      
+      if (error) throw error;
+      
+      toast.success("Appointment booked successfully!");
+      navigate("/appointments");
+    } catch (error) {
+      console.error("Error booking appointment:", error);
+      toast.error("Failed to book appointment. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
+
+  if (!vet) {
+    return (
+      <div className="container mx-auto p-4">
+        <p className="text-center text-red-500">Veterinarian not found.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-4 max-w-6xl">
+      <Button 
+        variant="ghost" 
+        onClick={() => navigate(-1)}
+        className="mb-6"
+      >
+        ← Back
+      </Button>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* Left Column - Vet Info */}
+        <div className="md:col-span-1">
+          <Card>
+            <CardHeader>
+              <div className="flex flex-col items-center">
+                {vet.image_url ? (
+                  <img 
+                    src={vet.image_url} 
+                    alt={`${vet.first_name} ${vet.last_name}`}
+                    className="w-32 h-32 rounded-full object-cover mb-4"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-gray-200 flex items-center justify-center mb-4">
+                    <span className="text-2xl text-gray-500">
+                      {vet.first_name[0]}{vet.last_name[0]}
+                    </span>
+                  </div>
+                )}
+                <h2 className="text-xl font-bold">Dr. {vet.first_name} {vet.last_name}</h2>
+                <p className="text-gray-600">{vet.specialization}</p>
+                <div className="flex items-center mt-2">
+                  <Star className="h-5 w-5 text-yellow-400 fill-current" />
+                  <span className="ml-1 font-medium">{vet.rating}</span>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="font-medium mb-2">About</h3>
+                  <p className="text-sm text-gray-600">{vet.about}</p>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-2">Services</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <CheckCircle className="h-4 w-4 text-green-500 mr-2" />
+                      <span>In-Person: {vet.offers_in_person ? 'Available' : 'Not Available'}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <VideoIcon className="h-4 w-4 text-blue-500 mr-2" />
+                      <span>Video Call: {vet.offers_video_calls ? 'Available' : 'Not Available'}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-2">Contact</h3>
+                  <div className="space-y-2">
+                    <div className="flex items-center">
+                      <Phone className="h-4 w-4 text-gray-500 mr-2" />
+                      <span>{vet.phone}</span>
+                    </div>
+                    <div className="flex items-center">
+                      <MapPin className="h-4 w-4 text-gray-500 mr-2" />
+                      <span>{vet.clinic_location}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="font-medium mb-2">Languages</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {vet.languages?.map((lang, index) => (
+                      <Badge key={index} variant="outline">{lang}</Badge>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+        
+        {/* Right Column - Booking Form */}
+        <div className="md:col-span-2">
+          <Card>
+            <CardHeader>
+              <CardTitle>Book an Appointment</CardTitle>
+              <CardDescription>
+                Select a date and time for your {consultationType === 'video_call' ? 'video' : 'in-person'} consultation.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-6">
+                {/* Consultation Type */}
+                <div>
+                  <h3 className="font-medium mb-2">Consultation Type</h3>
+                  <RadioGroup 
+                    value={consultationType}
+                    onValueChange={(value: 'in_person' | 'video_call') => setConsultationType(value)}
+                    className="grid grid-cols-2 gap-4"
+                  >
+                    <div>
+                      <RadioGroupItem 
+                        value="in_person" 
+                        id="in_person" 
+                        className="peer sr-only" 
+                        disabled={!vet.offers_in_person}
+                      />
+                      <Label
+                        htmlFor="in_person"
+                        className={`flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer ${!vet.offers_in_person ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <UsersIcon className="mb-2 h-6 w-6" />
+                        <span>In-Person</span>
+                        {!vet.offers_in_person && (
+                          <span className="text-xs text-muted-foreground">Not Available</span>
+                        )}
+                      </Label>
+                    </div>
+                    <div>
+                      <RadioGroupItem 
+                        value="video_call" 
+                        id="video_call" 
+                        className="peer sr-only"
+                        disabled={!vet.offers_video_calls}
+                      />
+                      <Label
+                        htmlFor="video_call"
+                        className={`flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer ${!vet.offers_video_calls ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <VideoIcon className="mb-2 h-6 w-6" />
+                        <span>Video Call</span>
+                        {!vet.offers_video_calls && (
+                          <span className="text-xs text-muted-foreground">Not Available</span>
+                        )}
+                      </Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+                
+                {/* Date Picker */}
+                <div>
+                  <h3 className="font-medium mb-2">Select Date</h3>
+                  <div className="rounded-md border
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                      className="rounded-md border"
+                      disabled={(date) => {
+                        const day = date.getDay();
+                        return !availabilityByDay[day];
+                      }}
+                      fromDate={new Date()}
+                      toDate={addDays(new Date(), 30)}
+                      initialFocus
+                    />
+                  </div>
+                </div>
+                
+                {/* Time Slot Picker */}
+                {date && (
+                  <div>
+                    <h3 className="font-medium mb-2">Select Time</h3>
+                    {timeSlots.length > 0 ? (
+                      <div className="grid grid-cols-3 md:grid-cols-4 gap-2">
+                        {timeSlots.map((slot) => (
+                          <Button
+                            key={slot}
+                            variant={timeSlot === slot ? 'default' : 'outline'}
+                            onClick={() => setTimeSlot(slot)}
+                            className="h-10"
+                          >
+                            {formatTime(slot)}
+                          </Button>
+                        ))}
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">
+                        No available time slots for this date. Please select another date.
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Pet Selection */}
+                <div>
+                  <h3 className="font-medium mb-2">Select Pet</h3>
+                  {isLoadingPets ? (
+                    <div className="flex items-center justify-center h-20">
+                      <Loader2 className="h-6 w-6 animate-spin" />
+                    </div>
+                  ) : pets.length > 0 ? (
+                    <Select value={pet} onValueChange={setPet}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a pet" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {pets.map((pet) => (
+                          <SelectItem key={pet.id} value={pet.id}>
+                            {pet.name} ({pet.type})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  ) : (
+                    <div className="text-sm text-muted-foreground">
+                      No pets found. Please add a pet to your profile first.
+                      <Button 
+                        variant="link" 
+                        className="p-0 ml-2 h-auto"
+                        onClick={() => navigate('/profile/pets')}
+                      >
+                        Add Pet
+                      </Button>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Notes */}
+                <div>
+                  <h3 className="font-medium mb-2">Notes (Optional)</h3>
+                  <Textarea
+                    placeholder="Any specific concerns or details you'd like to share with the veterinarian?"
+                    value={notes}
+                    onChange={(e) => setNotes(e.target.value)}
+                    rows={4}
+                  />
+                </div>
+                
+                {/* Summary */}
+                <div className="bg-gray-50 p-4 rounded-lg">
+                  <h3 className="font-medium mb-2">Appointment Summary</h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Date:</span>
+                      <span>{date ? format(date, 'PPP') : 'Not selected'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Time:</span>
+                      <span>{timeSlot ? formatTime(timeSlot) : 'Not selected'}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Type:</span>
+                      <span className="capitalize">
+                        {consultationType === 'video_call' ? 'Video Call' : 'In-Person'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Pet:</span>
+                      <span>{pets.find(p => p.id === pet)?.name || 'Not selected'}</span>
+                    </div>
+                    <Separator className="my-2" />
+                    <div className="flex justify-between font-medium">
+                      <span>Consultation Fee:</span>
+                      <span>₹{vet.consultation_fee?.toFixed(2) || '0.00'}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Submit Button */}
+                <Button 
+                  onClick={handleProceedToConfirmation}
+                  disabled={
+                    isSubmitting || 
+                    !date || 
+                    !timeSlot || 
+                    !pet || 
+                    (consultationType === 'in_person' && !vet.offers_in_person) ||
+                    (consultationType === 'video_call' && !vet.offers_video_calls)
+                  }
+                  className="w-full"
+                  size="lg"
+                >
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      {consultationType === 'video_call' ? 'Creating Meeting...' : 'Booking...'}
+                    </>
+                  ) : (
+                    <>
+                      {consultationType === 'video_call' ? (
+                        <>
+                          <VideoIcon className="mr-2 h-4 w-4" />
+                          Book Video Call (₹{vet.consultation_fee?.toFixed(2) || '0.00'})
+                        </>
+                      ) : (
+                        <>
+                          <UsersIcon className="mr-2 h-4 w-4" />
+                          Book In-Person (₹{vet.consultation_fee?.toFixed(2) || '0.00'})
+                        </>
+                      )}
+                    </>
+                  )}
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default BookingPage;

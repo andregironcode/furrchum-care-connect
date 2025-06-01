@@ -1,0 +1,34 @@
+# Ignore files and directories for Vercel deployment
+
+# Dependencies
+node_modules/
+
+# Build files
+.next/
+out/
+
+# Environment variables (handled by Vercel)
+.env*
+!.env.example
+
+# Debug logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local development
+.DS_Store
+*.pem
+
+# Testing
+coverage/
+.nyc_output/
+
+# IDE
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?

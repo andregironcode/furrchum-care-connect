@@ -1,0 +1,925 @@
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2, LogOut, Search, User, Calendar, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+} from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+// Temporarily comment out until UserDetailsModal is fixed
+// import UserDetailsModal from '@/components/UserDetailsModal';
+import VetApprovalCard from '@/components/VetApprovalCard';
+import { UserProfile, VetProfile, Appointment, Transaction } from '@/types/profiles';
+
+// Interface definitions
+interface AppointmentWithDetails {
+  id: string;
+  booking_date: string;
+  start_time: string;
+  end_time: string;
+  status: string | null;
+  notes: string | null;
+  vet_id: string;
+  pet_id: string | null;
+  pet_owner_id: string;
+  consultation_type: string;
+  created_at: string;
+  updated_at: string | null;
+  vet_profiles?: {
+    first_name: string;
+    last_name: string;
+  } | null;
+  pets?: {
+    name: string;
+    type?: string;
+    owner_id?: string;
+  } | null;
+  profiles?: {
+    full_name: string | null;
+    email?: string | null;
+    phone_number?: string | null;
+  } | null;
+}
+
+interface SupabaseVetProfile {
+  id: string;
+  user_id?: string;
+  first_name: string;
+  last_name: string;
+  email?: string | null;
+  phone_number?: string | null;
+  specialization?: string | null;
+  years_experience?: number | null;
+  about?: string | null;
+  clinic_location?: string | null;
+  zip_code?: string | null;
+  availability?: string | null;
+  license_number?: string | null;
+  license_document_url?: string | null;
+  license_url?: string | null;
+  approval_status?: 'pending' | 'approved' | 'rejected' | null;
+  approved_at?: string | null;
+  approved_by?: string | null;
+  created_at: string;
+  updated_at?: string | null;
+  rating?: number | null;
+  consultation_fee?: number | null;
+  profile_image?: string | null;
+  image_url?: string | null;
+  clinic_images?: string[] | null;
+}
+
+interface SupabaseUserProfile {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  full_name: string | null;
+  email?: string | null;
+  phone_number?: string | null;
+  user_type: string;
+  status?: string | null;
+  address?: string | null;
+  image_url?: string | null;
+}
+
+interface SupabaseTransaction {
+  id: string;
+  booking_id: string | null;
+  amount: number;
+  currency: string | null;
+  status: string;
+  payment_method: string | null;
+  created_at: string | null;
+  updated_at?: string | null;
+  user_id?: string | null;
+  transaction_reference?: string | null;
+  description?: string | null;
+}
+
+const SuperAdminDashboard = () => {
+  // State for data
+  const [vets, setVets] = useState<SupabaseVetProfile[]>([]);
+  const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
+  const [transactions, setTransactions] = useState<SupabaseTransaction[]>([]);
+  const [users, setUsers] = useState<SupabaseUserProfile[]>([]);
+  
+  // UI state
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('users');
+  
+  // Filters
+  const [filterStatus, setFilterStatus] = useState<'all' | 'pet_owner' | 'vet' | 'admin'>('all');
+  const [vetApprovalFilter, setVetApprovalFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('all');
+  
+  // Modal state
+  const [selectedUser, setSelectedUser] = useState<(SupabaseUserProfile & Partial<SupabaseVetProfile>) | null>(null);
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [reviewMode, setReviewMode] = useState(false);
+  
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  // Fetch data function
+  const fetchData = async () => {
+    try {
+      setIsRefreshing(true);
+      setError(null);
+      
+      // Fetch all users
+      const { data: usersData, error: userError } = await supabase
+        .from('profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (userError) {
+        setError('Failed to fetch users');
+        return;
+      }
+      
+      // Fetch all vets with proper ordering
+      const { data: vetsData, error: vetError } = await supabase
+        .from('vet_profiles')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (vetError) {
+        setError('Failed to fetch vets');
+        return;
+      }
+      
+      // Fetch all appointments with related data
+      try {
+        // First, fetch the bookings data
+        const { data: bookingsData, error: bookingsError } = await supabase
+          .from('bookings')
+          .select('*')
+          .order('booking_date', { ascending: false });
+        
+        if (bookingsError) {
+          console.error('Error fetching bookings:', bookingsError);
+          setError('Failed to fetch appointments');
+          return;
+        }
+        
+        if (!bookingsData || bookingsData.length === 0) {
+          setAppointments([]);
+          return;
+        }
+        
+        // Get unique vet IDs and pet IDs from bookings
+        const vetIds = [...new Set(bookingsData.map(booking => booking.vet_id))];
+        const petIds = [...new Set(bookingsData.map(booking => booking.pet_id).filter(id => id !== null) as string[])];
+        const ownerIds = [...new Set(bookingsData.map(booking => booking.pet_owner_id))];
+        
+        // Fetch vet profiles
+        const { data: vetProfilesData, error: vetProfilesError } = await supabase
+          .from('vet_profiles')
+          .select('id, first_name, last_name')
+          .in('id', vetIds);
+        
+        if (vetProfilesError) {
+          console.error('Error fetching vet profiles:', vetProfilesError);
+        }
+        
+        // Fetch pet data
+        const { data: petsData, error: petsError } = await supabase
+          .from('pets')
+          .select('id, name, type, owner_id')
+          .in('id', petIds);
+        
+        if (petsError) {
+          console.error('Error fetching pets:', petsError);
+        }
+        
+        // Fetch user profiles
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, phone_number')
+          .in('id', ownerIds);
+        
+        if (profilesError) {
+          console.error('Error fetching profiles:', profilesError);
+        }
+        
+        // Create lookup maps for faster access
+        const vetProfilesMap = (vetProfilesData || []).reduce<Record<string, any>>((map, profile) => {
+          map[profile.id] = profile;
+          return map;
+        }, {});
+        
+        const petsMap = (petsData || []).reduce<Record<string, any>>((map, pet) => {
+          map[pet.id] = pet;
+          return map;
+        }, {});
+        
+        const profilesMap = (profilesData || []).reduce<Record<string, any>>((map, profile) => {
+          map[profile.id] = profile;
+          return map;
+        }, {});
+        
+        // Process the appointments data to ensure it matches our interface
+        const processedAppointments = bookingsData.map((booking) => {
+          // Safely access nested properties with null checks
+          const vetId = booking.vet_id || '';
+          const petId = booking.pet_id || '';
+          const ownerId = booking.pet_owner_id || '';
+          
+          // Get related data with null checks
+          const vetProfile = vetId ? (vetProfilesMap[vetId] || null) : null;
+          const petData = petId ? (petsMap[petId] || null) : null;
+          const ownerProfile = ownerId ? (profilesMap[ownerId] || null) : null;
+          
+          return {
+            id: booking.id,
+            booking_date: booking.booking_date,
+            start_time: booking.start_time,
+            end_time: booking.end_time,
+            status: booking.status,
+            notes: booking.notes,
+            vet_id: vetId,
+            pet_id: petId,
+            pet_owner_id: ownerId,
+            consultation_type: booking.consultation_type,
+            created_at: booking.created_at,
+            updated_at: booking.updated_at,
+            // Add the related data
+            vet_profiles: vetProfile,
+            pets: petData,
+            profiles: ownerProfile,
+            // Add the derived fields for compatibility
+            first_name: vetProfile?.first_name || '',
+            last_name: vetProfile?.last_name || '',
+            name: petData?.name || '',
+            type: petData?.type || '',
+            owner_id: petData?.owner_id || '',
+            full_name: ownerProfile?.full_name || '',
+            email: ownerProfile?.email || '',
+            phone_number: ownerProfile?.phone_number || ''
+          } as AppointmentWithDetails;
+        });
+        
+        setAppointments(processedAppointments);
+      } catch (error) {
+        console.error('Error in appointments fetch:', error);
+        setError('Failed to fetch appointments');
+      }
+      
+      // Fetch all transactions
+      const { data: transactionsData, error: transactionError } = await supabase
+        .from('transactions')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (transactionError) {
+        setError('Failed to fetch transactions');
+        return;
+      }
+      
+      // Process and normalize the vet data to ensure approval_status is one of the expected values
+      const processedVets = (vetsData || []).map((vet: any) => ({
+        ...vet,
+        approval_status: (['pending', 'approved', 'rejected'].includes(vet.approval_status) 
+          ? vet.approval_status 
+          : 'pending') as 'pending' | 'approved' | 'rejected'
+      }));
+      
+      // Set state with fetched data
+      setUsers(usersData || []);
+      setVets(processedVets);
+      // Appointments are set in the try-catch block above
+      setTransactions(transactionsData || []);
+    } catch (error) {
+      setError('An unexpected error occurred while fetching data');
+    } finally {
+      setLoading(false);
+      setIsRefreshing(false);
+    }
+  };
+  
+  // Fetch data on component mount
+  useEffect(() => {
+    fetchData();
+  }, []);
+  // Handle vet approval/rejection
+  const handleVetApproval = async (vetId: string, status: 'approved' | 'rejected', feedback?: string) => {
+    if (!vetId) {
+      toast({
+        title: 'Error',
+        description: 'Invalid vet ID provided',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      
+      // Find the vet we're approving/rejecting
+      const vetToUpdate = vets.find(v => v.id === vetId);
+      if (!vetToUpdate) {
+        throw new Error(`Could not find vet with ID ${vetId}`);
+      }
+      
+      // Create update data
+      const updateData = {
+        approval_status: status,
+        ...(status === 'approved' ? { approved_at: new Date().toISOString() } : {})
+      };
+      
+      // Update the database FIRST - this is critical to fix the race condition
+      const { data: updateResult, error: updateError } = await supabase
+        .from('vet_profiles')
+        .update(updateData)
+        .eq('id', vetId)
+        .select();
+      
+      if (updateError) {
+        throw new Error(`Error updating vet profile: ${updateError.message}`);
+      }
+      
+      // Verify the update was successful
+      const { data: verifyData, error: verifyError } = await supabase
+        .from('vet_profiles')
+        .select('approval_status')
+        .eq('id', vetId)
+        .single();
+      
+      if (verifyError) {
+        throw new Error(`Error verifying update: ${verifyError.message}`);
+      }
+      
+      if (verifyData?.approval_status !== status) {
+        throw new Error(`Update verification failed: expected ${status} but got ${verifyData?.approval_status}`);
+      }
+      
+      // Only update the UI after confirming the database update was successful
+      setVets(prevVets => {
+        return prevVets.map(vet => {
+          if (vet.id === vetId) {
+            return {
+              ...vet,
+              approval_status: status,
+              ...(status === 'approved' ? { approved_at: new Date().toISOString() } : {})
+            };
+          }
+          return vet;
+        });
+      });
+      
+      // Show success message
+      toast({
+        title: `Vet ${status === 'approved' ? 'Approved' : 'Rejected'}`,
+        description: `The veterinarian has been ${status === 'approved' ? 'approved' : 'rejected'} successfully.`,
+      });
+      
+      // Exit review mode if we were in it
+      if (reviewMode) {
+        setReviewMode(false);
+      }
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update vet status';
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle user status change
+  const handleUserStatusChange = async (userId: string, newStatus: string) => {
+    try {
+      setLoading(true);
+      
+      const { error } = await supabase
+        .from('profiles')
+        .update({ status: newStatus })
+        .eq('id', userId);
+      
+      if (error) {
+        throw new Error(`Error updating user status: ${error.message}`);
+      }
+      
+      // Update local state
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user.id === userId ? { ...user, status: newStatus } : user
+        )
+      );
+      
+      toast({
+        title: 'Status Updated',
+        description: `User status has been updated to ${newStatus}.`,
+      });
+      
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update user status';
+      
+      toast({
+        title: 'Error',
+        description: errorMessage,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+  
+  // Handle logout
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+  
+  // Get status badge
+  const getStatusBadge = (status: string) => {
+    const statusLower = status?.toLowerCase();
+    
+    if (statusLower === 'approved') {
+      return <Badge className="bg-green-100 text-green-800">Approved</Badge>;
+    }
+    
+    if (statusLower === 'rejected') {
+      return <Badge className="bg-red-100 text-red-800">Rejected</Badge>;
+    }
+    
+    if (statusLower === 'pending') {
+      return <Badge className="bg-amber-100 text-amber-800">Pending</Badge>;
+    }
+    
+    if (statusLower === 'completed') {
+      return <Badge className="bg-blue-100 text-blue-800">Completed</Badge>;
+    }
+    
+    if (statusLower === 'cancelled') {
+      return <Badge className="bg-gray-100 text-gray-800">Cancelled</Badge>;
+    }
+    
+    return <Badge className="bg-gray-100 text-gray-800">{status || 'Unknown'}</Badge>;
+  };
+  
+  // Handle user click
+  const handleUserClick = (user: SupabaseUserProfile) => {
+    setSelectedUser(user);
+    setIsUserModalOpen(true);
+  };
+  
+  // Handle vet click
+  const handleVetClick = (vet: SupabaseVetProfile) => {
+    // Find the corresponding user profile
+    const userProfile = users.find(user => user.id === vet.id);
+    
+    if (userProfile) {
+      // Combine user profile with vet profile
+      setSelectedUser({
+        ...userProfile,
+        ...vet
+      });
+      setIsUserModalOpen(true);
+    } else {
+      toast({
+        title: 'User Not Found',
+        description: 'Could not find the user profile for this vet.',
+        variant: 'destructive',
+      });
+    }
+  };
+  
+  // Handle user modal close
+  const handleUserModalClose = () => {
+    setIsUserModalOpen(false);
+    setSelectedUser(null);
+  };
+  
+  // Handle user updated
+  const handleUserUpdated = () => {
+    fetchData();
+  };
+  
+  // Filter users based on search term and filter status
+  const filteredUsers = users.filter(user => {
+    const matchesSearch = 
+      user.full_name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      user.phone_number?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (filterStatus !== 'all') {
+      return matchesSearch && user.user_type === filterStatus;
+    }
+    
+    return matchesSearch;
+  });
+  
+  // Filter vets based on search term and approval status
+  const filteredVets = vets.filter(vet => {
+    const matchesSearch = 
+      `${vet.first_name} ${vet.last_name}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vet.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      vet.specialization?.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (vetApprovalFilter !== 'all') {
+      return matchesSearch && (vet.approval_status || '').toLowerCase() === vetApprovalFilter;
+    }
+    
+    return matchesSearch;
+  });
+  
+  // Render component
+  return (
+    <div className="flex flex-col min-h-screen">
+      <header className="border-b bg-background">
+        <div className="container flex items-center justify-between py-4">
+          <h1 className="text-2xl font-bold">Admin Dashboard</h1>
+          <Button variant="ghost" onClick={handleLogout}>
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
+          </Button>
+        </div>
+      </header>
+      
+      <main className="container flex-1 py-6 space-y-6">
+        {error && (
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="relative w-full sm:w-auto">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground h-4 w-4" />
+            <Input
+              placeholder="Search users, vets, or appointments..."
+              className="pl-10 w-full sm:w-[300px]"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+          
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <Button 
+              variant="outline" 
+              size="sm"
+              onClick={() => fetchData()}
+              disabled={isRefreshing}
+            >
+              <RefreshCw className={`h-4 w-4 mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+              Refresh
+            </Button>
+          </div>
+        </div>
+        
+        <Tabs defaultValue="users" value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="users">
+              <Users className="w-4 h-4 mr-2" />
+              Users
+            </TabsTrigger>
+            <TabsTrigger value="vets">
+              <UserCheck className="w-4 h-4 mr-2" />
+              Veterinarians
+            </TabsTrigger>
+            <TabsTrigger value="appointments">
+              <Calendar className="w-4 h-4 mr-2" />
+              Appointments
+            </TabsTrigger>
+            <TabsTrigger value="transactions">
+              <CreditCard className="w-4 h-4 mr-2" />
+              Transactions
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="users" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>All Users</CardTitle>
+                    <CardDescription>
+                      Manage all users on the platform
+                    </CardDescription>
+                  </div>
+                  
+                  <Select 
+                    value={filterStatus} 
+                    onValueChange={(value: "all" | "pet_owner" | "vet" | "admin") => setFilterStatus(value)}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <Filter className="w-4 h-4 mr-2" />
+                      <SelectValue placeholder="Filter by type" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Users</SelectItem>
+                      <SelectItem value="pet_owner">Pet Owners</SelectItem>
+                      <SelectItem value="vet">Veterinarians</SelectItem>
+                      <SelectItem value="admin">Administrators</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Joined</TableHead>
+                      <TableHead>Actions</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          <div className="flex justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredUsers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No users found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell className="font-medium">{user.full_name || 'Unknown'}</TableCell>
+                          <TableCell>{user.email || 'No email'}</TableCell>
+                          <TableCell className="capitalize">{user.user_type}</TableCell>
+                          <TableCell>{getStatusBadge(user.user_type === 'active' ? 'active' : 'inactive')}</TableCell>
+                          <TableCell>
+                            {new Date(user.created_at).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-2">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleUserClick(user)}
+                              >
+                                View
+                              </Button>
+                              
+                              {user.user_type === 'active' ? (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-red-600 hover:text-red-700"
+                                  onClick={() => handleUserStatusChange(user.id, 'suspended')}
+                                >
+                                  Suspend
+                                </Button>
+                              ) : (
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="text-green-600 hover:text-green-700"
+                                  onClick={() => handleUserStatusChange(user.id, 'active')}
+                                >
+                                  Activate
+                                </Button>
+                              )}
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="vets" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div>
+                    <CardTitle>Veterinarians</CardTitle>
+                    <CardDescription>
+                      Manage veterinarian profiles and approvals
+                    </CardDescription>
+                  </div>
+                  
+                  <Select 
+                    value={vetApprovalFilter} 
+                    onValueChange={(value) => setVetApprovalFilter(value as any)}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <Filter className="w-4 h-4 mr-2" />
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Status</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="approved">Approved</SelectItem>
+                      <SelectItem value="rejected">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex justify-center py-8">
+                    <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                  </div>
+                ) : filteredVets.length === 0 ? (
+                  <div className="text-center text-muted-foreground py-8">
+                    No veterinarians found
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredVets.map((vet) => (
+                      <VetApprovalCard
+                        key={vet.id}
+                        vetProfile={{
+                          id: vet.id,
+                          first_name: vet.first_name,
+                          last_name: vet.last_name,
+                          specialization: vet.specialization || '',
+                          years_experience: vet.years_experience || 0,
+                          license_number: vet.license_number || '',
+                          license_document_url: vet.license_document_url || '',
+                          license_url: vet.license_url || '',
+                          approval_status: vet.approval_status || 'pending',
+                          created_at: vet.created_at,
+                          clinic_name: vet.clinic_location || '',
+                          license_expiry: ''
+                        }}
+                        onApprove={(id) => handleVetApproval(id, 'approved')}
+                        onReject={(id, feedback) => handleVetApproval(id, 'rejected', feedback)}
+                        onView={() => handleVetClick(vet)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+          
+          <TabsContent value="appointments" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Appointments</CardTitle>
+                <CardDescription>
+                  View and manage all appointments on the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Time</TableHead>
+                      <TableHead>Pet Owner</TableHead>
+                      <TableHead>Pet</TableHead>
+                      <TableHead>Veterinarian</TableHead>
+                      <TableHead>Type</TableHead>
+                      <TableHead>Status</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-8">
+                          <div className="flex justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : appointments.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          No appointments found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      appointments.map((appointment) => (
+                        <TableRow key={appointment.id}>
+                          <TableCell>
+                            {new Date(appointment.booking_date).toLocaleDateString()}
+                          </TableCell>
+                          <TableCell>
+                            {appointment.start_time} - {appointment.end_time}
+                          </TableCell>
+                          <TableCell>
+                            {appointment.profiles?.full_name || 'Unknown Owner'}
+                          </TableCell>
+                          <TableCell>{appointment.pets?.name || 'Unknown Pet'}</TableCell>
+                          <TableCell>
+                            Dr. {appointment.vet_profiles?.first_name} {appointment.vet_profiles?.last_name}
+                          </TableCell>
+                          <TableCell className="capitalize">{appointment.consultation_type}</TableCell>
+                          <TableCell>{getStatusBadge(appointment.status || 'pending')}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="transactions" className="space-y-4">
+            <Card>
+              <CardHeader>
+                <CardTitle>All Transactions</CardTitle>
+                <CardDescription>
+                  View all payment transactions on the platform
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Currency</TableHead>
+                      <TableHead>Status</TableHead>
+                      <TableHead>Payment Method</TableHead>
+                      <TableHead>Reference</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {loading ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center py-8">
+                          <div className="flex justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    ) : transactions.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No transactions found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      transactions.map((transaction) => (
+                        <TableRow key={transaction.id}>
+                          <TableCell>
+                            {transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : 'Unknown'}
+                          </TableCell>
+                          <TableCell>
+                            ${transaction.amount}
+                          </TableCell>
+                          <TableCell>{transaction.currency}</TableCell>
+                          <TableCell>{getStatusBadge(transaction.status)}</TableCell>
+                          <TableCell>{transaction.payment_method || '-'}</TableCell>
+                          <TableCell>{transaction.transaction_reference || '-'}</TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Temporarily commented out until UserDetailsModal is fixed */}
+        {selectedUser && isUserModalOpen && (
+          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+            <div className="bg-white p-6 rounded-lg max-w-lg w-full">
+              <h2 className="text-xl font-bold mb-4">User Details</h2>
+              <p>User details modal is currently unavailable.</p>
+              <div className="mt-4 flex justify-end">
+                <Button onClick={handleUserModalClose}>Close</Button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
+    </div>
+  );
+};
+
+export default SuperAdminDashboard;
