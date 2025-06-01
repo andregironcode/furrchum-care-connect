@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,7 +12,7 @@ const SuperAdminAuth = () => {
   const navigate = useNavigate();
 
   // Simple password check - in production, use proper authentication
-  const SUPER_ADMIN_PASSWORD = 'furrchum2024';
+  const SUPER_ADMIN_PASSWORD = 'Furrchum@30days121831';
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
