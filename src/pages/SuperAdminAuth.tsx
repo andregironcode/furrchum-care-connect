@@ -12,6 +12,7 @@ const SuperAdminAuth = () => {
   const navigate = useNavigate();
 
   // Simple password check - in production, use proper authentication
+  // Updated password for production deployment
   const SUPER_ADMIN_PASSWORD = 'Furrchum@30days121831';
 
   const handleLogin = (e: React.FormEvent) => {

@@ -206,6 +206,11 @@ const Footer = () => {
                 </Link>
               </li>
               <li>
+                <Link to="/shipping-delivery" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
+                  Shipping & Delivery
+                </Link>
+              </li>
+              <li>
                 <Link to="/disclaimer" className="text-sm text-gray-600 hover:text-gray-900 transition-colors">
                   Disclaimer
                 </Link>

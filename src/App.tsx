@@ -39,6 +39,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import PrivacyPolicyPage from "./pages/PrivacyPolicyPage";
 import TermsConditionsPage from "./pages/TermsConditionsPage";
 import RefundPolicyPage from "./pages/RefundPolicyPage";
+import ShippingDeliveryPage from "./pages/ShippingDeliveryPage";
 import DisclaimerPage from "./pages/DisclaimerPage";
 import AdditionalPoliciesPage from "./pages/AdditionalPoliciesPage";
 import ContactPage from "./pages/ContactPage";
@@ -70,6 +71,7 @@ const App = () => {
                 <Route path="/privacy-policy" element={<PrivacyPolicyPage />} />
                 <Route path="/terms-conditions" element={<TermsConditionsPage />} />
                 <Route path="/refund-policy" element={<RefundPolicyPage />} />
+                <Route path="/shipping-delivery" element={<ShippingDeliveryPage />} />
                 <Route path="/disclaimer" element={<DisclaimerPage />} />
                 <Route path="/additional-policies" element={<AdditionalPoliciesPage />} />
                 <Route path="/contact" element={<ContactPage />} />
