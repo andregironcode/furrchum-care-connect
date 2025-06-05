@@ -25,6 +25,18 @@ const Footer = () => {
             <p className="text-sm text-gray-600 mb-4">
               Quality pet healthcare accessible to everyone, anytime and anywhere.
             </p>
+            
+            {/* Startup India Logo and Recognition */}
+            <div className="mt-6">
+              <img 
+                src="/Startup-India_L.png" 
+                alt="Startup India Logo" 
+                className="h-12 w-auto mb-2" 
+              />
+              <p className="text-xs text-gray-600 leading-relaxed">
+                Recognized by Department for Promotion of Industry and Internal Trade
+              </p>
+            </div>
           </div>
           
           {/* Column 2: Main Pages */}
