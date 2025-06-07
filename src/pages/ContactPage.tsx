@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
+import ReCAPTCHA from 'react-google-recaptcha';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Form, FormControl, FormDescription, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -18,12 +19,14 @@ const formSchema = z.object({
   email: z.string().email({ message: 'Please enter a valid email address.' }),
   subject: z.string().min(5, { message: 'Subject must be at least 5 characters.' }),
   message: z.string().min(10, { message: 'Message must be at least 10 characters.' }),
+  recaptcha: z.string().min(1, { message: 'Please complete the reCAPTCHA verification.' }),
 });
 
 type FormValues = z.infer<typeof formSchema>;
 
 const ContactPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
   
   // Initialize form with react-hook-form
   const form = useForm<FormValues>({
@@ -33,6 +36,7 @@ const ContactPage = () => {
       email: '',
       subject: '',
       message: '',
+      recaptcha: '',
     },
   });
 
@@ -41,6 +45,13 @@ const ContactPage = () => {
     setIsSubmitting(true);
     
     try {
+      // Verify reCAPTCHA token
+      if (!values.recaptcha) {
+        toast.error('Please complete the reCAPTCHA verification.');
+        setIsSubmitting(false);
+        return;
+      }
+
       // Send contact form data to the backend API
       const response = await fetch('/api/send-contact-email', {
         method: 'POST',
@@ -52,6 +63,7 @@ const ContactPage = () => {
           email: values.email,
           subject: values.subject,
           message: values.message,
+          recaptchaToken: values.recaptcha,
           timestamp: new Date().toISOString(),
         }),
       });
@@ -71,6 +83,10 @@ const ContactPage = () => {
           },
         });
         form.reset();
+        // Reset reCAPTCHA
+        if (recaptchaRef.current) {
+          recaptchaRef.current.reset();
+        }
       } else {
         throw new Error(result.error || 'Failed to send message');
       }
@@ -83,8 +99,21 @@ const ContactPage = () => {
           onClick: () => onSubmit(values),
         },
       });
+      // Reset reCAPTCHA on error
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+      }
+      form.setValue('recaptcha', '');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  // Handle reCAPTCHA change
+  const handleRecaptchaChange = (token: string | null) => {
+    form.setValue('recaptcha', token || '');
+    if (token) {
+      form.clearErrors('recaptcha');
     }
   };
 
@@ -245,6 +274,35 @@ const ContactPage = () => {
                           <FormDescription>
                             Minimum 10 characters. Please be as detailed as possible.
                           </FormDescription>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    
+                    {/* reCAPTCHA */}
+                    <FormField
+                      control={form.control}
+                      name="recaptcha"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Security Verification</FormLabel>
+                          <FormControl>
+                            <div className="flex justify-center">
+                              <ReCAPTCHA
+                                ref={recaptchaRef}
+                                sitekey="6LeBH1krAAAAAArOi7RYu8FcZZn1zNxBBaT_ATK9"
+                                onChange={handleRecaptchaChange}
+                                onExpired={() => {
+                                  form.setValue('recaptcha', '');
+                                  form.setError('recaptcha', { message: 'reCAPTCHA has expired. Please verify again.' });
+                                }}
+                                onError={() => {
+                                  form.setValue('recaptcha', '');
+                                  form.setError('recaptcha', { message: 'reCAPTCHA error. Please try again.' });
+                                }}
+                              />
+                            </div>
+                          </FormControl>
                           <FormMessage />
                         </FormItem>
                       )}

@@ -10,6 +10,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'Content-Type, Authorization',
 };
 
+// Function to verify reCAPTCHA token
+async function verifyRecaptcha(token) {
+  const secretKey = '6LeCH1krAAAAAFigUadpdNxB4bciNgaNJo4qZ5qJ';
+  
+  try {
+    const response = await fetch('https://www.google.com/recaptcha/api/siteverify', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `secret=${secretKey}&response=${token}`,
+    });
+
+    const data = await response.json();
+    return data.success;
+  } catch (error) {
+    console.error('reCAPTCHA verification error:', error);
+    return false;
+  }
+}
+
 module.exports = async (req, res) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -26,13 +47,30 @@ module.exports = async (req, res) => {
 
   try {
     // Extract form data from request body
-    const { name, email, subject, message, timestamp } = req.body;
+    const { name, email, subject, message, recaptchaToken, timestamp } = req.body;
 
     // Validate required fields
     if (!name || !email || !subject || !message) {
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: name, email, subject, and message are required.'
+      });
+    }
+
+    // Validate reCAPTCHA token
+    if (!recaptchaToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'reCAPTCHA verification is required.'
+      });
+    }
+
+    // Verify reCAPTCHA token
+    const isRecaptchaValid = await verifyRecaptcha(recaptchaToken);
+    if (!isRecaptchaValid) {
+      return res.status(400).json({
+        success: false,
+        error: 'reCAPTCHA verification failed. Please try again.'
       });
     }
 
