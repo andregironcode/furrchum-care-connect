@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { format, addDays } from 'date-fns';
 import { Calendar } from '@/components/ui/calendar';
+import { isValidBookingDateTime } from '@/lib/database';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -87,6 +88,11 @@ const BookingPage = () => {
   const [timeSlots, setTimeSlots] = useState<string[]>([]);
   const [duration, setDuration] = useState<number>(30);
   const [consultationType, setConsultationType] = useState<'in_person' | 'video_call'>('in_person');
+  // Reset date when consultation type changes to force calendar refresh
+  useEffect(() => {
+    setDate(null);
+    setTimeSlot('');
+  }, [consultationType]);
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -277,6 +283,9 @@ const BookingPage = () => {
     // Disable past dates
     if (date < today) return true;
     
+    // Don't disable dates if we're still loading availability data
+    if (isLoadingAvailability) return false;
+
     // Check if vet is available on this day of week
     const dayOfWeek = date.getDay();
     const isAvailable = vetAvailability.some(avail => avail.day_of_week === dayOfWeek);
@@ -319,6 +328,16 @@ const BookingPage = () => {
     
     return slots;
   }, [vetAvailability, bookedSlots]);
+
+  // Debug calendar state
+  useEffect(() => {
+    console.log('Calendar state:', {
+      vetAvailability: vetAvailability.length,
+      isLoadingAvailability,
+      date,
+      consultationType
+    });
+  }, [date, vetAvailability, isLoadingAvailability, consultationType]);
 
   // Update time slots when date changes
   useEffect(() => {

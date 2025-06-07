@@ -479,14 +479,10 @@ const SuperAdminDashboard = () => {
       let processedAppointments: AppointmentWithDetails[] = [];
       let processedPrescriptions: SupabasePrescription[] = [];
       
-      // Use optimized RPC function to get analytics - single query instead of multiple
-      const { data: analyticsData, error: analyticsError } = await (supabase as any)
-        .rpc('get_dashboard_analytics');
-      
-      if (analyticsError) {
-        console.error('Error fetching analytics:', analyticsError);
-        // Continue without analytics instead of failing
-      }
+      // Skip analytics RPC function as it's not available in the database
+      // Will calculate analytics client-side instead
+      let analyticsData = null;
+      let analyticsError = { message: "Function not available" };
       
       // Fetch all pet owners with emails using optimized RPC function
       try {
@@ -1033,10 +1029,12 @@ const SuperAdminDashboard = () => {
     
     try {
       setIsDeleting(true);
-      
+      console.log(`Starting deletion of ${deleteItem.type} with ID: ${deleteItem.id}`);
+
       switch (deleteItem.type) {
         case 'user':
           await handleDeleteUser(deleteItem.id);
+          console.log(`User deletion completed for ID: ${deleteItem.id}`);
           break;
         case 'vet':
           await handleDeleteVet(deleteItem.id);
@@ -1071,53 +1069,138 @@ const SuperAdminDashboard = () => {
     }
   };
   
+  // Fetch latest user data
+  const fetchUserById = async (userId: string) => {
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('*')
+      .eq('id', userId)
+      .single();
+
+    if (error) {
+      console.error('Error fetching user:', error);
+      throw new Error('Failed to fetch user data');
+    }
+
+    return data;
+  };
+
   // Delete user handler
   const handleDeleteUser = async (userId: string) => {
-    // Check for related data first
-    const [bookingsCheck, prescriptionsCheck, petsCheck] = await Promise.all([
-      supabase.from('bookings').select('id').eq('pet_owner_id', userId).limit(1),
-      supabase.from('prescriptions').select('id').eq('pet_owner_id', userId).limit(1),
-      supabase.from('pets').select('id').eq('owner_id', userId).limit(1)
-    ]);
-    
-    if (bookingsCheck.error || prescriptionsCheck.error || petsCheck.error) {
-      throw new Error('Failed to check user dependencies');
-    }
-    
-    const hasRelatedData = bookingsCheck.data.length > 0 || 
-                          prescriptionsCheck.data.length > 0 || 
-                          petsCheck.data.length > 0;
-    
-    if (hasRelatedData) {
-      // Soft delete - mark user as deleted using full_name marker
-      // First get the current user data to preserve the name
+    try {
+      console.log(`Starting deletion process for user ID: ${userId}`);
+
+      // Check for related data first
+      const [bookingsCheck, prescriptionsCheck, petsCheck] = await Promise.all([
+        supabase.from('bookings').select('id').eq('pet_owner_id', userId).limit(1),
+        supabase.from('prescriptions').select('id').eq('pet_owner_id', userId).limit(1),
+        supabase.from('pets').select('id').eq('owner_id', userId).limit(1)
+      ]);
+
+      if (bookingsCheck.error) console.error('Error checking bookings:', bookingsCheck.error);
+      if (prescriptionsCheck.error) console.error('Error checking prescriptions:', prescriptionsCheck.error);
+      if (petsCheck.error) console.error('Error checking pets:', petsCheck.error);
+
+      if (bookingsCheck.error && prescriptionsCheck.error && petsCheck.error) {
+        throw new Error('Failed to check user dependencies');
+      }
+
+      // 1. Delete pets if any
+      if (petsCheck.data && petsCheck.data.length > 0) {
+        console.log(`Deleting pets for user ${userId}`);
+        const { error: petsDeleteError } = await supabase
+          .from('pets')
+          .delete()
+          .eq('owner_id', userId);
+
+        if (petsDeleteError) {
+          console.error('Error deleting pets:', petsDeleteError);
+        }
+      }
+
+      // 2. Delete appointments if any
+      if (bookingsCheck.data && bookingsCheck.data.length > 0) {
+        console.log(`Deleting appointments for user ${userId}`);
+        const { error: appointmentsDeleteError } = await supabase
+          .from('bookings')
+          .delete()
+          .eq('pet_owner_id', userId);
+
+        if (appointmentsDeleteError) {
+          console.error('Error deleting appointments:', appointmentsDeleteError);
+        }
+      }
+
+      // 3. Delete prescriptions if any
+      if (prescriptionsCheck.data && prescriptionsCheck.data.length > 0) {
+        console.log(`Deleting prescriptions for user ${userId}`);
+        const { error: prescriptionsDeleteError } = await supabase
+          .from('prescriptions')
+          .delete()
+          .eq('pet_owner_id', userId);
+
+        if (prescriptionsDeleteError) {
+          console.error('Error deleting prescriptions:', prescriptionsDeleteError);
+        }
+      }
+
+      // 4. Get user data for updating state
       const { data: userData, error: fetchError } = await supabase
         .from('profiles')
         .select('full_name')
         .eq('id', userId)
         .single();
-      
-      if (fetchError) throw new Error(fetchError.message);
-      
-      const deletedFullName = userData.full_name ? `[DELETED] ${userData.full_name}` : '[DELETED] User';
-      
-      const { error } = await supabase
-        .from('profiles')
-        .update({ 
-          full_name: deletedFullName,
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', userId);
-      
-      if (error) throw new Error(error.message);
-    } else {
-      // Hard delete - remove user completely
-      const { error } = await supabase
+
+      if (fetchError) {
+        console.error('Error fetching user data:', fetchError);
+        throw new Error(fetchError.message);
+      }
+
+      // 5. Delete the profile
+      console.log(`Deleting profile for user ${userId}`);
+      const { error: profileDeleteError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', userId);
-      
-      if (error) throw new Error(error.message);
+
+      if (profileDeleteError) {
+        console.error('Error deleting profile:', profileDeleteError);
+
+        // If hard delete fails, fall back to soft delete
+        console.log('Falling back to soft delete');
+        const isAlreadyDeleted = userData.full_name?.startsWith('[DELETED]') || false;
+        const deletedFullName = isAlreadyDeleted ? userData.full_name : 
+                               userData.full_name ? `[DELETED] ${userData.full_name}` : '[DELETED] User';
+
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ 
+            full_name: deletedFullName,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', userId);
+
+        if (updateError) {
+          console.error('Error soft-deleting user:', updateError);
+          throw new Error(updateError.message);
+        }
+
+        // Update local state for soft delete
+        setUsers(prevUsers => 
+          prevUsers.map(user => 
+            user.id === userId ? { ...user, full_name: deletedFullName } : user
+          )
+        );
+      } else {
+        // Successfully deleted - remove from local state
+        console.log(`Successfully deleted profile for user ${userId}`);
+        setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
+      }
+
+      console.log(`User deletion process completed for ${userId}`);
+    } catch (error) {
+      console.error('Error in handleDeleteUser:', error);
+      throw error;
     }
   };
   
@@ -1357,7 +1440,7 @@ Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
   const handleLogout = async () => {
     await supabase.auth.signOut();
     localStorage.removeItem('superAdminAuth');
-    navigate('/superadmin/auth');
+    navigate('/superadmin/auth/');
   };
   const handleUserUpdated = () => {
     fetchData();

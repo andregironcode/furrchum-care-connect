@@ -19,7 +19,7 @@ const SuperAdminAuth = () => {
     e.preventDefault();
     if (password === SUPER_ADMIN_PASSWORD) {
       localStorage.setItem('superAdminAuth', 'true');
-      navigate('/superadmin/dashboard');
+      navigate('/superadmin/dashboard/');
     } else {
       setError('Incorrect password');
     }

@@ -51,9 +51,9 @@ import {
   Shield
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { Textarea } from '@/components/ui/textarea';
 import { openFile, downloadFile } from '@/utils/supabaseStorage';
+import React from 'react';
 
 // Enhanced interfaces for the modal
 interface UserProfile {
@@ -63,6 +63,12 @@ interface UserProfile {
   created_at: string;
   updated_at: string;
   email?: string | null;
+  phone_number?: string | null;
+  address?: string | null;
+  image_url?: string | null;
+  appointment_count?: number;
+  prescription_count?: number;
+  status?: string | null;
 }
 
 interface VetProfile {
@@ -156,6 +162,7 @@ interface UserDetailsModalProps {
 }
 
 const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsModalProps) => {
+  const { toast } = useToast();
   const [vetProfile, setVetProfile] = useState<VetProfile | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [prescriptions, setPrescriptions] = useState<Prescription[]>([]);
@@ -169,7 +176,6 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
   const [showSuspendConfirmation, setShowSuspendConfirmation] = useState(false);
   const [isSuspending, setIsSuspending] = useState(false);
   const [suspendAction, setSuspendAction] = useState<'suspend' | 'unsuspend'>('suspend');
-  const { toast } = useToast();
   
   const fetchUserDetails = useCallback(async () => {
     if (!user) return;
@@ -318,33 +324,72 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
     try {
       setIsDeleting(true);
       
-      // First, check if this is a vet and delete vet profile if it exists
+      // First, delete all related data
+      // 1. Delete user's pets
+      const { error: petsDeleteError } = await supabase
+        .from('pets')
+        .delete()
+        .eq('owner_id', user.id);
+
+      if (petsDeleteError) {
+        console.error('Error deleting pets:', petsDeleteError);
+      }
+
+      // 2. Delete user's appointments
+      const { error: appointmentsDeleteError } = await supabase
+        .from('bookings')
+        .delete()
+        .eq('pet_owner_id', user.id);
+
+      if (appointmentsDeleteError) {
+        console.error('Error deleting appointments:', appointmentsDeleteError);
+      }
+
+      // 3. Delete user's prescriptions
+      const { error: prescriptionsDeleteError } = await supabase
+        .from('prescriptions')
+        .delete()
+        .eq('pet_owner_id', user.id);
+
+      if (prescriptionsDeleteError) {
+        console.error('Error deleting prescriptions:', prescriptionsDeleteError);
+      }
+
+      // 4. Check if this is a vet and delete vet profile if it exists
       if (user.user_type === 'vet') {
         const { error: vetDeleteError } = await supabase
           .from('vet_profiles')
           .delete()
           .eq('id', user.id);
-          
+
         if (vetDeleteError) {
           console.error('Error deleting vet profile:', vetDeleteError);
           throw new Error(vetDeleteError.message);
         }
       }
-      
-      // Delete user profile
+
+      // 5. Delete user profile
       const { error: profileDeleteError } = await supabase
         .from('profiles')
         .delete()
         .eq('id', user.id);
-        
+
       if (profileDeleteError) {
         console.error('Error deleting user profile:', profileDeleteError);
         throw new Error(profileDeleteError.message);
       }
-      
+
+      // 6. Delete auth user
+      const { error: authDeleteError } = await supabase.auth.admin.deleteUser(user.id);
+
+      if (authDeleteError) {
+        console.error('Error deleting auth user:', authDeleteError);
+        // Continue with the process even if auth deletion fails
+      }
+
       toast({
         title: 'User Deleted',
-        description: 'The user has been successfully deleted.',
+        description: 'The user has been completely removed from the system.',
       });
       
       if (onUserUpdated) onUserUpdated();
@@ -987,6 +1032,350 @@ const UserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsM
         </AlertDialogContent>
       </AlertDialog>
     </>
+  );
+};
+
+import { useToast } from '@/hooks/use-toast';
+
+interface SupabaseUserProfile {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  full_name: string | null;
+  email?: string | null;
+  phone_number?: string | null;
+  user_type: string;
+  status?: string | null;
+  address?: string | null;
+  image_url?: string | null;
+  appointment_count?: number;
+  prescription_count?: number;
+}
+
+interface UserDetailsModalProps {
+  user: SupabaseUserProfile;
+  isOpen: boolean;
+  onClose: () => void;
+  onUserUpdated?: () => void;
+}
+
+const ButtonUserDetailsModal = ({ user, isOpen, onClose, onUserUpdated }: UserDetailsModalProps) => {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const { toast } = useToast();
+
+  const isUserDeleted = user.full_name?.startsWith('[DELETED]') || false;
+  const isUserSuspended = user.full_name?.startsWith('[SUSPENDED]') || false;
+
+  // Function to get clean name (without status prefixes)
+  const getCleanName = (name: string | null) => {
+    if (!name) return 'Unknown User';
+
+    return name
+      .replace(/^\[DELETED\] /, '')
+      .replace(/^\[SUSPENDED\] /, '');
+  };
+
+  // Function to toggle user suspension
+  const handleToggleSuspension = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Get current user data to ensure we have the latest state
+      const { data: userData, error: fetchError } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', user.id)
+        .single();
+
+      if (fetchError) throw new Error(fetchError.message);
+
+      // Get clean name first
+      let cleanName = getCleanName(userData.full_name);
+
+      // Toggle suspension status
+      const newFullName = isUserSuspended
+        ? cleanName // Remove [SUSPENDED] prefix
+        : `[SUSPENDED] ${cleanName}`; // Add [SUSPENDED] prefix
+
+      // Update in database
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ 
+          full_name: newFullName,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', user.id);
+
+      if (updateError) throw new Error(updateError.message);
+
+      // Show success message
+      toast({
+        title: isUserSuspended ? 'User Unsuspended' : 'User Suspended',
+        description: isUserSuspended
+          ? `${cleanName} has been unsuspended successfully.`
+          : `${cleanName} has been suspended. They will not be able to use the platform.`,
+      });
+
+      // Notify parent component
+      if (onUserUpdated) onUserUpdated();
+
+      // Close modal
+      onClose();
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to update user status';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to delete user
+  const handleDeleteUser = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Check for related data first
+      const [bookingsCheck, prescriptionsCheck, petsCheck] = await Promise.all([
+        supabase.from('bookings').select('id').eq('pet_owner_id', user.id).limit(1),
+        supabase.from('prescriptions').select('id').eq('pet_owner_id', user.id).limit(1),
+        supabase.from('pets').select('id').eq('owner_id', user.id).limit(1)
+      ]);
+
+      if (bookingsCheck.error || prescriptionsCheck.error || petsCheck.error) {
+        throw new Error('Failed to check user dependencies');
+      }
+
+      const hasRelatedData = bookingsCheck.data.length > 0 || 
+                            prescriptionsCheck.data.length > 0 || 
+                            petsCheck.data.length > 0;
+
+      if (hasRelatedData) {
+        // Soft delete - mark user as deleted using full_name marker
+        // First get the current user data to preserve the name
+        const { data: userData, error: fetchError } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+
+        if (fetchError) throw new Error(fetchError.message);
+
+        // Get clean name first (remove any existing prefixes)
+        const cleanName = getCleanName(userData.full_name);
+
+        // Only add [DELETED] prefix if not already there
+        const newFullName = isUserDeleted ? userData.full_name : `[DELETED] ${cleanName}`;
+
+        const { error } = await supabase
+          .from('profiles')
+          .update({ 
+            full_name: newFullName,
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', user.id);
+
+        if (error) throw new Error(error.message);
+
+        // Show success message for soft delete
+        toast({
+          title: 'User Marked as Deleted',
+          description: `${cleanName} has been marked as deleted due to existing data.`,
+        });
+      } else {
+        // Hard delete - remove user completely
+        const { error } = await supabase
+          .from('profiles')
+          .delete()
+          .eq('id', user.id);
+
+        if (error) throw new Error(error.message);
+
+        // Show success message for hard delete
+        toast({
+          title: 'User Deleted',
+          description: `${getCleanName(user.full_name)} has been completely removed from the system.`,
+        });
+      }
+
+      // Notify parent component
+      if (onUserUpdated) onUserUpdated();
+
+      // Close modal
+      onClose();
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Failed to delete user';
+      setError(errorMessage);
+    } finally {
+      setLoading(false);
+      setShowDeleteConfirmation(false);
+    }
+  };
+
+  // Render user avatar with initials fallback
+  const renderAvatar = () => {
+    const cleanName = getCleanName(user.full_name);
+    const initials = cleanName
+      .split(' ')
+      .map(name => name[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+
+    return (
+      <Avatar className="h-20 w-20 mb-4">
+        <AvatarImage src={user.image_url || ''} alt={cleanName} />
+        <AvatarFallback className="text-xl">{initials}</AvatarFallback>
+      </Avatar>
+    );
+  };
+
+  return (
+    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>User Details</DialogTitle>
+          <DialogDescription>
+            View and manage user information
+          </DialogDescription>
+        </DialogHeader>
+
+        {error && (
+          <Alert variant="destructive" className="mt-4">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {!showDeleteConfirmation ? (
+          <div className="flex flex-col items-center text-center">
+            {renderAvatar()}
+
+            <h3 className="text-xl font-semibold mb-1">
+              {getCleanName(user.full_name)}
+            </h3>
+
+            <div className="flex items-center gap-2 mb-4">
+              <Badge className="capitalize">{user.user_type}</Badge>
+              {isUserDeleted && (
+                <Badge variant="destructive">Deleted</Badge>
+              )}
+              {isUserSuspended && (
+                <Badge variant="outline" className="bg-orange-100 text-orange-800">Suspended</Badge>
+              )}
+            </div>
+
+            <Card className="w-full mb-6">
+              <CardContent className="pt-6">
+                <div className="space-y-4">
+                  <div className="flex items-start gap-3">
+                    <Mail className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="flex-1 text-left">
+                      <div className="text-sm text-muted-foreground">Email</div>
+                      <div className="font-medium">{user.email || 'Not available'}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Phone className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="flex-1 text-left">
+                      <div className="text-sm text-muted-foreground">Phone</div>
+                      <div className="font-medium">{user.phone_number || 'Not available'}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Home className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="flex-1 text-left">
+                      <div className="text-sm text-muted-foreground">Address</div>
+                      <div className="font-medium">{user.address || 'Not available'}</div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-start gap-3">
+                    <Calendar className="h-5 w-5 text-muted-foreground mt-0.5" />
+                    <div className="flex-1 text-left">
+                      <div className="text-sm text-muted-foreground">Member Since</div>
+                      <div className="font-medium">{new Date(user.created_at).toLocaleDateString()}</div>
+                    </div>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <div className="flex flex-col gap-3 w-full">
+              <Button 
+                variant={isUserSuspended ? "outline" : "default"}
+                className={isUserSuspended ? "bg-green-50 text-green-700 hover:bg-green-100 hover:text-green-800" : "bg-orange-500 hover:bg-orange-600"}
+                onClick={handleToggleSuspension}
+                disabled={loading || isUserDeleted}
+              >
+                {isUserSuspended ? (
+                  <>
+                    <User className="h-4 w-4 mr-2" />
+                    Unsuspend User
+                  </>
+                ) : (
+                  <>
+                    <UserX className="h-4 w-4 mr-2" />
+                    Suspend User
+                  </>
+                )}
+              </Button>
+
+              <Button 
+                variant="destructive"
+                onClick={() => setShowDeleteConfirmation(true)}
+                disabled={loading}
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                {isUserDeleted ? 'Permanently Delete User' : 'Delete User'}
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex flex-col items-center text-center">
+            <div className="flex-shrink-0 w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mb-4">
+              <Trash2 className="h-6 w-6 text-red-600" />
+            </div>
+
+            <h3 className="text-xl font-semibold mb-1">
+              Confirm Deletion
+            </h3>
+
+            <p className="mb-6 text-muted-foreground">
+              Are you sure you want to delete <strong>{getCleanName(user.full_name)}</strong>? 
+              {user.appointment_count ? ` This user has ${user.appointment_count} appointments.` : ''}
+              {user.prescription_count ? ` This user has ${user.prescription_count} prescriptions.` : ''}
+            </p>
+
+            <div className="flex gap-3 w-full">
+              <Button 
+                variant="outline" 
+                className="flex-1"
+                onClick={() => setShowDeleteConfirmation(false)}
+                disabled={loading}
+              >
+                Cancel
+              </Button>
+
+              <Button 
+                variant="destructive" 
+                className="flex-1"
+                onClick={handleDeleteUser}
+                disabled={loading}
+              >
+                {loading ? 'Deleting...' : 'Delete'}
+              </Button>
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 };
 

@@ -84,6 +84,11 @@ const App = () => {
                     <SuperAdminDashboard />
                   </SuperAdminGuard>
                 } />
+                <Route path="/superadmin/dashboard/" element={
+                  <SuperAdminGuard>
+                    <SuperAdminDashboard />
+                  </SuperAdminGuard>
+                } />
                 
                 {/* Pet Owner Dashboard with vet redirection */}
                 <Route path="/dashboard" element={
