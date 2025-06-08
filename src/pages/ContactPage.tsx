@@ -290,7 +290,7 @@ const ContactPage = () => {
                             <div className="flex justify-center">
                               <ReCAPTCHA
                                 ref={recaptchaRef}
-                                sitekey="6LeBH1krAAAAAArOi7RYu8FcZZn1zNxBBaT_ATK9"
+                                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
                                 onChange={handleRecaptchaChange}
                                 onExpired={() => {
                                   form.setValue('recaptcha', '');

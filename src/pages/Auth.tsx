@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
@@ -12,6 +12,7 @@ import { Loader2, AlertCircle } from 'lucide-react';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
+import ReCAPTCHA from 'react-google-recaptcha';
 
 const Auth = () => {
   const { user, isLoading } = useAuth();
@@ -39,6 +40,7 @@ const AuthTabs = () => {
   const [error, setError] = useState<string | null>(null);
   const { signIn, signUp } = useAuth();
   const navigate = useNavigate();
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
 
   // Form state for sign in
   const [signInData, setSignInData] = useState({
@@ -53,6 +55,7 @@ const AuthTabs = () => {
     fullName: '',
     userType: 'pet_owner' as 'pet_owner' | 'vet',
     agreeToTerms: false,
+    recaptcha: '',
   });
 
   // Set initial tab based on URL search params
@@ -71,9 +74,13 @@ const AuthTabs = () => {
     try {
       await signIn(signInData.email, signInData.password);
       navigate('/');
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error(error);
-      setError(error.message || 'Failed to sign in');
+      if (error instanceof Error) {
+        setError(error.message || 'Failed to sign in');
+      } else {
+        setError('Failed to sign in');
+      }
     } finally {
       setIsSubmitting(false);
     }
@@ -86,6 +93,12 @@ const AuthTabs = () => {
     
     if (!signUpData.agreeToTerms) {
       setError('You must agree to the terms and conditions to create an account');
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (!signUpData.recaptcha) {
+      setError('Please complete the reCAPTCHA verification');
       setIsSubmitting(false);
       return;
     }
@@ -114,22 +127,31 @@ const AuthTabs = () => {
         fullName: '',
         userType: 'pet_owner',
         agreeToTerms: false,
+        recaptcha: '',
       });
       
-    } catch (error: any) {
+      // Reset reCAPTCHA
+      if (recaptchaRef.current) {
+        recaptchaRef.current.reset();
+      }
+      
+    } catch (error: unknown) {
       console.error('Signup form error:', error);
       
       // Handle specific error types
       let errorMessage = 'Failed to create account';
       
-      if (error.message) {
+      if (error instanceof Error && error.message) {
         errorMessage = error.message;
-      } else if (error.toString().includes('Load failed')) {
-        errorMessage = 'Network connection failed. Please check your internet connection and try again.';
-      } else if (error.toString().includes('NetworkError')) {
-        errorMessage = 'Network error occurred. Please check your internet connection and try again.';
-      } else if (error.toString().includes('TypeError: Failed to fetch')) {
-        errorMessage = 'Unable to connect to server. Please check your internet connection and try again.';
+      } else {
+        const errorString = String(error);
+        if (errorString.includes('Load failed')) {
+          errorMessage = 'Network connection failed. Please check your internet connection and try again.';
+        } else if (errorString.includes('NetworkError')) {
+          errorMessage = 'Network error occurred. Please check your internet connection and try again.';
+        } else if (errorString.includes('TypeError: Failed to fetch')) {
+          errorMessage = 'Unable to connect to server. Please check your internet connection and try again.';
+        }
       }
       
       setError(errorMessage);
@@ -284,6 +306,22 @@ const AuthTabs = () => {
                     terms and conditions
                   </Link>
                 </Label>
+              </div>
+
+              {/* reCAPTCHA */}
+              <div className="space-y-2">
+                <Label>Security Verification</Label>
+                <div className="flex justify-center mt-2">
+                  <ReCAPTCHA
+                    ref={recaptchaRef}
+                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                    onChange={handleRecaptchaChange}
+                    onExpired={() => setSignUpData({...signUpData, recaptcha: ''})}
+                  />
+                </div>
+                {error && error.includes('reCAPTCHA') && (
+                  <p className="text-sm text-red-500">{error}</p>
+                )}
               </div>
 
               <Button 
