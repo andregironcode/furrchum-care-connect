@@ -56,11 +56,28 @@ module.exports = async (req, res) => {
   }
 
   try {
+    console.log('=== Contact Form Debug ===');
+    console.log('Request body keys:', Object.keys(req.body));
+    console.log('Environment variables check:', {
+      hasResendKey: !!process.env.VITE_RESEND_API_KEY,
+      hasRecaptchaSecret: !!process.env.VITE_RECAPTCHA_SECRET_KEY,
+      hasEmailFrom: !!process.env.VITE_EMAIL_FROM
+    });
+
     // Extract form data from request body
     const { name, email, subject, message, recaptchaToken, timestamp } = req.body;
 
+    console.log('Form data check:', {
+      hasName: !!name,
+      hasEmail: !!email, 
+      hasSubject: !!subject,
+      hasMessage: !!message,
+      hasRecaptchaToken: !!recaptchaToken
+    });
+
     // Validate required fields
     if (!name || !email || !subject || !message) {
+      console.log('❌ Missing required fields validation failed');
       return res.status(400).json({
         success: false,
         error: 'Missing required fields: name, email, subject, and message are required.'
@@ -69,6 +86,7 @@ module.exports = async (req, res) => {
 
     // Validate reCAPTCHA token
     if (!recaptchaToken) {
+      console.log('❌ Missing reCAPTCHA token');
       return res.status(400).json({
         success: false,
         error: 'reCAPTCHA verification is required.'
@@ -76,13 +94,19 @@ module.exports = async (req, res) => {
     }
 
     // Verify reCAPTCHA token
+    console.log('🔄 Starting reCAPTCHA verification...');
     const isRecaptchaValid = await verifyRecaptcha(recaptchaToken);
+    console.log('reCAPTCHA result:', isRecaptchaValid);
+    
     if (!isRecaptchaValid) {
+      console.log('❌ reCAPTCHA verification failed');
       return res.status(400).json({
         success: false,
         error: 'reCAPTCHA verification failed. Please try again.'
       });
     }
+
+    console.log('✅ All validations passed, proceeding to send email...');
 
     // Validate email format
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
