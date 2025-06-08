@@ -39,6 +39,10 @@ const ContactPage = () => {
       recaptcha: '',
     },
   });
+  
+  // Debug environment variables
+  console.log('reCAPTCHA site key:', import.meta.env.VITE_RECAPTCHA_SITE_KEY);
+  console.log('Environment variables available:', Object.keys(import.meta.env).filter(key => key.startsWith('VITE_')));
 
   // Handle form submission with real API integration
   const onSubmit = async (values: FormValues) => {
@@ -290,13 +294,14 @@ const ContactPage = () => {
                             <div className="flex justify-center">
                               <ReCAPTCHA
                                 ref={recaptchaRef}
-                                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                                sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeBH1krAAAAAArOi7RYu8FcZZn1zNxBBaT_ATK9'}
                                 onChange={handleRecaptchaChange}
                                 onExpired={() => {
                                   form.setValue('recaptcha', '');
                                   form.setError('recaptcha', { message: 'reCAPTCHA has expired. Please verify again.' });
                                 }}
-                                onError={() => {
+                                onError={(err) => {
+                                  console.error('reCAPTCHA error:', err);
                                   form.setValue('recaptcha', '');
                                   form.setError('recaptcha', { message: 'reCAPTCHA error. Please try again.' });
                                 }}

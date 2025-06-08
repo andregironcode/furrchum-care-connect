@@ -42,6 +42,12 @@ const AuthTabs = () => {
   const navigate = useNavigate();
   const recaptchaRef = useRef<ReCAPTCHA>(null);
 
+  // Handle reCAPTCHA token change
+  const handleRecaptchaChange = (token: string | null) => {
+    console.log('reCAPTCHA token:', token);
+    setSignUpData({ ...signUpData, recaptcha: token || '' });
+  };
+
   // Form state for sign in
   const [signInData, setSignInData] = useState({
     email: '',
@@ -314,9 +320,16 @@ const AuthTabs = () => {
                 <div className="flex justify-center mt-2">
                   <ReCAPTCHA
                     ref={recaptchaRef}
-                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY}
+                    sitekey={import.meta.env.VITE_RECAPTCHA_SITE_KEY || '6LeBH1krAAAAAArOi7RYu8FcZZn1zNxBBaT_ATK9'}
                     onChange={handleRecaptchaChange}
-                    onExpired={() => setSignUpData({...signUpData, recaptcha: ''})}
+                    onExpired={() => {
+                      setSignUpData({...signUpData, recaptcha: ''});
+                      console.log('reCAPTCHA expired');
+                    }}
+                    onError={(err) => {
+                      console.error('reCAPTCHA error:', err);
+                      setSignUpData({...signUpData, recaptcha: ''});
+                    }}
                   />
                 </div>
                 {error && error.includes('reCAPTCHA') && (
