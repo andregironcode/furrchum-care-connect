@@ -8,7 +8,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useAuth } from "@/context/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, Plus, Trash2, Pill } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 interface Pet {
   id: string;
@@ -17,6 +18,14 @@ interface Pet {
   breed?: string;
   owner_id: string;
   owner_name?: string;
+}
+
+interface Medicine {
+  id: string;
+  medication_name: string;
+  dosage: string;
+  frequency: string;
+  duration: string;
 }
 
 interface CreatePrescriptionModalProps {
@@ -31,11 +40,16 @@ const CreatePrescriptionModal = ({ isOpen, onClose, onPrescriptionCreated }: Cre
   const [loading, setLoading] = useState(false);
   const [pets, setPets] = useState<Pet[]>([]);
   const [selectedPetId, setSelectedPetId] = useState('');
+  const [medicines, setMedicines] = useState<Medicine[]>([
+    {
+      id: '1',
+      medication_name: '',
+      dosage: '',
+      frequency: '',
+      duration: ''
+    }
+  ]);
   const [formData, setFormData] = useState({
-    medication_name: '',
-    dosage: '',
-    frequency: '',
-    duration: '',
     instructions: '',
     diagnosis: ''
   });
@@ -102,42 +116,100 @@ const CreatePrescriptionModal = ({ isOpen, onClose, onPrescriptionCreated }: Cre
     }
   };
 
+  const addMedicine = () => {
+    const newMedicine: Medicine = {
+      id: Date.now().toString(),
+      medication_name: '',
+      dosage: '',
+      frequency: '',
+      duration: ''
+    };
+    setMedicines([...medicines, newMedicine]);
+  };
+
+  const removeMedicine = (id: string) => {
+    if (medicines.length > 1) {
+      setMedicines(medicines.filter(med => med.id !== id));
+    }
+  };
+
+  const updateMedicine = (id: string, field: keyof Medicine, value: string) => {
+    setMedicines(medicines.map(med => 
+      med.id === id ? { ...med, [field]: value } : med
+    ));
+  };
+
+  const validateMedicines = () => {
+    return medicines.every(med => 
+      med.medication_name.trim() && 
+      med.dosage.trim() && 
+      med.frequency.trim() && 
+      med.duration.trim()
+    );
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedPetId || !user) return;
+
+    if (!validateMedicines()) {
+      toast({
+        title: "Error",
+        description: "Please fill in all fields for all medicines",
+        variant: "destructive",
+      });
+      return;
+    }
 
     setLoading(true);
     try {
       const selectedPet = pets.find(p => p.id === selectedPetId);
       if (!selectedPet) throw new Error('Pet not found');
 
-      const { error } = await supabase
-        .from('prescriptions')
-        .insert({
-          vet_id: user.id,
-          pet_id: selectedPetId,
-          pet_owner_id: selectedPet.owner_id,
-          prescribed_date: new Date().toISOString().split('T')[0],
-          status: 'active',
-          ...formData
-        });
+      // Create prescription records for each medicine
+      const prescriptionPromises = medicines.map(medicine => 
+        supabase
+          .from('prescriptions')
+          .insert({
+            vet_id: user.id,
+            pet_id: selectedPetId,
+            pet_owner_id: selectedPet.owner_id,
+            prescribed_date: new Date().toISOString().split('T')[0],
+            status: 'active',
+            medication_name: medicine.medication_name,
+            dosage: medicine.dosage,
+            frequency: medicine.frequency,
+            duration: medicine.duration,
+            instructions: formData.instructions,
+            diagnosis: formData.diagnosis
+          })
+      );
 
-      if (error) throw error;
+      const results = await Promise.all(prescriptionPromises);
+      
+      // Check if any failed
+      const failedInserts = results.filter(result => result.error);
+      if (failedInserts.length > 0) {
+        throw new Error('Failed to create some prescriptions');
+      }
 
       toast({
         title: "Success",
-        description: "Prescription created successfully",
+        description: `Prescription created successfully with ${medicines.length} medicine${medicines.length > 1 ? 's' : ''}`,
       });
 
       onPrescriptionCreated();
       onClose();
       
       // Reset form
-      setFormData({
+      setMedicines([{
+        id: '1',
         medication_name: '',
         dosage: '',
         frequency: '',
-        duration: '',
+        duration: ''
+      }]);
+      setFormData({
         instructions: '',
         diagnosis: ''
       });
@@ -156,15 +228,15 @@ const CreatePrescriptionModal = ({ isOpen, onClose, onPrescriptionCreated }: Cre
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>Create New Prescription</DialogTitle>
           <DialogDescription>
-            Create a prescription for one of your patients
+            Create a prescription with multiple medicines for one of your patients
           </DialogDescription>
         </DialogHeader>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="space-y-6">
           <div>
             <Label htmlFor="pet">Select Pet</Label>
             <Select value={selectedPetId} onValueChange={setSelectedPetId} required>
@@ -182,51 +254,6 @@ const CreatePrescriptionModal = ({ isOpen, onClose, onPrescriptionCreated }: Cre
           </div>
 
           <div>
-            <Label htmlFor="medication_name">Medication Name</Label>
-            <Input
-              id="medication_name"
-              value={formData.medication_name}
-              onChange={(e) => setFormData(prev => ({ ...prev, medication_name: e.target.value }))}
-              placeholder="e.g., Amoxicillin"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="dosage">Dosage</Label>
-              <Input
-                id="dosage"
-                value={formData.dosage}
-                onChange={(e) => setFormData(prev => ({ ...prev, dosage: e.target.value }))}
-                placeholder="e.g., 250mg"
-                required
-              />
-            </div>
-            <div>
-              <Label htmlFor="frequency">Frequency</Label>
-              <Input
-                id="frequency"
-                value={formData.frequency}
-                onChange={(e) => setFormData(prev => ({ ...prev, frequency: e.target.value }))}
-                placeholder="e.g., Twice daily"
-                required
-              />
-            </div>
-          </div>
-
-          <div>
-            <Label htmlFor="duration">Duration</Label>
-            <Input
-              id="duration"
-              value={formData.duration}
-              onChange={(e) => setFormData(prev => ({ ...prev, duration: e.target.value }))}
-              placeholder="e.g., 7 days"
-              required
-            />
-          </div>
-
-          <div>
             <Label htmlFor="diagnosis">Diagnosis</Label>
             <Input
               id="diagnosis"
@@ -236,13 +263,99 @@ const CreatePrescriptionModal = ({ isOpen, onClose, onPrescriptionCreated }: Cre
             />
           </div>
 
+          {/* Medicines Section */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label className="text-lg font-semibold">Medicines</Label>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={addMedicine}
+                className="flex items-center gap-2"
+              >
+                <Plus className="h-4 w-4" />
+                Add Medicine
+              </Button>
+            </div>
+
+            {medicines.map((medicine, index) => (
+              <Card key={medicine.id} className="relative">
+                <CardHeader className="pb-3">
+                  <CardTitle className="flex items-center justify-between text-base">
+                    <span className="flex items-center gap-2">
+                      <Pill className="h-4 w-4" />
+                      Medicine {index + 1}
+                    </span>
+                    {medicines.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => removeMedicine(medicine.id)}
+                        className="text-red-500 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <Label htmlFor={`medication_name_${medicine.id}`}>Medication Name</Label>
+                    <Input
+                      id={`medication_name_${medicine.id}`}
+                      value={medicine.medication_name}
+                      onChange={(e) => updateMedicine(medicine.id, 'medication_name', e.target.value)}
+                      placeholder="e.g., Amoxicillin"
+                      required
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <Label htmlFor={`dosage_${medicine.id}`}>Dosage</Label>
+                      <Input
+                        id={`dosage_${medicine.id}`}
+                        value={medicine.dosage}
+                        onChange={(e) => updateMedicine(medicine.id, 'dosage', e.target.value)}
+                        placeholder="e.g., 250mg"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`frequency_${medicine.id}`}>Frequency</Label>
+                      <Input
+                        id={`frequency_${medicine.id}`}
+                        value={medicine.frequency}
+                        onChange={(e) => updateMedicine(medicine.id, 'frequency', e.target.value)}
+                        placeholder="e.g., Twice daily"
+                        required
+                      />
+                    </div>
+                    <div>
+                      <Label htmlFor={`duration_${medicine.id}`}>Duration</Label>
+                      <Input
+                        id={`duration_${medicine.id}`}
+                        value={medicine.duration}
+                        onChange={(e) => updateMedicine(medicine.id, 'duration', e.target.value)}
+                        placeholder="e.g., 7 days"
+                        required
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+
           <div>
-            <Label htmlFor="instructions">Instructions</Label>
+            <Label htmlFor="instructions">General Instructions</Label>
             <Textarea
               id="instructions"
               value={formData.instructions}
               onChange={(e) => setFormData(prev => ({ ...prev, instructions: e.target.value }))}
-              placeholder="Additional instructions for the pet owner..."
+              placeholder="General instructions for the pet owner..."
               rows={3}
             />
           </div>
@@ -253,7 +366,7 @@ const CreatePrescriptionModal = ({ isOpen, onClose, onPrescriptionCreated }: Cre
             </Button>
             <Button type="submit" disabled={loading || !selectedPetId}>
               {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Create Prescription
+              Create Prescription ({medicines.length} medicine{medicines.length > 1 ? 's' : ''})
             </Button>
           </div>
         </form>

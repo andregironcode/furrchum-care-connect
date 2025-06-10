@@ -179,7 +179,7 @@ function generateAccountCreationEmail(fullName: string): string {
       <a href="https://furrchum.com/dashboard" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">Go to Dashboard</a>
     </div>
     <p style="margin-bottom: 15px;">
-      If you have any questions, please contact our support team at support@furrchum.com.
+      If you have any questions, please contact our support team at info@furrchum.com.
     </p>
     ${generateEmailFooter()}
   `;
@@ -326,7 +326,7 @@ function generateEmailFooter(): string {
           &copy; ${new Date().getFullYear()} FurrChum Care Connect. All rights reserved.
         </p>
         <p>
-          Questions? Contact our support team at support@furrchum.com
+          Questions? Contact our support team at info@furrchum.com
         </p>
         <div style="margin: 10px 0;">
           <a href="https://furrchum.com/terms" style="color: #888888; margin-right: 10px;">Terms of Service</a>

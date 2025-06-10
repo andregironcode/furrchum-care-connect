@@ -62,7 +62,7 @@ function generateWelcomeEmailHTML(fullName, userType) {
       <div style="text-align: center; margin: 30px 0;">
         <p style="color: #6b7280; font-size: 14px;">
           Need help? Contact our support team at 
-          <a href="mailto:support@furrchum.pittura.tech" style="color: #3b82f6;">support@furrchum.pittura.tech</a>
+          <a href="mailto:info@furrchum.com" style="color: #3b82f6;">info@furrchum.com</a>
         </p>
       </div>
       
