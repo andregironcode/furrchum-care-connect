@@ -5,14 +5,53 @@ const path = require('path');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
 require('dotenv').config();
 
+// Add process error handlers
+process.on('uncaughtException', (error) => {
+  console.error('Uncaught Exception:', error);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  process.exit(1);
+});
+
+console.log('Starting server...');
+console.log('Node version:', process.version);
+
+// Set fallback environment variables for testing
+if (!process.env.RAZORPAY_KEY_ID && !process.env.VITE_RAZORPAY_KEY_ID) {
+  process.env.VITE_RAZORPAY_KEY_ID = 'rzp_test_N2UcpugA4t44wo';
+  process.env.VITE_RAZORPAY_KEY_SECRET = 'o3e4uXTFnar3ILSqrTV8Rp70';
+  process.env.VITE_RAZORPAY_WEBHOOK_SECRET = 'test_webhook_secret_123';
+  console.log('Using hardcoded Razorpay test keys');
+}
+
+if (!process.env.WHEREBY_API_KEY && !process.env.VITE_WHEREBY_API_KEY) {
+  process.env.VITE_WHEREBY_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmFwcGVhci5pbiIsImF1ZCI6Imh0dHBzOi8vYXBpLmFwcGVhci5pbi92MSIsImV4cCI6OTAwNzE5OTI1NDc0MDk5MSwiaWF0IjoxNzQ4MTEwMDA4LCJvcmdhbml6YXRpb25JZCI6MzE2MjE1LCJqdGkiOiIxODMyZTQ0OC01MDUzLTQ3ZTUtOTFlZC0wZDBmNmVjMDk0YWYifQ.gIewodxwfMmU9a9ol3kgB1StTRoPX4vk95FeO38V4HM';
+  process.env.VITE_WHEREBY_API_URL = 'https://api.whereby.dev/v1';
+  console.log('Using hardcoded Whereby API key');
+}
+
+console.log('Environment variables check:');
+console.log('- RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'SET' : 'NOT SET');
+console.log('- VITE_RAZORPAY_KEY_ID:', process.env.VITE_RAZORPAY_KEY_ID ? 'SET' : 'NOT SET');
+console.log('- WHEREBY_API_KEY:', process.env.WHEREBY_API_KEY ? 'SET' : 'NOT SET');
+console.log('- VITE_WHEREBY_API_KEY:', process.env.VITE_WHEREBY_API_KEY ? 'SET' : 'NOT SET');
+
 // Import Resend for email functionality
-const { Resend } = require('resend');
+let resend;
+try {
+  const { Resend } = require('resend');
+  resend = new Resend(process.env.VITE_RESEND_API_KEY);
+  console.log('Resend initialized successfully');
+} catch (error) {
+  console.warn('Resend initialization failed:', error.message);
+  console.log('Email functionality will be disabled');
+}
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Initialize Resend with API key from environment
-const resend = new Resend(process.env.VITE_RESEND_API_KEY);
 
 // Middleware
 app.use(cors({
@@ -88,6 +127,13 @@ app.post('/api/whereby/meetings', async (req, res) => {
 // Email API endpoint
 app.post('/api/send-welcome-email', async (req, res) => {
   try {
+    if (!resend) {
+      return res.status(503).json({ 
+        error: 'Email service not available',
+        details: 'Resend API not configured'
+      });
+    }
+
     // Validate request body
     const { email, fullName, userType } = req.body;
     
@@ -215,6 +261,174 @@ function generateWelcomeEmailHTML(fullName, userType) {
   `;
 }
 
+// Razorpay API endpoints
+app.post('/api/create-checkout-session', async (req, res) => {
+  try {
+    console.log('🐛 DEBUG: Create checkout session called');
+    console.log('🐛 DEBUG: Request body:', JSON.stringify(req.body, null, 2));
+    
+    const { bookingData } = req.body;
+    
+    if (!bookingData) {
+      console.error('🐛 DEBUG: Missing bookingData in request');
+      return res.status(400).json({ error: 'Booking data is required' });
+    }
+    
+    console.log('🐛 DEBUG: Booking data received:', JSON.stringify(bookingData, null, 2));
+    
+    // Get Razorpay configuration
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET;
+    
+    // Debug logging (safely)
+    console.log('🐛 DEBUG: Razorpay Key ID:', keyId ? `${keyId.substring(0, 8)}...` : 'NOT SET');
+    console.log('🐛 DEBUG: Razorpay Key Secret:', keySecret ? `${keySecret.substring(0, 8)}...` : 'NOT SET');
+    
+    if (!keyId || !keySecret) {
+      console.error('🐛 DEBUG: Razorpay credentials not configured');
+      return res.status(500).json({ error: 'Payment system not configured' });
+    }
+    
+    // Initialize Razorpay
+    const Razorpay = require('razorpay');
+    const razorpay = new Razorpay({
+      key_id: keyId,
+      key_secret: keySecret,
+    });
+    
+    // Calculate amounts (in paise for Razorpay)
+    const consultationFee = bookingData.fee || 500;
+    const serviceFee = Math.round(consultationFee * 0.05); // 5% service fee
+    const totalAmount = consultationFee + serviceFee;
+    const amountInPaise = totalAmount * 100; // Convert to paise
+    
+    console.log('🐛 DEBUG: Fee calculation:', {
+      consultationFee,
+      serviceFee,
+      totalAmount,
+      amountInPaise
+    });
+    
+    // Create Razorpay order
+    const orderOptions = {
+      amount: amountInPaise,
+      currency: 'INR',
+      receipt: `bk_${bookingData.bookingId.split('-')[0]}_${Date.now().toString().slice(-6)}`,
+      notes: {
+        booking_id: bookingData.bookingId,
+        vet_id: bookingData.vetId,
+        pet_id: bookingData.petId,
+        consultation_type: bookingData.consultationType,
+        user_id: bookingData.userId,
+      },
+    };
+    
+    console.log('🐛 DEBUG: Creating Razorpay order with options:', JSON.stringify(orderOptions, null, 2));
+    
+    const order = await razorpay.orders.create(orderOptions);
+    
+    console.log('🐛 DEBUG: Razorpay order created successfully:', JSON.stringify(order, null, 2));
+    
+    // Return the order details
+    const responseData = {
+      id: order.id,
+      amount: order.amount,
+      currency: order.currency,
+      keyId: keyId, // Send key ID to frontend
+      receipt: order.receipt,
+      status: order.status,
+      notes: order.notes,
+    };
+    
+    console.log('🐛 DEBUG: Sending response:', JSON.stringify(responseData, null, 2));
+    return res.status(200).json(responseData);
+    
+  } catch (error) {
+    console.error('🐛 DEBUG: Error in create-checkout-session:', error);
+    console.error('🐛 DEBUG: Error stack:', error.stack);
+    
+    return res.status(500).json({ 
+      error: 'Failed to create checkout session',
+      details: error.message || 'Unknown error occurred'
+    });
+  }
+});
+
+app.post('/api/verify-payment', async (req, res) => {
+  try {
+    console.log('🐛 DEBUG: Payment verification called');
+    console.log('🐛 DEBUG: Request body:', JSON.stringify(req.body, null, 2));
+    
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, booking_id } = req.body;
+    
+    if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !booking_id) {
+      console.error('🐛 DEBUG: Missing required payment verification data');
+      return res.status(400).json({ error: 'Missing required payment verification data' });
+    }
+    
+    // Get Razorpay configuration
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET;
+    
+    if (!keySecret) {
+      console.error('🐛 DEBUG: Razorpay key secret not configured');
+      return res.status(500).json({ error: 'Payment verification not configured' });
+    }
+    
+    // Verify signature
+    const crypto = require('crypto');
+    const expectedSignature = crypto
+      .createHmac('sha256', keySecret)
+      .update(`${razorpay_order_id}|${razorpay_payment_id}`)
+      .digest('hex');
+    
+    if (expectedSignature !== razorpay_signature) {
+      console.error('🐛 DEBUG: Payment signature verification failed');
+      console.error('🐛 DEBUG: Expected:', expectedSignature);
+      console.error('🐛 DEBUG: Received:', razorpay_signature);
+      return res.status(400).json({ error: 'Payment verification failed' });
+    }
+    
+    console.log('🐛 DEBUG: Payment signature verified successfully');
+    
+    // Check if booking_id is a temporary ID (starts with "temp_")
+    if (booking_id.startsWith('temp_')) {
+      console.log('🐛 DEBUG: Temporary booking ID detected, payment verified for frontend handling');
+      // For temporary booking IDs, just return success
+      // The frontend will handle creating the actual booking
+      return res.status(200).json({
+        success: true,
+        message: 'Payment verified successfully',
+        payment_id: razorpay_payment_id,
+        order_id: razorpay_order_id,
+        booking_id: booking_id,
+        isTemporaryBooking: true
+      });
+    }
+    
+    // If it's a real booking ID, update the existing booking
+    // (This would be for any legacy flow or admin operations)
+    console.log('🐛 DEBUG: Real booking ID detected, would update existing booking');
+    
+    return res.status(200).json({
+      success: true,
+      message: 'Payment verified successfully',
+      payment_id: razorpay_payment_id,
+      order_id: razorpay_order_id,
+      booking_id: booking_id,
+      isTemporaryBooking: false
+    });
+    
+  } catch (error) {
+    console.error('🐛 DEBUG: Error verifying payment:', error);
+    console.error('🐛 DEBUG: Error stack:', error.stack);
+    
+    return res.status(500).json({ 
+      error: 'Failed to verify payment',
+      details: error.message || 'Unknown error occurred'
+    });
+  }
+});
+
 // Health check endpoint
 app.get('/api/health', (req, res) => {
   try {
@@ -261,4 +475,31 @@ app.use((req, res, next) => {
 app.listen(PORT, () => {
   console.log(`API server running on port ${PORT}`);
   console.log(`Whereby API proxy available at http://localhost:${PORT}/api/whereby/meetings`);
+  console.log(`Razorpay API available at http://localhost:${PORT}/api/create-checkout-session`);
+  console.log(`Health check available at http://localhost:${PORT}/api/health`);
+  console.log('Server is ready to accept connections');
+});
+
+// Add a simple test endpoint
+app.get('/api/test', (req, res) => {
+  res.json({ 
+    status: 'ok', 
+    message: 'Server is working',
+    timestamp: new Date().toISOString(),
+    environment: {
+      razorpay_configured: !!(process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID),
+      whereby_configured: !!(process.env.WHEREBY_API_KEY || process.env.VITE_WHEREBY_API_KEY)
+    }
+  });
+});
+
+// Keep the process alive
+process.on('SIGTERM', () => {
+  console.log('Received SIGTERM, shutting down gracefully');
+  process.exit(0);
+});
+
+process.on('SIGINT', () => {
+  console.log('Received SIGINT, shutting down gracefully');
+  process.exit(0);
 });

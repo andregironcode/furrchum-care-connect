@@ -155,9 +155,15 @@ interface SupabaseTransaction {
   payment_method: string | null;
   created_at: string | null;
   updated_at?: string | null;
-  user_id?: string | null;
+  pet_owner_id?: string | null; // Changed from user_id to pet_owner_id
   transaction_reference?: string | null;
   description?: string | null;
+  // New Razorpay fields
+  provider?: string | null;
+  provider_payment_id?: string | null;
+  provider_order_id?: string | null;
+  payment_intent_id?: string | null;
+  customer_email?: string | null;
 }
 
 // Analytics interfaces

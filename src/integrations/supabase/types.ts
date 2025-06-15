@@ -23,6 +23,15 @@ export type Database = {
           status: string
           updated_at: string
           vet_id: string
+          payment_status: string | null
+          meeting_id: string | null
+          meeting_url: string | null
+          host_meeting_url: string | null
+          payment_id: string | null
+          payment_provider: string | null
+          payment_data: Json | null
+          razorpay_payment_id: string | null
+          razorpay_order_id: string | null
         }
         Insert: {
           booking_date: string
@@ -37,6 +46,15 @@ export type Database = {
           status?: string
           updated_at?: string
           vet_id: string
+          payment_status?: string | null
+          meeting_id?: string | null
+          meeting_url?: string | null
+          host_meeting_url?: string | null
+          payment_id?: string | null
+          payment_provider?: string | null
+          payment_data?: Json | null
+          razorpay_payment_id?: string | null
+          razorpay_order_id?: string | null
         }
         Update: {
           booking_date?: string
@@ -51,6 +69,15 @@ export type Database = {
           status?: string
           updated_at?: string
           vet_id?: string
+          payment_status?: string | null
+          meeting_id?: string | null
+          meeting_url?: string | null
+          host_meeting_url?: string | null
+          payment_id?: string | null
+          payment_provider?: string | null
+          payment_data?: Json | null
+          razorpay_payment_id?: string | null
+          razorpay_order_id?: string | null
         }
         Relationships: [
           {
@@ -281,6 +308,12 @@ export type Database = {
           status: string
           transaction_reference: string | null
           updated_at: string | null
+          pet_owner_id: string | null
+          provider: string | null
+          provider_payment_id: string | null
+          provider_order_id: string | null
+          payment_intent_id: string | null
+          customer_email: string | null
         }
         Insert: {
           amount: number
@@ -293,6 +326,12 @@ export type Database = {
           status?: string
           transaction_reference?: string | null
           updated_at?: string | null
+          pet_owner_id?: string | null
+          provider?: string | null
+          provider_payment_id?: string | null
+          provider_order_id?: string | null
+          payment_intent_id?: string | null
+          customer_email?: string | null
         }
         Update: {
           amount?: number
@@ -305,6 +344,12 @@ export type Database = {
           status?: string
           transaction_reference?: string | null
           updated_at?: string | null
+          pet_owner_id?: string | null
+          provider?: string | null
+          provider_payment_id?: string | null
+          provider_order_id?: string | null
+          payment_intent_id?: string | null
+          customer_email?: string | null
         }
         Relationships: [
           {
@@ -312,6 +357,13 @@ export type Database = {
             columns: ["booking_id"]
             isOneToOne: false
             referencedRelation: "bookings"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "transactions_pet_owner_id_fkey"
+            columns: ["pet_owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

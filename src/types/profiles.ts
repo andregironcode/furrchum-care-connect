@@ -116,6 +116,10 @@ export interface Transaction {
   customer_email?: string;
   created_at: string;
   updated_at?: string;
-  user_id: string;
+  pet_owner_id: string;
   transaction_reference?: string;
+  provider?: string;
+  provider_payment_id?: string;
+  provider_order_id?: string;
+  description?: string;
 }

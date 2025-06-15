@@ -17,6 +17,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { createMeeting, deleteMeeting } from '@/lib/whereby';
+import RazorpayCheckout from '@/components/RazorpayCheckout';
 
 type CreateMeetingResponse = Awaited<ReturnType<typeof createMeeting>>;
 
@@ -38,6 +39,11 @@ interface VetDetails {
   offers_video_calls: boolean | null;
   offers_in_person: boolean | null;
 }
+
+// Helper function to get full name
+const getVetFullName = (vet: VetDetails): string => {
+  return `${vet.first_name} ${vet.last_name}`;
+};
 
 interface Pet {
   id: string;
@@ -100,6 +106,11 @@ const BookingPage = () => {
   const [isLoadingAvailability, setIsLoadingAvailability] = useState(true);
   const [bookedSlots, setBookedSlots] = useState<Record<string, string[]>>({});
   const [userProfile, setUserProfile] = useState<any>(null);
+  const [showPayment, setShowPayment] = useState(false);
+  const [pendingBookingId, setPendingBookingId] = useState<string | null>(null);
+  // State for booking data preparation (no actual booking created yet)
+  const [preparedBookingData, setPreparedBookingData] = useState<any>(null);
+  const [preparedMeetingDetails, setPreparedMeetingDetails] = useState<any>(null);
 
   // Check user access - vets shouldn't be able to book appointments
   useEffect(() => {
@@ -400,13 +411,14 @@ const BookingPage = () => {
       console.log('Creating meeting with times:', {
         startDate: startDate.toISOString(),
         appointmentTime: appointmentDate.toISOString(),
-        endDate: endDate.toISOString()
+        endDate: endDate.toISOString(),
+        duration: duration
       });
       
       const meeting = await createMeeting({
         roomNamePrefix: roomPrefix,
-        startDate, // Pass the start date set to 15 minutes before appointment time
-        endDate,
+        startDate: startDate, // Pass the start date set to 15 minutes before appointment time
+        endDate: endDate, // This is the key fix - ensuring endDate is properly provided
         fields: ['hostRoomUrl'],
         roomMode: 'group',
         roomModeProps: {
@@ -473,120 +485,140 @@ const BookingPage = () => {
       
       if (consultationType === 'video_call') {
         try {
-          // Create appointment date from selected date and time
-          const appointmentDate = new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`);
-          
-          // Create meeting with a start time 15 minutes before the appointment
-          const meeting = await createVideoMeeting(appointmentDate);
-          
-          if (!meeting || !meeting.roomUrl) {
-            throw new Error('Failed to create video meeting: Invalid response from Whereby');
+          const selectedPet = pets.find(p => p.id === selectedPetId);
+          if (!selectedPet) {
+            throw new Error('Selected pet not found');
           }
           
-          meetingDetails = {
-            meetingId: meeting.meetingId,
-            roomUrl: meeting.roomUrl,
-            hostRoomUrl: meeting.hostRoomUrl || null
-          };
+          // Create the full appointment date/time
+          const appointmentDateTime = new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}:00`);
           
-          console.log('Created meeting:', meetingDetails);
-        } catch (error) {
-          console.error('Error creating video meeting:', error);
-          toast.error(
-            error instanceof Error 
-              ? error.message 
-              : 'Failed to create video meeting. Please try again.'
-          );
-          setIsSubmitting(false);
-          return;
+          // Use the createVideoMeeting function with proper date calculation
+          meetingDetails = await createVideoMeeting(appointmentDateTime);
+          console.log('Meeting created successfully:', meetingDetails);
+        } catch (meetingError) {
+          console.error('Failed to create meeting:', meetingError);
+          throw new Error('Failed to create video meeting. Please try booking an in-person consultation instead.');
         }
       }
       
-      try {
-        const now = new Date().toISOString();
-        
-        // Create a confirmed booking directly (skipping payment)
-        const bookingData = {
-          vet_id: vetId,
-          pet_owner_id: user.id,
-          pet_id: selectedPetId || null,
-          booking_date: format(date, 'yyyy-MM-dd'),
-          start_time: timeSlot,
-          end_time: endTime,
-          consultation_type: consultationType,
-          notes: notes || '',
-          status: 'confirmed' as const, // Directly set to confirmed
-          payment_status: 'paid' as const, // Skip payment process
-          // Include meeting details if this is a video call
-          meeting_id: meetingDetails?.meetingId || null,
-          meeting_url: meetingDetails?.roomUrl || null,
-          host_meeting_url: meetingDetails?.hostRoomUrl || null,
-          created_at: now,
-          updated_at: now
-        } satisfies Omit<BookingData, 'id'>;
-        
-        // Insert the confirmed booking into the database
-        const { data: confirmedBooking, error: bookingError } = await supabase
-          .from('bookings')
-          .insert([bookingData])
-          .select()
-          .single();
-        
-        if (bookingError) {
-          throw new Error(bookingError.message || 'Failed to create booking');
-        }
-        
-        if (!confirmedBooking) {
-          throw new Error('No booking data returned from server');
-        }
-        
-        console.log('Successfully created booking:', confirmedBooking);
-        
-        // Show success message
-        toast.success(
-          consultationType === 'video_call' 
-            ? `Video consultation booked successfully! Meeting details will be available in your appointments.`
-            : `In-person appointment booked successfully!`, 
-          {
-            duration: 5000,
-            action: {
-              label: 'View Appointments',
-              onClick: () => navigate('/appointments')
-            }
-          }
-        );
-        
-        // Redirect to appointments page
-        navigate('/appointments');
-        
-      } catch (error) {
-        console.error('Error creating booking:', error);
-        
-        // If booking creation failed but we created a meeting, clean it up
-        if (meetingDetails?.meetingId) {
-          console.warn('Attempting to clean up orphaned meeting:', meetingDetails.meetingId);
-          try {
-            await deleteMeeting(meetingDetails.meetingId);
-            console.log('Successfully cleaned up orphaned meeting:', meetingDetails.meetingId);
-          } catch (cleanupError) {
-            console.error('Failed to clean up orphaned meeting:', cleanupError);
-          }
-        }
-        
-        throw error; // Re-throw to be caught by the outer try-catch
-      }
+      // Prepare booking data (don't create booking yet!)
+      const now = new Date().toISOString();
+      const bookingData = {
+        vet_id: vetId,
+        pet_owner_id: user.id,
+        pet_id: selectedPetId || null,
+        booking_date: format(date, 'yyyy-MM-dd'),
+        start_time: timeSlot,
+        end_time: endTime,
+        consultation_type: consultationType,
+        notes: notes || '',
+        status: 'confirmed' as const, // Will be confirmed when created after payment
+        payment_status: 'paid' as const, // Will be paid when created after payment
+        // Include meeting details if this is a video call
+        meeting_id: meetingDetails?.meetingId || null,
+        meeting_url: meetingDetails?.roomUrl || null,
+        host_meeting_url: meetingDetails?.hostRoomUrl || null,
+        created_at: now,
+        updated_at: now
+      };
       
-    } catch (err) {
-      console.error('Error creating booking:', err);
-      const errorMessage = err instanceof Error ? err.message : 'Failed to create booking. Please try again.';
-      setError(errorMessage);
-      toast.error(errorMessage, {
-        duration: 5000,
-        position: 'top-center' as const
-      });
+      console.log('Prepared booking data (not saved yet):', bookingData);
+      
+      // Store prepared data and show payment modal
+      setPreparedBookingData(bookingData);
+      setPreparedMeetingDetails(meetingDetails);
+      
+      // Generate a temporary booking ID for payment processing
+      const tempBookingId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      setPendingBookingId(tempBookingId);
+      setShowPayment(true);
+      
+    } catch (error) {
+      console.error('Booking preparation error:', error);
+      setError(error instanceof Error ? error.message : 'An unexpected error occurred');
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handlePaymentSuccess = async (paymentData: any) => {
+    try {
+      console.log('Payment successful:', paymentData);
+      
+      if (!preparedBookingData) {
+        throw new Error('No booking data prepared');
+      }
+      
+      // NOW create the actual booking after successful payment
+      console.log('Creating booking after successful payment...');
+      const { data: newBooking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert([preparedBookingData])
+        .select()
+        .single();
+      
+      if (bookingError) {
+        console.error('Error creating booking after payment:', bookingError);
+        throw new Error(bookingError.message || 'Failed to create booking after payment');
+      }
+      
+      if (!newBooking) {
+        throw new Error('No booking data returned from server');
+      }
+      
+      console.log('Successfully created booking after payment:', newBooking);
+      
+      // Show success message
+      toast.success(
+        consultationType === 'video_call' 
+          ? `Video consultation booked and paid successfully! Meeting details will be available in your appointments.`
+          : `In-person appointment booked and paid successfully!`, 
+        {
+          duration: 5000,
+          action: {
+            label: 'View Appointments',
+            onClick: () => navigate('/appointments')
+          }
+        }
+      );
+      
+      // Reset form and prepared data
+      setSelectedPetId('');
+      setDate(null);
+      setTimeSlot('');
+      setNotes('');
+      setShowPayment(false);
+      setPendingBookingId(null);
+      setPreparedBookingData(null);
+      setPreparedMeetingDetails(null);
+      
+      // Navigate to appointments page after a short delay
+      setTimeout(() => {
+        navigate('/appointments');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Error handling payment success:', error);
+      toast.error('Payment was successful but there was an error creating your booking. Please contact support with your payment details.');
+    }
+  };
+
+  const handlePaymentFailure = (error: any) => {
+    console.error('Payment failed:', error);
+    toast.error('Payment failed. Please try again.');
+    setShowPayment(false);
+    setPendingBookingId(null);
+    setPreparedBookingData(null);
+    setPreparedMeetingDetails(null);
+  };
+
+  const handlePaymentCancel = () => {
+    toast.info('Payment cancelled.');
+    setShowPayment(false);
+    setPendingBookingId(null);
+    setPreparedBookingData(null);
+    setPreparedMeetingDetails(null);
   };
 
   if (isLoading) {
@@ -957,6 +989,40 @@ const BookingPage = () => {
           </Card>
         </div>
       </div>
+
+      {showPayment && pendingBookingId && user && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-lg w-full max-h-[90vh] overflow-y-auto">
+            <div className="p-4 border-b">
+              <h2 className="text-xl font-semibold">Complete Payment</h2>
+              <p className="text-gray-600 text-sm">Secure your appointment with payment</p>
+            </div>
+            <div className="p-4">
+              <RazorpayCheckout
+                bookingData={{
+                  bookingId: pendingBookingId,
+                  vetId: vetId!,
+                  vetName: getVetFullName(vet),
+                  petId: selectedPetId!,
+                  petName: pets.find(p => p.id === selectedPetId)?.name || 'Pet',
+                  userId: user.id,
+                  userEmail: user.email || '',
+                  userName: user.user_metadata?.full_name || userProfile?.full_name || 'User',
+                  userContact: userProfile?.phone_number || '9999999999',
+                  consultationMode: consultationType,
+                  consultationType: consultationType,
+                  date: date ? format(date, 'PPP') : '',
+                  timeSlot: timeSlot,
+                  fee: vet?.consultation_fee || 0,
+                }}
+                onSuccess={handlePaymentSuccess}
+                onFailure={handlePaymentFailure}
+                onCancel={handlePaymentCancel}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

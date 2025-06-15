@@ -10,14 +10,22 @@ export default defineConfig(({ mode }) => {
   return {
     server: {
       host: "0.0.0.0",
-      port: 8080,
+      port: 8082,
       proxy: {
-        // Proxy API requests to our Next.js API route
+        // Proxy API requests to our Express server
         '/api': {
           target: 'http://localhost:3001',
           changeOrigin: true,
           secure: false,
           rewrite: (path) => path,
+          configure: (proxy, options) => {
+            proxy.on('error', (err, req, res) => {
+              console.log('Proxy error:', err);
+            });
+            proxy.on('proxyReq', (proxyReq, req, res) => {
+              console.log('Proxying request:', req.method, req.url);
+            });
+          }
         },
       },
     },

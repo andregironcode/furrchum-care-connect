@@ -7,8 +7,8 @@ import crypto from 'crypto';
 
 // Initialize Razorpay with key and secret
 export const razorpayInstance = new Razorpay({
-  key_id: process.env.VITE_RAZORPAY_KEY_ID || '',
-  key_secret: process.env.VITE_RAZORPAY_KEY_SECRET || '',
+  key_id: process.env.VITE_RAZORPAY_KEY_ID || process.env.RAZORPAY_KEY_ID || '',
+  key_secret: process.env.VITE_RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET || '',
 });
 
 // Initialize Supabase admin client for server operations
@@ -40,7 +40,7 @@ export const createHmac = crypto.createHmac;
 
 // Helper function to verify Razorpay webhook signatures
 export function verifyRazorpayWebhook(rawBody: string, signature: string) {
-  const webhookSecret = process.env.VITE_RAZORPAY_WEBHOOK_SECRET || '';
+  const webhookSecret = process.env.VITE_RAZORPAY_WEBHOOK_SECRET || process.env.RAZORPAY_WEBHOOK_SECRET || '';
   const expectedSignature = crypto
     .createHmac('sha256', webhookSecret)
     .update(rawBody)
@@ -51,7 +51,7 @@ export function verifyRazorpayWebhook(rawBody: string, signature: string) {
 
 // Helper function to verify Razorpay payment signatures
 export function verifyRazorpaySignature(orderId: string, paymentId: string, signature: string) {
-  const secretKey = process.env.VITE_RAZORPAY_KEY_SECRET || '';
+  const secretKey = process.env.VITE_RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET || '';
   const expectedSignature = crypto
     .createHmac('sha256', secretKey)
     .update(`${orderId}|${paymentId}`)

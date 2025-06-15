@@ -131,7 +131,7 @@ export const razorpayWebhook = async (req: Request, res: Response) => {
           payment_method: payload.method || 'card',
           customer_email: customerEmail,
           created_at: new Date().toISOString(),
-          user_id: user_id,
+          pet_owner_id: user_id,
           provider: 'razorpay',
           provider_payment_id: paymentId,
           provider_order_id: orderId

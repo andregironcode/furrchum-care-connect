@@ -21,7 +21,11 @@ try {
     'WHEREBY_API_KEY',
     'WHEREBY_API_URL',
     'RAZORPAY_KEY_ID',
-    'FRONTEND_URL'
+    'RAZORPAY_KEY_SECRET', 
+    'RAZORPAY_WEBHOOK_SECRET',
+    'FRONTEND_URL',
+    'RECAPTCHA_SITE_KEY',
+    'RECAPTCHA_SECRET_KEY'
   ];
   
   // Replace each placeholder with the actual environment variable

@@ -9,7 +9,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
     // Verify the payment signature
     const generatedSignature = createHmac(
       'sha256',
-      process.env.VITE_RAZORPAY_KEY_SECRET || ''
+      process.env.VITE_RAZORPAY_KEY_SECRET || process.env.RAZORPAY_KEY_SECRET || ''
     )
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex');
@@ -36,6 +36,7 @@ export const verifyPayment = async (req: Request, res: Response) => {
     const { error: updateError } = await supabase
       .from('bookings')
       .update({
+        status: 'confirmed',
         payment_status: 'paid',
         payment_id: razorpay_payment_id,
         payment_provider: 'razorpay',
@@ -48,6 +49,9 @@ export const verifyPayment = async (req: Request, res: Response) => {
           status: payment.status,
           created_at: new Date().toISOString(),
         },
+        razorpay_payment_id: razorpay_payment_id,
+        razorpay_order_id: razorpay_order_id,
+        updated_at: new Date().toISOString(),
       })
       .eq('id', booking_id);
 

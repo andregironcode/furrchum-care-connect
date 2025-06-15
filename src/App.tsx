@@ -29,6 +29,7 @@ import VetDetailsPage from "./pages/VetDetailsPage";
 import WherebyTest from "./components/WherebyTest";
 import WherebyTestEnhanced from '@/components/WherebyTest.enhanced';
 import TestVideoCallPage from "./pages/TestVideoCallPage";
+import TestPaymentPage from "./pages/TestPaymentPage";
 import SuperAdminAuth from "./pages/SuperAdminAuth";
 import SuperAdminDashboard from "./pages/SuperAdminDashboard";
 import SuperAdminGuard from "./components/SuperAdminGuard";
@@ -76,6 +77,7 @@ const App = () => {
                 <Route path="/additional-policies" element={<AdditionalPoliciesPage />} />
                 <Route path="/contact" element={<ContactPage />} />
                 <Route path="/test-video-call" element={<TestVideoCallPage />} />
+                <Route path="/test-payment" element={<TestPaymentPage />} />
                 
                 {/* Super Admin Routes */}
                 <Route path="/superadmin/auth" element={<SuperAdminAuth />} />
