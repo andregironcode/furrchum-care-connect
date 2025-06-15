@@ -260,11 +260,6 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
             </>
           )}
         </Button>
-
-        {/* Test Mode Notice */}
-        <div className="text-xs text-center text-gray-500 bg-yellow-50 p-2 rounded">
-          <strong>Test Mode:</strong> Use test card 4111 1111 1111 1111 for testing
-        </div>
       </CardContent>
     </Card>
   );
