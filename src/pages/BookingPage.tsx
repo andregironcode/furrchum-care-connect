@@ -443,73 +443,76 @@ const BookingPage = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user) {
-      toast.error('You must be logged in to book an appointment');
-      navigate('/auth');
-      return;
-    }
-    
-    if (!selectedPetId) {
-      toast.error('Please select a pet');
-      return;
-    }
-    
-    if (!date) {
-      toast.error('Please select a date');
-      return;
-    }
-    
-    if (!timeSlot) {
-      toast.error('Please select a time slot');
-      return;
-    }
-    
-    if (!vetId || !vet) {
-      toast.error('Vet information is missing');
-      return;
-    }
-    
-    setIsSubmitting(true);
-    setError(null);
+    if (isSubmitting) return;
     
     try {
-      // Calculate end time
-      const endTime = format(new Date(new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}`).getTime() + duration * 60000), 'HH:mm');
+      setIsSubmitting(true);
+      setError(null);
       
-      // If it's a video call, create a meeting first
-      let meetingDetails: {
-        meetingId: string;
-        roomUrl: string;
-        hostRoomUrl: string | null;
-      } | null = null;
+      // Validate all required fields
+      validateBookingDetails();
       
+      if (!user?.id) {
+        throw new Error('User not authenticated');
+      }
+      
+      if (!vet) {
+        throw new Error('Vet information not available');
+      }
+      
+      // Validate booking time is in the future with proper date/time parsing
+      const [hours, minutes] = timeSlot.split(':').map(Number);
+      const bookingDateTime = new Date(date!);
+      bookingDateTime.setHours(hours, minutes, 0, 0);
+      
+      const currentTime = new Date();
+      console.log('Booking validation:', {
+        bookingDateTime: bookingDateTime.toISOString(),
+        now: currentTime.toISOString(),
+        isInFuture: bookingDateTime > currentTime
+      });
+      
+      if (bookingDateTime <= currentTime) {
+        throw new Error('The selected booking time must be in the future. Please choose a different time slot.');
+      }
+      
+      // Calculate end time (30 minutes later)
+      const endHour = hours + Math.floor((minutes + 30) / 60);
+      const endMinute = (minutes + 30) % 60;
+      const endTime = `${endHour.toString().padStart(2, '0')}:${endMinute.toString().padStart(2, '0')}`;
+      
+      // Format times properly for database (HH:MM format)
+      const startTime = `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+      
+      console.log('Time calculation:', {
+        timeSlot,
+        startTime,
+        endTime,
+        hours,
+        minutes
+      });
+      
+      // Create video meeting if needed
+      let meetingDetails: CreateMeetingResponse | null = null;
       if (consultationType === 'video_call') {
         try {
-          const selectedPet = pets.find(p => p.id === selectedPetId);
-          if (!selectedPet) {
-            throw new Error('Selected pet not found');
-          }
-          
-          // Create the full appointment date/time
-          const appointmentDateTime = new Date(`${format(date, 'yyyy-MM-dd')}T${timeSlot}:00`);
-          
-          // Use the createVideoMeeting function with proper date calculation
-          meetingDetails = await createVideoMeeting(appointmentDateTime);
-          console.log('Meeting created successfully:', meetingDetails);
+          meetingDetails = await createVideoMeeting(bookingDateTime);
+          console.log('Video meeting created:', meetingDetails);
         } catch (meetingError) {
-          console.error('Failed to create meeting:', meetingError);
-          throw new Error('Failed to create video meeting. Please try booking an in-person consultation instead.');
+          console.error('Failed to create video meeting:', meetingError);
+          throw new Error('Failed to create video meeting. Please try again or select in-person consultation.');
         }
       }
       
-      // Prepare booking data (don't create booking yet!)
-      const now = new Date().toISOString();
+      // Prepare booking data (don't save yet, wait for payment)
+      const currentISOTime = new Date().toISOString();
+      
       const bookingData = {
         vet_id: vetId,
         pet_owner_id: user.id,
         pet_id: selectedPetId || null,
-        booking_date: format(date, 'yyyy-MM-dd'),
-        start_time: timeSlot,
+        booking_date: format(date!, 'yyyy-MM-dd'),
+        start_time: startTime,
         end_time: endTime,
         consultation_type: consultationType,
         notes: notes || '',
@@ -519,8 +522,8 @@ const BookingPage = () => {
         meeting_id: meetingDetails?.meetingId || null,
         meeting_url: meetingDetails?.roomUrl || null,
         host_meeting_url: meetingDetails?.hostRoomUrl || null,
-        created_at: now,
-        updated_at: now
+        created_at: currentISOTime,
+        updated_at: currentISOTime
       };
       
       console.log('Prepared booking data (not saved yet):', bookingData);
@@ -528,7 +531,7 @@ const BookingPage = () => {
       // Store prepared data and show payment modal
       setPreparedBookingData(bookingData);
       setPreparedMeetingDetails(meetingDetails);
-      
+        
       // Generate a temporary booking ID for payment processing
       const tempBookingId = `temp_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
       setPendingBookingId(tempBookingId);
@@ -550,30 +553,81 @@ const BookingPage = () => {
         throw new Error('No booking data prepared');
       }
       
-      // NOW create the actual booking after successful payment
-      console.log('Creating booking after successful payment...');
-      const { data: newBooking, error: bookingError } = await supabase
-        .from('bookings')
-        .insert([preparedBookingData])
-        .select()
-        .single();
+      // Validate that the booking date/time is still in the future
+      const bookingDateTime = new Date(`${preparedBookingData.booking_date}T${preparedBookingData.start_time}`);
+      const now = new Date();
       
-      if (bookingError) {
-        console.error('Error creating booking after payment:', bookingError);
-        throw new Error(bookingError.message || 'Failed to create booking after payment');
+      if (bookingDateTime <= now) {
+        throw new Error('Booking time has passed. Please select a new time slot.');
       }
       
+      // Add payment references to the booking data
+      const finalBookingData = {
+        ...preparedBookingData,
+        payment_status: 'paid',
+        payment_id: paymentData.razorpay_payment_id || paymentData.payment_id,
+        payment_provider: 'razorpay',
+        razorpay_payment_id: paymentData.razorpay_payment_id || paymentData.payment_id,
+        razorpay_order_id: paymentData.razorpay_order_id || paymentData.order_id,
+        updated_at: new Date().toISOString()
+      };
+      
+      console.log('Creating booking after successful payment...');
+      console.log('Final booking data:', finalBookingData);
+      
+      // NOW create the actual booking after successful payment
+      const { data: newBooking, error: bookingError } = await supabase
+        .from('bookings')
+        .insert([finalBookingData])
+        .select()
+        .single();
+        
+      if (bookingError) {
+        console.error('Error creating booking after payment:', bookingError);
+        
+        // Handle specific constraint violations
+        if (bookingError.message?.includes('no_past_bookings')) {
+          throw new Error('The selected booking time is no longer available. Please select a new time slot.');
+        } else if (bookingError.message?.includes('duplicate')) {
+          throw new Error('This time slot has already been booked. Please select a different time.');
+        } else {
+          throw new Error(bookingError.message || 'Failed to create booking after payment');
+        }
+      }
+        
       if (!newBooking) {
         throw new Error('No booking data returned from server');
       }
-      
+        
       console.log('Successfully created booking after payment:', newBooking);
-      
+        
+      // Link the transaction to the actual booking if we have transaction info
+      if (paymentData.transaction_id && newBooking.id) {
+        try {
+          console.log('Linking transaction to booking...');
+          const { error: linkError } = await supabase
+            .from('transactions')
+            .update({
+              booking_id: newBooking.id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', paymentData.transaction_id);
+          
+          if (linkError) {
+            console.error('Error linking transaction to booking:', linkError);
+          } else {
+            console.log('Transaction successfully linked to booking');
+          }
+        } catch (linkError) {
+          console.error('Error in transaction linking process:', linkError);
+        }
+      }
+        
       // Show success message
       toast.success(
         consultationType === 'video_call' 
-          ? `Video consultation booked and paid successfully! Meeting details will be available in your appointments.`
-          : `In-person appointment booked and paid successfully!`, 
+        ? `Video consultation booked and paid successfully! Meeting details will be available in your appointments.`
+        : `In-person appointment booked and paid successfully!`, 
         {
           duration: 5000,
           action: {
@@ -582,7 +636,7 @@ const BookingPage = () => {
           }
         }
       );
-      
+        
       // Reset form and prepared data
       setSelectedPetId('');
       setDate(null);
@@ -597,10 +651,12 @@ const BookingPage = () => {
       setTimeout(() => {
         navigate('/appointments');
       }, 2000);
-      
-    } catch (error) {
+        
+    } catch (error: any) {
       console.error('Error handling payment success:', error);
-      toast.error('Payment was successful but there was an error creating your booking. Please contact support with your payment details.');
+      toast.error(
+        error.message || 'Payment was successful but there was an error creating your booking. Please contact support with your payment details.'
+      );
     }
   };
 

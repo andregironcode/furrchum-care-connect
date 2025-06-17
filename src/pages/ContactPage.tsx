@@ -150,8 +150,8 @@ const ContactPage = () => {
                   <div>
                     <h3 className="text-sm font-medium text-gray-900">Email</h3>
                     <p className="text-sm text-gray-600 mt-1">
-                      <a href="mailto:abhishekverma@furrchum.com" className="hover:text-primary transition-colors">
-                        abhishekverma@furrchum.com
+                      <a href="mailto:info@furrchum.com" className="hover:text-primary transition-colors">
+                        info@furrchum.com
                       </a>
                     </p>
                     <p className="text-sm text-gray-600 mt-2 font-medium">For investors:</p>

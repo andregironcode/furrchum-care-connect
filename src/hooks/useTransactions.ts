@@ -67,7 +67,7 @@ interface UseTransactionsOptions {
 }
 
 export const useTransactions = (options: UseTransactionsOptions) => {
-  const { userRole, userId, status, limit = 100 } = options;
+  const { userRole, userId, status, limit = 1000 } = options;
   const { user } = useAuth();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [stats, setStats] = useState<TransactionStats | null>(null);
@@ -79,6 +79,78 @@ export const useTransactions = (options: UseTransactionsOptions) => {
       setLoading(true);
       setError(null);
 
+      // For admin users, use a completely unrestricted query
+      if (userRole === 'admin') {
+        console.log('🔧 Admin fetching ALL transactions with no restrictions...');
+        
+        // Direct basic query for admin - no RLS restrictions
+        const { data, error: fetchError } = await supabase
+          .from('transactions')
+          .select('*')
+          .order('created_at', { ascending: false })
+          .limit(limit);
+
+        if (fetchError) {
+          console.error('Admin transaction fetch error:', fetchError);
+          throw new Error(fetchError.message);
+        }
+
+        console.log('🎯 Admin fetched transactions:', data?.length || 0);
+
+        // Process transactions - simplified for admin
+        const processedTransactions: Transaction[] = (data || []).map((transaction: any) => ({
+          ...transaction,
+          // Ensure required fields are present
+          created_at: transaction.created_at || new Date().toISOString(),
+          updated_at: transaction.updated_at || new Date().toISOString(),
+          currency: transaction.currency || 'INR',
+          provider: transaction.provider || 'razorpay',
+          status: transaction.status || 'pending',
+          payment_method: transaction.payment_method || null,
+          transaction_reference: transaction.transaction_reference || null,
+          description: transaction.description || null,
+          pet_owner_id: transaction.pet_owner_id || null,
+          provider_payment_id: transaction.provider_payment_id || null,
+          provider_order_id: transaction.provider_order_id || null,
+          payment_intent_id: transaction.payment_intent_id || null,
+          customer_email: transaction.customer_email || null
+        }));
+
+        setTransactions(processedTransactions);
+
+        // Calculate basic stats for admin
+        if (processedTransactions.length > 0) {
+          const totalAmount = processedTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+          const totalTransactions = processedTransactions.length;
+          const completedTransactions = processedTransactions.filter(t => 
+            t.status === 'completed' || t.status === 'success'
+          ).length;
+          const pendingTransactions = processedTransactions.filter(t => t.status === 'pending').length;
+          const failedTransactions = processedTransactions.filter(t => t.status === 'failed').length;
+
+          // Calculate platform fees and vet earnings
+          const platformFees = completedTransactions * 121; // Fixed ₹121 per completed transaction
+          const vetEarnings = totalAmount - platformFees;
+
+          setStats({
+            totalAmount,
+            totalTransactions,
+            completedTransactions,
+            pendingTransactions,
+            failedTransactions,
+            thisMonthAmount: 0, // Will calculate if needed
+            lastMonthAmount: 0,
+            platformFees,
+            vetEarnings
+          });
+        } else {
+          setStats(null);
+        }
+
+        return; // Exit early for admin
+      }
+
+      // Regular flow for non-admin users
       let query = supabase
         .from('transactions')
         .select(`
@@ -112,7 +184,7 @@ export const useTransactions = (options: UseTransactionsOptions) => {
         .order('created_at', { ascending: false })
         .limit(limit);
 
-      // Apply role-based filtering
+      // Apply role-based filtering for non-admin users
       if (userRole === 'pet_owner') {
         const currentUserId = userId || user?.id;
         if (!currentUserId) {
@@ -142,7 +214,6 @@ export const useTransactions = (options: UseTransactionsOptions) => {
           return;
         }
       }
-      // For admin role, don't add additional filters (show all)
 
       // Apply status filter if provided
       if (status && status !== 'all') {

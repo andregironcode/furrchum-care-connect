@@ -98,11 +98,11 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
       }
 
       const responseData = await response.json();
-      const { id: orderId, amount, currency, keyId } = responseData;
+      const { orderId, amount, currency, key } = responseData;
 
       // Configure Razorpay options
       const options = {
-        key: keyId,
+        key: key,
         amount: amount,
         currency: currency,
         name: 'FurrChum Care Connect',

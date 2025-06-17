@@ -3,6 +3,7 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const path = require('path');
 const fetch = (...args) => import('node-fetch').then(({default: fetch}) => fetch(...args));
+const { createClient } = require('@supabase/supabase-js');
 require('dotenv').config();
 
 // Add process error handlers
@@ -27,6 +28,18 @@ if (!process.env.RAZORPAY_KEY_ID && !process.env.VITE_RAZORPAY_KEY_ID) {
   console.log('Using hardcoded Razorpay test keys');
 }
 
+// Set Supabase configuration if not available
+if (!process.env.SUPABASE_URL && !process.env.VITE_SUPABASE_URL) {
+  process.env.VITE_SUPABASE_URL = 'https://lrcsczyxdjhrfycxnjxi.supabase.co';
+  console.log('Using hardcoded Supabase URL');
+}
+
+if (!process.env.SUPABASE_SERVICE_ROLE_KEY) {
+  // Service role key for this specific project
+  process.env.SUPABASE_SERVICE_ROLE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImxyY3Njenl4ZGpocmZ5Y3huanhpIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc0Nzk5MjE1OCwiZXhwIjoyMDYzNTY4MTU4fQ.zJv03B-B8zDxtikw7iKe3MbXIpwcHrriROFaCL6k9QE';
+  console.log('Using hardcoded Supabase service role key');
+}
+
 if (!process.env.WHEREBY_API_KEY && !process.env.VITE_WHEREBY_API_KEY) {
   process.env.VITE_WHEREBY_API_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2FjY291bnRzLmFwcGVhci5pbiIsImF1ZCI6Imh0dHBzOi8vYXBpLmFwcGVhci5pbi92MSIsImV4cCI6OTAwNzE5OTI1NDc0MDk5MSwiaWF0IjoxNzQ4MTEwMDA4LCJvcmdhbml6YXRpb25JZCI6MzE2MjE1LCJqdGkiOiIxODMyZTQ0OC01MDUzLTQ3ZTUtOTFlZC0wZDBmNmVjMDk0YWYifQ.gIewodxwfMmU9a9ol3kgB1StTRoPX4vk95FeO38V4HM';
   process.env.VITE_WHEREBY_API_URL = 'https://api.whereby.dev/v1';
@@ -38,11 +51,15 @@ console.log('- RAZORPAY_KEY_ID:', process.env.RAZORPAY_KEY_ID ? 'SET' : 'NOT SET
 console.log('- VITE_RAZORPAY_KEY_ID:', process.env.VITE_RAZORPAY_KEY_ID ? 'SET' : 'NOT SET');
 console.log('- WHEREBY_API_KEY:', process.env.WHEREBY_API_KEY ? 'SET' : 'NOT SET');
 console.log('- VITE_WHEREBY_API_KEY:', process.env.VITE_WHEREBY_API_KEY ? 'SET' : 'NOT SET');
+console.log('- SUPABASE_URL:', process.env.SUPABASE_URL ? 'SET' : 'NOT SET');
+console.log('- VITE_SUPABASE_URL:', process.env.VITE_SUPABASE_URL ? 'SET' : 'NOT SET');
+console.log('- SUPABASE_SERVICE_ROLE_KEY:', process.env.SUPABASE_SERVICE_ROLE_KEY ? 'SET' : 'NOT SET');
+console.log('- VITE_SUPABASE_ANON_KEY:', process.env.VITE_SUPABASE_ANON_KEY ? 'SET' : 'NOT SET');
 
 // Import Resend for email functionality
 let resend;
 try {
-  const { Resend } = require('resend');
+const { Resend } = require('resend');
   resend = new Resend(process.env.VITE_RESEND_API_KEY);
   console.log('Resend initialized successfully');
 } catch (error) {
@@ -281,12 +298,12 @@ app.post('/api/create-checkout-session', async (req, res) => {
     const keySecret = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET;
     
     // Debug logging (safely)
-    console.log('🐛 DEBUG: Razorpay Key ID:', keyId ? `${keyId.substring(0, 8)}...` : 'NOT SET');
-    console.log('🐛 DEBUG: Razorpay Key Secret:', keySecret ? `${keySecret.substring(0, 8)}...` : 'NOT SET');
+    console.log('🐛 DEBUG: Razorpay Key ID available:', !!keyId);
+    console.log('🐛 DEBUG: Razorpay Key Secret available:', !!keySecret);
     
     if (!keyId || !keySecret) {
-      console.error('🐛 DEBUG: Razorpay credentials not configured');
-      return res.status(500).json({ error: 'Payment system not configured' });
+      console.error('🐛 DEBUG: Missing Razorpay credentials');
+      return res.status(500).json({ error: 'Payment configuration error' });
     }
     
     // Initialize Razorpay
@@ -296,8 +313,15 @@ app.post('/api/create-checkout-session', async (req, res) => {
       key_secret: keySecret,
     });
     
+    // Handle both old and new format of booking data
+    const bookingId = bookingData.booking_id || bookingData.bookingId;
+    const petOwnerId = bookingData.pet_owner_id || bookingData.userId;
+    const vetId = bookingData.vet_id || bookingData.vetId;
+    const consultationType = bookingData.consultation_type || bookingData.consultationType || bookingData.consultationMode;
+    const fee = bookingData.fee || 10; // Default consultation fee
+    
     // Calculate amounts (in paise for Razorpay)
-    const consultationFee = bookingData.fee || 500;
+    const consultationFee = fee;
     const serviceFee = 121; // Fixed service fee of ₹121
     const totalAmount = consultationFee + serviceFee;
     const amountInPaise = totalAmount * 100; // Convert to paise
@@ -309,48 +333,89 @@ app.post('/api/create-checkout-session', async (req, res) => {
       amountInPaise
     });
     
-    // Create Razorpay order
+    // Create order options
     const orderOptions = {
       amount: amountInPaise,
       currency: 'INR',
-      receipt: `bk_${bookingData.bookingId.split('-')[0]}_${Date.now().toString().slice(-6)}`,
+      receipt: `booking_${bookingId || 'temp_' + Date.now()}`,
       notes: {
-        booking_id: bookingData.bookingId,
-        vet_id: bookingData.vetId,
-        pet_id: bookingData.petId,
-        consultation_type: bookingData.consultationType,
-        user_id: bookingData.userId,
-      },
+        booking_id: bookingId || 'temp_' + Date.now(),
+        pet_owner_id: petOwnerId,
+        vet_id: vetId,
+        consultation_type: consultationType || 'in_person'
+      }
     };
     
     console.log('🐛 DEBUG: Creating Razorpay order with options:', JSON.stringify(orderOptions, null, 2));
     
     const order = await razorpay.orders.create(orderOptions);
-    
     console.log('🐛 DEBUG: Razorpay order created successfully:', JSON.stringify(order, null, 2));
     
-    // Return the order details
-    const responseData = {
-      id: order.id,
+    // Create pending transaction in Supabase
+    console.log('🔄 DEBUG: Attempting to create pending transaction in Supabase...');
+    
+    try {
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      
+      console.log('🐛 DEBUG: Supabase URL value:', supabaseUrl);
+      console.log('🐛 DEBUG: Supabase Service Key available:', !!supabaseServiceKey);
+      console.log('🐛 DEBUG: Service Key first 20 chars:', supabaseServiceKey ? supabaseServiceKey.substring(0, 20) : 'NONE');
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        const transactionData = {
+          booking_id: bookingId && !bookingId.startsWith('temp_') ? bookingId : null, // Only set if real booking ID
+          amount: parseFloat(totalAmount.toFixed(2)), // Total amount in rupees
+          currency: 'INR',
+          status: 'pending',
+          payment_method: 'razorpay',
+          pet_owner_id: petOwnerId,
+          provider_order_id: order.id,
+          provider_payment_id: null, // Will be updated after payment
+          description: `Payment for consultation with ${bookingData.vetName || 'veterinarian'}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        console.log('🔄 DEBUG: Inserting transaction data:', JSON.stringify(transactionData, null, 2));
+        
+        const { data: transactionResult, error: transactionError } = await supabase
+          .from('transactions')
+          .insert([transactionData])
+          .select('*')
+          .single();
+          
+        if (transactionError) {
+          console.error('❌ DEBUG: Error creating pending transaction:', transactionError);
+          // Don't fail the order creation, just log the error
+        } else {
+          console.log('✅ DEBUG: Pending transaction created successfully:', transactionResult);
+        }
+      } else {
+        console.error('❌ DEBUG: Missing Supabase configuration for transaction creation');
+        console.error('❌ DEBUG: URL:', !!supabaseUrl, 'Key:', !!supabaseServiceKey);
+      }
+    } catch (transactionError) {
+      console.error('❌ DEBUG: Exception creating pending transaction:', transactionError);
+      // Don't fail the order creation, just log the error
+    }
+    
+    // Return the order details to frontend
+    const response = {
+      orderId: order.id,
       amount: order.amount,
       currency: order.currency,
-      keyId: keyId, // Send key ID to frontend
-      receipt: order.receipt,
-      status: order.status,
-      notes: order.notes,
+      key: keyId
     };
     
-    console.log('🐛 DEBUG: Sending response:', JSON.stringify(responseData, null, 2));
-    return res.status(200).json(responseData);
+    console.log('🐛 DEBUG: Sending response to frontend:', JSON.stringify(response, null, 2));
+    res.json(response);
     
   } catch (error) {
-    console.error('🐛 DEBUG: Error in create-checkout-session:', error);
-    console.error('🐛 DEBUG: Error stack:', error.stack);
-    
-    return res.status(500).json({ 
-      error: 'Failed to create checkout session',
-      details: error.message || 'Unknown error occurred'
-    });
+    console.error('❌ DEBUG: Error in create-checkout-session:', error);
+    res.status(500).json({ error: 'Failed to create payment session' });
   }
 });
 
@@ -393,7 +458,6 @@ app.post('/api/verify-payment', async (req, res) => {
     // Initialize Supabase client for transaction recording
     let transactionId = null;
     try {
-      const { createClient } = require('@supabase/supabase-js');
       const supabaseUrl = process.env.VITE_SUPABASE_URL;
       const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
       
@@ -456,6 +520,59 @@ app.post('/api/verify-payment', async (req, res) => {
     // Check if booking_id is a temporary ID (starts with "temp_")
     if (booking_id.startsWith('temp_')) {
       console.log('🐛 DEBUG: Temporary booking ID detected, payment verified for frontend handling');
+      
+      // Update transaction status to completed if it exists
+      try {
+        const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+        
+        if (supabaseUrl && supabaseServiceKey) {
+          const supabase = createClient(supabaseUrl, supabaseServiceKey);
+          
+          console.log('🔄 DEBUG: Looking for pending transaction with order ID:', razorpay_order_id);
+          
+          // Find and update the pending transaction with this order ID
+          const { data: existingTransaction, error: findError } = await supabase
+            .from('transactions')
+            .select('*')
+            .eq('provider_order_id', razorpay_order_id)
+            .eq('status', 'pending')
+            .single();
+          
+          if (!findError && existingTransaction) {
+            console.log('🔄 DEBUG: Found pending transaction, updating to completed:', existingTransaction.id);
+            
+            const { data: updatedTransaction, error: updateError } = await supabase
+              .from('transactions')
+              .update({
+                status: 'completed',
+                provider_payment_id: razorpay_payment_id,
+                transaction_reference: razorpay_payment_id,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingTransaction.id)
+              .select('*')
+              .single();
+            
+            if (updateError) {
+              console.error('❌ DEBUG: Error updating transaction status:', updateError);
+            } else {
+              console.log('✅ DEBUG: Transaction status updated to completed:', updatedTransaction);
+              transactionId = updatedTransaction.id;
+            }
+          } else {
+            console.error('❌ DEBUG: No pending transaction found for order ID:', razorpay_order_id);
+            if (findError) {
+              console.error('❌ DEBUG: Find error:', findError);
+            }
+          }
+        } else {
+          console.error('❌ DEBUG: Missing Supabase configuration for transaction update');
+        }
+      } catch (updateError) {
+        console.error('❌ DEBUG: Exception in transaction update process:', updateError);
+      }
+      
       // For temporary booking IDs, just return success
       // The frontend will handle creating the actual booking
       return res.status(200).json({

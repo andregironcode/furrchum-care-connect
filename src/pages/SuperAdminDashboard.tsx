@@ -34,6 +34,7 @@ import { downloadFile, openFile } from '@/utils/supabaseStorage';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart } from 'recharts';
 import { useTransactions } from '@/hooks/useTransactions';
+import { useAuth } from '@/context/AuthContext';
 
 // Interface definitions
 interface AppointmentWithDetails {
@@ -604,6 +605,11 @@ const EnhancedTransactionRow: React.FC<{ transaction: SupabaseTransaction }> = (
 };
 
 const SuperAdminDashboard = () => {
+  // Auth context
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  const { user } = useAuth();
+  
   // State for data
   const [vets, setVets] = useState<SupabaseVetProfile[]>([]);
   const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
@@ -620,8 +626,29 @@ const SuperAdminDashboard = () => {
     error: transactionsError,
     refetch: refetchTransactions
   } = useTransactions({
-    userRole: 'admin'
+    userRole: 'admin',
+    limit: 1000 // Increase limit for admin to see more transactions
   });
+  
+  // Debug transactions
+  useEffect(() => {
+    console.log('🔍 SuperAdmin Transactions Debug:', {
+      transactions: transactions.length,
+      loading: transactionsLoading,
+      error: transactionsError,
+      user: user?.email,
+      userRole: user?.user_metadata?.user_type,
+      rawTransactions: transactions.slice(0, 3) // Log first 3 transactions for debugging
+    });
+    
+    // Force refetch if we have user but no transactions
+    if (user && !transactionsLoading && transactions.length === 0 && !transactionsError) {
+      console.log('🔄 Forcing transaction refetch for admin...');
+      setTimeout(() => {
+        refetchTransactions();
+      }, 1000);
+    }
+  }, [transactions, transactionsLoading, transactionsError, user, refetchTransactions]);
   
   // UI state
   const [searchTerm, setSearchTerm] = useState('');
@@ -662,9 +689,6 @@ const SuperAdminDashboard = () => {
   
   // View mode for vets (cards or table)
   const [activeView, setActiveView] = useState<'cards' | 'table'>('table');
-  
-  const navigate = useNavigate();
-  const { toast } = useToast();
   
   // Fetch data function
   const fetchData = async () => {
@@ -959,6 +983,7 @@ const SuperAdminDashboard = () => {
       navigate('/superadmin/auth');
     }
   }, [navigate]);
+  
   // Force refresh data from the database
   const forceRefreshData = async () => {
     setLoading(true);
@@ -1060,11 +1085,6 @@ const SuperAdminDashboard = () => {
       setTimeout(() => {
         fetchData();
       }, 1000);
-      
-      // Exit review mode if we were in it
-      if (reviewMode) {
-        setReviewMode(false);
-      }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Failed to update vet status';
       
@@ -2297,12 +2317,18 @@ Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {loading ? (
+                      {transactionsLoading ? (
                         <TableRow>
                           <TableCell colSpan={10} className="text-center py-8">
                             <div className="flex justify-center">
                               <Loader2 className="h-8 w-8 animate-spin text-primary" />
                             </div>
+                          </TableCell>
+                        </TableRow>
+                      ) : transactionsError ? (
+                        <TableRow>
+                          <TableCell colSpan={10} className="text-center text-red-500 py-8">
+                            Error loading transactions: {transactionsError}
                           </TableCell>
                         </TableRow>
                       ) : transactions.length === 0 ? (
