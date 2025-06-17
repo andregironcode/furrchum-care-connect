@@ -33,7 +33,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     
     // Calculate amounts (in paise for Razorpay)
     const consultationFee = bookingData.fee || 500;
-    const serviceFee = Math.round(consultationFee * 0.05); // 5% service fee
+    const serviceFee = 121; // Fixed service fee of ₹121
     const totalAmount = consultationFee + serviceFee;
     const amountInPaise = totalAmount * 100; // Convert to paise
     

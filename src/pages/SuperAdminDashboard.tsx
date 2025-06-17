@@ -33,6 +33,7 @@ import { UserProfile, VetProfile, Appointment, Transaction } from '@/types/profi
 import { downloadFile, openFile } from '@/utils/supabaseStorage';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { LineChart, Line, BarChart, Bar, PieChart as RechartsPieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Area, AreaChart } from 'recharts';
+import { useTransactions } from '@/hooks/useTransactions';
 
 // Interface definitions
 interface AppointmentWithDetails {
@@ -421,15 +422,206 @@ const calculateAnalytics = (
   };
 };
 
+// Enhanced Transaction Row Component with dynamic data fetching
+const EnhancedTransactionRow: React.FC<{ transaction: SupabaseTransaction }> = ({ transaction }) => {
+  const [bookingDetails, setBookingDetails] = useState<{
+    petName: string;
+    ownerName: string;
+    vetName: string;
+    consultationType: string;
+  } | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchBookingDetails = async () => {
+      if (!transaction.booking_id) return;
+      
+      setLoading(true);
+      try {
+        // Fetch booking with related data
+        const { data: booking, error: bookingError } = await supabase
+          .from('bookings')
+          .select(`
+            consultation_type,
+            pet_id,
+            vet_id,
+            pet_owner_id
+          `)
+          .eq('id', transaction.booking_id)
+          .single();
+
+        if (bookingError) {
+          console.error('Error fetching booking:', bookingError);
+          return;
+        }
+
+        if (booking) {
+          // Fetch related data in parallel
+          const [
+            { data: petData },
+            { data: ownerData },
+            { data: vetData }
+          ] = await Promise.all([
+            booking.pet_id ? supabase.from('pets').select('name').eq('id', booking.pet_id).single() : Promise.resolve({ data: null }),
+            booking.pet_owner_id ? supabase.from('profiles').select('full_name').eq('id', booking.pet_owner_id).single() : Promise.resolve({ data: null }),
+            booking.vet_id ? supabase.from('vet_profiles').select('first_name, last_name').eq('id', booking.vet_id).single() : Promise.resolve({ data: null })
+          ]);
+
+          setBookingDetails({
+            petName: petData?.name || 'Unknown Pet',
+            ownerName: ownerData?.full_name || 'Unknown Owner',
+            vetName: vetData ? `Dr. ${vetData.first_name} ${vetData.last_name}` : 'Unknown Vet',
+            consultationType: booking.consultation_type || 'Unknown'
+          });
+        }
+      } catch (error) {
+        console.error('Error fetching booking details:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBookingDetails();
+  }, [transaction.booking_id]);
+
+  const formatDate = (dateString: string | null) => {
+    if (!dateString) return 'Unknown';
+    try {
+      return new Date(dateString).toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'short',
+        day: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
+    } catch {
+      return 'Invalid Date';
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    const statusLower = status?.toLowerCase();
+    
+    if (statusLower === 'completed' || statusLower === 'success') {
+      return <Badge className="bg-green-100 text-green-800">Completed</Badge>;
+    }
+    if (statusLower === 'pending') {
+      return <Badge className="bg-yellow-100 text-yellow-800">Pending</Badge>;
+    }
+    if (statusLower === 'failed') {
+      return <Badge className="bg-red-100 text-red-800">Failed</Badge>;
+    }
+    return <Badge className="bg-gray-100 text-gray-800">{status || 'Unknown'}</Badge>;
+  };
+
+  const platformFee = 121; // Fixed platform fee of ₹121
+  const vetEarning = transaction.amount - platformFee;
+
+  return (
+    <TableRow>
+      <TableCell className="font-medium">
+        {formatDate(transaction.created_at)}
+      </TableCell>
+      <TableCell className="font-bold text-green-600">
+        ₹{transaction.amount.toFixed(2)}
+      </TableCell>
+      <TableCell>
+        {getStatusBadge(transaction.status)}
+      </TableCell>
+      <TableCell>
+        {loading ? (
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm text-muted-foreground">Loading...</span>
+          </div>
+        ) : (
+          <div>
+            <div className="font-medium">{bookingDetails?.ownerName || 'Direct Payment'}</div>
+            {transaction.customer_email && (
+              <div className="text-sm text-muted-foreground">{transaction.customer_email}</div>
+            )}
+          </div>
+        )}
+      </TableCell>
+      <TableCell>
+        {loading ? (
+          <div className="flex items-center gap-2">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            <span className="text-sm text-muted-foreground">Loading...</span>
+          </div>
+        ) : bookingDetails ? (
+          <div>
+            <div className="font-medium">{bookingDetails.petName}</div>
+            <div className="text-sm text-muted-foreground">
+              {bookingDetails.consultationType.replace('_', ' ')} with {bookingDetails.vetName}
+            </div>
+          </div>
+        ) : (
+          <span className="text-sm text-muted-foreground">No booking linked</span>
+        )}
+      </TableCell>
+      <TableCell className="font-medium text-blue-600">
+        ₹{platformFee.toFixed(2)}
+      </TableCell>
+      <TableCell className="font-medium text-purple-600">
+        ₹{vetEarning.toFixed(2)}
+      </TableCell>
+      <TableCell>
+        <div>
+          <Badge variant="outline" className="text-xs">
+            {transaction.provider?.toUpperCase() || 'RAZORPAY'}
+          </Badge>
+          {transaction.payment_method && (
+            <div className="text-sm text-muted-foreground mt-1 capitalize">
+              {transaction.payment_method}
+            </div>
+          )}
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="font-mono text-xs">
+          {transaction.provider_payment_id || transaction.transaction_reference || 'N/A'}
+        </div>
+      </TableCell>
+      <TableCell>
+        <div className="flex items-center gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              if (transaction.provider_payment_id) {
+                navigator.clipboard.writeText(transaction.provider_payment_id);
+              }
+            }}
+            className="text-xs"
+          >
+            Copy ID
+          </Button>
+        </div>
+      </TableCell>
+    </TableRow>
+  );
+};
+
 const SuperAdminDashboard = () => {
   // State for data
   const [vets, setVets] = useState<SupabaseVetProfile[]>([]);
   const [appointments, setAppointments] = useState<AppointmentWithDetails[]>([]);
-  const [transactions, setTransactions] = useState<SupabaseTransaction[]>([]);
   const [users, setUsers] = useState<SupabaseUserProfile[]>([]);
   const [prescriptions, setPrescriptions] = useState<SupabasePrescription[]>([]);
   const [pets, setPets] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
+  
+  // Use the new transactions hook for admin (all transactions)
+  const { 
+    transactions, 
+    stats: transactionStats, 
+    loading: transactionsLoading, 
+    error: transactionsError,
+    refetch: refetchTransactions
+  } = useTransactions({
+    userRole: 'admin'
+  });
   
   // UI state
   const [searchTerm, setSearchTerm] = useState('');
@@ -645,19 +837,8 @@ const SuperAdminDashboard = () => {
       }
       
       // Fetch transactions with optimized query
-      const { data: transactionsData, error: transactionError } = await supabase
-        .from('transactions')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1000) // Reasonable limit
-        .throwOnError();
-      
-      if (transactionError) {
-        setError('Failed to fetch transactions');
-        setTransactions([]);
-      } else {
-        setTransactions(transactionsData || []);
-      }
+      // Note: Transactions are now handled by the useTransactions hook
+      console.log('Transactions are managed by useTransactions hook');
       
       // Process vet data with approval status normalization
       const processedVets = (vetsData || []).map((vet: any) => ({
@@ -747,7 +928,7 @@ const SuperAdminDashboard = () => {
           petsData,
           processedAppointments,
           processedPrescriptions,
-          transactionsData || []
+          transactions || [] // Use transactions from hook
         );
       }
       
@@ -2030,58 +2211,114 @@ Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
           </TabsContent>
 
           <TabsContent value="transactions" className="space-y-4">
+            {/* Transaction Statistics */}
+            {analytics && (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Total Revenue</CardTitle>
+                    <DollarSign className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-green-600">₹{analytics.overview.totalRevenue.toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      From {transactions.filter(t => t.status === 'completed' || t.status === 'success').length} completed transactions
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Platform Fees (₹121 per transaction)</CardTitle>
+                    <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-blue-600">₹{(transactions.filter(t => t.status === 'completed' || t.status === 'success').length * 121).toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Platform commission earned
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Vet Earnings (Amount - ₹121)</CardTitle>
+                    <Stethoscope className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold text-purple-600">₹{(analytics.overview.totalRevenue - (transactions.filter(t => t.status === 'completed' || t.status === 'success').length * 121)).toFixed(2)}</div>
+                    <p className="text-xs text-muted-foreground">
+                      Total paid to veterinarians
+                    </p>
+                  </CardContent>
+                </Card>
+
+                <Card>
+                  <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                    <CardTitle className="text-sm font-medium">Success Rate</CardTitle>
+                    <CheckCircle className="h-4 w-4 text-muted-foreground" />
+                  </CardHeader>
+                  <CardContent>
+                    <div className="text-2xl font-bold">
+                      {transactions.length > 0 
+                        ? (((transactions.filter(t => t.status === 'completed' || t.status === 'success').length) / transactions.length) * 100).toFixed(1)
+                        : 0}%
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {transactions.filter(t => t.status === 'failed').length} failed transactions
+                    </p>
+                  </CardContent>
+                </Card>
+              </div>
+            )}
+
             <Card>
               <CardHeader>
                 <CardTitle>All Transactions</CardTitle>
                 <CardDescription>
-                  View all payment transactions on the platform
+                  View all payment transactions with detailed information
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Amount</TableHead>
-                      <TableHead>Currency</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Payment Method</TableHead>
-                      <TableHead>Reference</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {loading ? (
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center py-8">
-                          <div className="flex justify-center">
-                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                          </div>
-                        </TableCell>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Amount</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Pet Owner</TableHead>
+                        <TableHead>Booking Details</TableHead>
+                        <TableHead>Platform Fee</TableHead>
+                        <TableHead>Vet Earning</TableHead>
+                        <TableHead>Provider</TableHead>
+                        <TableHead>Reference</TableHead>
+                        <TableHead>Actions</TableHead>
                       </TableRow>
-                    ) : transactions.length === 0 ? (
-                      <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          No transactions found
-                        </TableCell>
-                      </TableRow>
-                    ) : (
-                      transactions.map((transaction) => (
-                        <TableRow key={transaction.id}>
-                          <TableCell>
-                            {transaction.created_at ? new Date(transaction.created_at).toLocaleDateString() : 'Unknown'}
+                    </TableHeader>
+                    <TableBody>
+                      {loading ? (
+                        <TableRow>
+                          <TableCell colSpan={10} className="text-center py-8">
+                            <div className="flex justify-center">
+                              <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                            </div>
                           </TableCell>
-                          <TableCell>
-                            ₹{transaction.amount}
-                          </TableCell>
-                          <TableCell>{transaction.currency}</TableCell>
-                          <TableCell>{getStatusBadge(transaction.status)}</TableCell>
-                          <TableCell>{transaction.payment_method || '-'}</TableCell>
-                          <TableCell>{transaction.transaction_reference || '-'}</TableCell>
                         </TableRow>
-                      ))
-                    )}
-                  </TableBody>
-                </Table>
+                      ) : transactions.length === 0 ? (
+                        <TableRow>
+                          <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
+                            No transactions found
+                          </TableCell>
+                        </TableRow>
+                      ) : (
+                        transactions.map((transaction) => (
+                          <EnhancedTransactionRow key={transaction.id} transaction={transaction} />
+                        ))
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </CardContent>
             </Card>
           </TabsContent>

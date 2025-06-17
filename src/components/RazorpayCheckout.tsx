@@ -176,7 +176,7 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
     }
   };
 
-  const serviceFee = bookingData.fee * 0.05;
+  const serviceFee = 121; // Fixed service fee of ₹121
   const totalAmount = bookingData.fee + serviceFee;
 
   return (
@@ -215,7 +215,7 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
             <span>₹{bookingData.fee.toFixed(2)}</span>
           </div>
           <div className="flex justify-between text-sm">
-            <span>Service Fee (5%):</span>
+            <span>Service Fee:</span>
             <span>₹{serviceFee.toFixed(2)}</span>
           </div>
           <div className="flex justify-between font-semibold text-lg border-t pt-2">

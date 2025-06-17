@@ -21,8 +21,10 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing booking data' });
     }
 
-    // Calculate the price with a 5% service fee
-    const amount = Math.round(bookingData.fee * 1.05 * 100); // Convert to paise (smallest unit of INR)
+    // Calculate the price with a fixed ₹121 service fee
+    const serviceFee = 121;
+    const totalAmount = bookingData.fee + serviceFee;
+    const amount = Math.round(totalAmount * 100); // Convert to paise (smallest unit of INR)
 
     // Create Checkout Session
     const session = await stripe.checkout.sessions.create({

@@ -298,7 +298,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
     
     // Calculate amounts (in paise for Razorpay)
     const consultationFee = bookingData.fee || 500;
-    const serviceFee = Math.round(consultationFee * 0.05); // 5% service fee
+    const serviceFee = 121; // Fixed service fee of ₹121
     const totalAmount = consultationFee + serviceFee;
     const amountInPaise = totalAmount * 100; // Convert to paise
     
@@ -390,6 +390,69 @@ app.post('/api/verify-payment', async (req, res) => {
     
     console.log('🐛 DEBUG: Payment signature verified successfully');
     
+    // Initialize Supabase client for transaction recording
+    let transactionId = null;
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        // Get booking details to extract payment info
+        const { data: bookingData, error: bookingError } = await supabase
+          .from('bookings')
+          .select(`
+            *,
+            vet_profiles(consultation_fee),
+            profiles!bookings_pet_owner_id_fkey(email)
+          `)
+          .eq('id', booking_id)
+          .single();
+        
+        if (!bookingError && bookingData) {
+          // Calculate amounts
+          const consultationFee = bookingData.vet_profiles?.consultation_fee || bookingData.fee || 500;
+          const serviceFee = 121; // Fixed service fee
+          const totalAmount = consultationFee + serviceFee;
+          
+          // Create transaction record
+          const { data: transaction, error: transactionError } = await supabase
+            .from('transactions')
+            .insert({
+              booking_id: booking_id,
+              amount: totalAmount,
+              currency: 'INR',
+              status: 'completed',
+              payment_method: 'razorpay',
+              transaction_reference: razorpay_payment_id,
+              description: `Consultation payment for booking ${booking_id}`,
+              pet_owner_id: bookingData.pet_owner_id,
+              provider: 'razorpay',
+              provider_payment_id: razorpay_payment_id,
+              provider_order_id: razorpay_order_id,
+              customer_email: bookingData.profiles?.email
+            })
+            .select()
+            .single();
+          
+          if (transactionError) {
+            console.error('🐛 DEBUG: Error creating transaction record:', transactionError);
+          } else {
+            console.log('🐛 DEBUG: Transaction record created:', transaction);
+            transactionId = transaction.id;
+          }
+        } else {
+          console.error('🐛 DEBUG: Error fetching booking data:', bookingError);
+        }
+      } else {
+        console.log('🐛 DEBUG: Supabase not configured for transaction recording');
+      }
+    } catch (supabaseError) {
+      console.error('🐛 DEBUG: Error with Supabase transaction recording:', supabaseError);
+    }
+    
     // Check if booking_id is a temporary ID (starts with "temp_")
     if (booking_id.startsWith('temp_')) {
       console.log('🐛 DEBUG: Temporary booking ID detected, payment verified for frontend handling');
@@ -401,6 +464,7 @@ app.post('/api/verify-payment', async (req, res) => {
         payment_id: razorpay_payment_id,
         order_id: razorpay_order_id,
         booking_id: booking_id,
+        transaction_id: transactionId,
         isTemporaryBooking: true
       });
     }
@@ -415,6 +479,7 @@ app.post('/api/verify-payment', async (req, res) => {
       payment_id: razorpay_payment_id,
       order_id: razorpay_order_id,
       booking_id: booking_id,
+      transaction_id: transactionId,
       isTemporaryBooking: false
     });
     
