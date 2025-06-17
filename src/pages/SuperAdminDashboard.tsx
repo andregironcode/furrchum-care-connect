@@ -2301,49 +2301,49 @@ Date: ${new Date().toLocaleDateString()} ${new Date().toLocaleTimeString()}
               </CardHeader>
               <CardContent>
                 <div className="overflow-x-auto">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Amount</TableHead>
-                        <TableHead>Status</TableHead>
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Date</TableHead>
+                      <TableHead>Amount</TableHead>
+                      <TableHead>Status</TableHead>
                         <TableHead>Pet Owner</TableHead>
                         <TableHead>Booking Details</TableHead>
                         <TableHead>Platform Fee</TableHead>
                         <TableHead>Vet Earning</TableHead>
                         <TableHead>Provider</TableHead>
-                        <TableHead>Reference</TableHead>
+                      <TableHead>Reference</TableHead>
                         <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
                       {transactionsLoading ? (
-                        <TableRow>
+                      <TableRow>
                           <TableCell colSpan={10} className="text-center py-8">
-                            <div className="flex justify-center">
-                              <Loader2 className="h-8 w-8 animate-spin text-primary" />
-                            </div>
-                          </TableCell>
-                        </TableRow>
+                          <div className="flex justify-center">
+                            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+                          </div>
+                        </TableCell>
+                      </TableRow>
                       ) : transactionsError ? (
                         <TableRow>
                           <TableCell colSpan={10} className="text-center text-red-500 py-8">
                             Error loading transactions: {transactionsError}
                           </TableCell>
                         </TableRow>
-                      ) : transactions.length === 0 ? (
-                        <TableRow>
+                    ) : transactions.length === 0 ? (
+                      <TableRow>
                           <TableCell colSpan={10} className="text-center text-muted-foreground py-8">
-                            No transactions found
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        transactions.map((transaction) => (
+                          No transactions found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      transactions.map((transaction) => (
                           <EnhancedTransactionRow key={transaction.id} transaction={transaction} />
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
                 </div>
               </CardContent>
             </Card>

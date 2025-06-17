@@ -35,8 +35,8 @@ module.exports = async (req, res) => {
     console.log('Booking data received:', JSON.stringify(bookingData, null, 2));
     
     // Get Razorpay configuration
-    const keyId = process.env.RAZORPAY_KEY_ID;
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keyId = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET;
     
     // Debug logging (safely)
     console.log('Razorpay Key ID:', keyId ? `${keyId.substring(0, 8)}...` : 'NOT SET');

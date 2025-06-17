@@ -34,7 +34,7 @@ module.exports = async (req, res) => {
     }
     
     // Get Razorpay configuration
-    const keySecret = process.env.RAZORPAY_KEY_SECRET;
+    const keySecret = process.env.RAZORPAY_KEY_SECRET || process.env.VITE_RAZORPAY_KEY_SECRET;
     
     if (!keySecret) {
       console.error('Razorpay key secret not configured');

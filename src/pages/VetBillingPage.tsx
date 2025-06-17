@@ -207,7 +207,7 @@ const VetBillingPage = () => {
                   {filteredTransactions.length > 0 ? (
                     <div className="space-y-6">
                       <VetTransactionTable transactions={filteredTransactions} />
-                    </div>
+                </div>
                   ) : (
                     <EmptyTransactionState />
                   )}
@@ -217,7 +217,7 @@ const VetBillingPage = () => {
                   {completedTransactions.length > 0 ? (
                     <div className="space-y-6">
                       <VetTransactionTable transactions={completedTransactions} />
-                    </div>
+                  </div>
                   ) : (
                     <EmptyTransactionState type="completed" />
                   )}
@@ -227,7 +227,7 @@ const VetBillingPage = () => {
                   {pendingTransactions.length > 0 ? (
                     <div className="space-y-6">
                       <VetTransactionTable transactions={pendingTransactions} />
-                    </div>
+                </div>
                   ) : (
                     <EmptyTransactionState type="pending" />
                   )}

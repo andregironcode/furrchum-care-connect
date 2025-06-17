@@ -454,8 +454,8 @@ const BookingPage = () => {
       
       if (!user?.id) {
         throw new Error('User not authenticated');
-      }
-      
+    }
+    
       if (!vet) {
         throw new Error('Vet information not available');
       }
@@ -506,22 +506,22 @@ const BookingPage = () => {
       
       // Prepare booking data (don't save yet, wait for payment)
       const currentISOTime = new Date().toISOString();
-      
-      const bookingData = {
-        vet_id: vetId,
-        pet_owner_id: user.id,
-        pet_id: selectedPetId || null,
+        
+        const bookingData = {
+          vet_id: vetId,
+          pet_owner_id: user.id,
+          pet_id: selectedPetId || null,
         booking_date: format(date!, 'yyyy-MM-dd'),
         start_time: startTime,
-        end_time: endTime,
-        consultation_type: consultationType,
-        notes: notes || '',
+          end_time: endTime,
+          consultation_type: consultationType,
+          notes: notes || '',
         status: 'confirmed' as const, // Will be confirmed when created after payment
         payment_status: 'paid' as const, // Will be paid when created after payment
-        // Include meeting details if this is a video call
-        meeting_id: meetingDetails?.meetingId || null,
-        meeting_url: meetingDetails?.roomUrl || null,
-        host_meeting_url: meetingDetails?.hostRoomUrl || null,
+          // Include meeting details if this is a video call
+          meeting_id: meetingDetails?.meetingId || null,
+          meeting_url: meetingDetails?.roomUrl || null,
+          host_meeting_url: meetingDetails?.hostRoomUrl || null,
         created_at: currentISOTime,
         updated_at: currentISOTime
       };
@@ -577,12 +577,12 @@ const BookingPage = () => {
       
       // NOW create the actual booking after successful payment
       const { data: newBooking, error: bookingError } = await supabase
-        .from('bookings')
+          .from('bookings')
         .insert([finalBookingData])
-        .select()
-        .single();
+          .select()
+          .single();
         
-      if (bookingError) {
+        if (bookingError) {
         console.error('Error creating booking after payment:', bookingError);
         
         // Handle specific constraint violations
@@ -593,11 +593,11 @@ const BookingPage = () => {
         } else {
           throw new Error(bookingError.message || 'Failed to create booking after payment');
         }
-      }
+        }
         
       if (!newBooking) {
-        throw new Error('No booking data returned from server');
-      }
+          throw new Error('No booking data returned from server');
+        }
         
       console.log('Successfully created booking after payment:', newBooking);
         
@@ -623,19 +623,19 @@ const BookingPage = () => {
         }
       }
         
-      // Show success message
-      toast.success(
-        consultationType === 'video_call' 
+        // Show success message
+        toast.success(
+          consultationType === 'video_call' 
         ? `Video consultation booked and paid successfully! Meeting details will be available in your appointments.`
         : `In-person appointment booked and paid successfully!`, 
-        {
-          duration: 5000,
-          action: {
-            label: 'View Appointments',
-            onClick: () => navigate('/appointments')
+          {
+            duration: 5000,
+            action: {
+              label: 'View Appointments',
+              onClick: () => navigate('/appointments')
+            }
           }
-        }
-      );
+        );
         
       // Reset form and prepared data
       setSelectedPetId('');

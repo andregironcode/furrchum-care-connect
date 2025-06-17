@@ -17,11 +17,11 @@ const getRazorpayConfig = () => {
 export const createCheckoutSession = async (req: Request, res: Response) => {
   try {
     const { bookingData } = req.body;
-    
+
     if (!bookingData) {
       return res.status(400).json({ error: 'Booking data is required' });
     }
-    
+
     // Get Razorpay configuration
     const { keyId, keySecret } = getRazorpayConfig();
     
@@ -52,7 +52,7 @@ export const createCheckoutSession = async (req: Request, res: Response) => {
     };
     
     console.log('Creating Razorpay order with options:', orderOptions);
-    
+
     const order = await razorpay.orders.create(orderOptions);
     
     console.log('Razorpay order created successfully:', order);
