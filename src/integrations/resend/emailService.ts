@@ -323,7 +323,7 @@ function generateEmailFooter(): string {
       </div>
       <div style="margin-top: 40px; padding: 20px 0; border-top: 1px solid #eeeeee; text-align: center; font-size: 14px; color: #888888;">
         <p>
-          &copy; ${new Date().getFullYear()} FurrChum Care Connect. All rights reserved.
+          &copy; ${new Date().getFullYear()} Furrchum Technologies Pvt. Ltd. All rights reserved.
         </p>
         <p>
           Questions? Contact our support team at info@furrchum.com

@@ -193,7 +193,7 @@ const VetCard = ({ vet }: { vet: Vet }) => {
         {vet.consultation_fee && (
           <div className="mb-4">
             <p className="text-sm text-gray-500 mb-1">Consultation Fee</p>
-            <p className="font-medium">₹{vet.consultation_fee}</p>
+            <p className="font-medium">₹{(vet.consultation_fee || 0) + 121}</p>
           </div>
         )}
         {vet.clinic_location && (

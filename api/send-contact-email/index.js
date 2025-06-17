@@ -188,9 +188,9 @@ Please respond to the customer at: ${sanitizedData.email}
       ]
     });
 
-    console.log('Contact email sent successfully:', emailResponse);
+    console.log('Admin email sent:', adminEmailResult);
 
-    // Send auto-reply to customer
+    // Send auto-reply to the user
     const autoReplyText = `
 Dear ${sanitizedData.name},
 
@@ -243,24 +243,15 @@ This is an automated response. Please do not reply to this email.
 </body>
 </html>`;
 
-    // Send auto-reply (optional, don't fail if this fails)
-    try {
-      await resend.emails.send({
-        from: process.env.VITE_EMAIL_FROM || 'contact@furrchum.pittura.tech',
-        to: sanitizedData.email,
-        subject: 'Thank you for contacting Furrchum - We\'ll respond soon!',
-        text: autoReplyText,
-        html: autoReplyHtml,
-        tags: [
-          { name: 'source', value: 'contact_form' },
-          { name: 'type', value: 'auto_reply' }
-        ]
-      });
-      console.log('Auto-reply sent successfully to:', sanitizedData.email);
-    } catch (autoReplyError) {
-      console.error('Failed to send auto-reply (non-critical):', autoReplyError);
-      // Don't fail the main request if auto-reply fails
-    }
+    const userEmailResult = await resend.emails.send({
+      from: process.env.VITE_EMAIL_FROM || 'contact@furrchum.com',
+      to: sanitizedData.email,
+      subject: 'Thank you for contacting Furrchum - We received your message',
+      text: autoReplyText,
+      html: autoReplyHtml,
+    });
+
+    console.log('Auto-reply sent successfully to:', sanitizedData.email);
 
     // Return success response
     return res.status(200).json({

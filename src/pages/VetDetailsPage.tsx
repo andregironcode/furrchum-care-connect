@@ -418,7 +418,7 @@ const VetDetailsPage = () => {
                 
                 <div className="flex items-center justify-between py-2 border-b">
                   <span className="text-gray-600">Consultation Fee</span>
-                  <span className="font-semibold text-lg">₹{vet.consultation_fee || 50}</span>
+                  <span className="font-semibold text-lg">₹{((vet.consultation_fee || 50) + 121).toFixed(2)}</span>
                 </div>
                 
                 <div className="flex items-center justify-between py-2 border-b">

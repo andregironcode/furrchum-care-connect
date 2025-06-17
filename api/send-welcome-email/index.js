@@ -5,9 +5,7 @@ const { Resend } = require('resend');
 // Helper function to generate welcome email HTML
 function generateWelcomeEmailHTML(fullName, userType) {
   const userTypeDisplay = userType === 'pet_owner' ? 'Pet Owner' : 'Veterinarian';
-  const dashboardUrl = userType === 'vet' 
-    ? 'https://furrchum-care-connect.vercel.app/vet-dashboard' 
-    : 'https://furrchum-care-connect.vercel.app/dashboard';
+  const dashboardUrl = userType === 'vet' ? 'https://furrchum.com/vet-dashboard' : 'https://furrchum.com/dashboard';
   
   return `
     <!DOCTYPE html>
@@ -67,10 +65,10 @@ function generateWelcomeEmailHTML(fullName, userType) {
       </div>
       
       <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 12px;">
-        <p>&copy; ${new Date().getFullYear()} FurrChum Care Connect. All rights reserved.</p>
+        <p>&copy; ${new Date().getFullYear()} Furrchum Technologies Pvt. Ltd. All rights reserved.</p>
         <p>
-          <a href="https://furrchum-care-connect.vercel.app/privacy-policy" style="color: #6b7280;">Privacy Policy</a> | 
-          <a href="https://furrchum-care-connect.vercel.app/terms-conditions" style="color: #6b7280;">Terms of Service</a>
+          <a href="https://furrchum.com/privacy-policy" style="color: #6b7280;">Privacy Policy</a> | 
+          <a href="https://furrchum.com/terms-conditions" style="color: #6b7280;">Terms of Service</a>
         </p>
       </div>
       
@@ -127,7 +125,7 @@ module.exports = async (req, res) => {
       return res.status(400).json({ error: 'Invalid user type' });
     }
 
-    // Get API key (try both with and without VITE_ prefix like the working API)
+    // Get email configuration
     const RESEND_API_KEY = process.env.RESEND_API_KEY || process.env.VITE_RESEND_API_KEY;
     const EMAIL_FROM = process.env.EMAIL_FROM || process.env.VITE_EMAIL_FROM || 'no-reply@furrchum.pittura.tech';
     

@@ -264,7 +264,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         // Explicit fallback for production domain
         let baseUrl = frontendUrl;
         if (window.location.hostname.includes('vercel.app') && frontendUrl.includes('localhost')) {
-          baseUrl = 'https://furrchum-care-connect.vercel.app';
+          baseUrl = 'https://furrchum.com';
         }
         
         // Clean the URL to remove any trailing slashes

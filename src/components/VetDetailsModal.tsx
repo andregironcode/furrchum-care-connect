@@ -173,7 +173,7 @@ const VetDetailsModal: React.FC<VetDetailsModalProps> = ({ vet, onClose }) => {
               </div>
               <div>
                 <p className="text-sm text-gray-500">Consultation Fee</p>
-                <p className="font-medium">{vet.consultation_fee ? `₹${vet.consultation_fee}` : 'Not specified'}</p>
+                <p className="font-medium">{vet.consultation_fee ? `₹${(vet.consultation_fee || 0) + 121}` : 'Not specified'}</p>
               </div>
               <div>
                 <p className="text-sm text-gray-500">Rating</p>

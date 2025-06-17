@@ -210,16 +210,8 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
 
         {/* Price Breakdown */}
         <div className="border-t pt-4 space-y-2">
-          <div className="flex justify-between text-sm">
+          <div className="flex justify-between font-semibold text-lg">
             <span>Consultation Fee:</span>
-            <span>₹{bookingData.fee.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between text-sm">
-            <span>Service Fee:</span>
-            <span>₹{serviceFee.toFixed(2)}</span>
-          </div>
-          <div className="flex justify-between font-semibold text-lg border-t pt-2">
-            <span>Total:</span>
             <span>₹{totalAmount.toFixed(2)}</span>
           </div>
         </div>

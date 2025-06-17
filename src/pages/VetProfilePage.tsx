@@ -215,7 +215,7 @@ const VetProfilePage = () => {
       last_name: '',
       specialization: '',
       about: '',
-      consultation_fee: 0,
+      consultation_fee: 121, // Start with ₹121 service fee (₹0 vet earnings + ₹121)
       image_url: '',
       years_experience: 0,
       phone: '',
@@ -250,7 +250,7 @@ const VetProfilePage = () => {
         last_name: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
         specialization: 'General Veterinarian',
         about: 'Please update your profile with information about your veterinary experience and expertise.',
-        consultation_fee: 0,
+        consultation_fee: 121, // Start with ₹121 service fee (₹0 vet earnings + ₹121)
         years_experience: 0,
         phone: '',
         gender: '',
@@ -371,7 +371,7 @@ ALTER TABLE vet_profiles
           last_name: user.user_metadata?.full_name?.split(' ').slice(1).join(' ') || '',
           specialization: 'General Veterinarian',
           about: 'Please update your profile with information about your veterinary experience and expertise.',
-          consultation_fee: 0,
+          consultation_fee: 121, // Start with ₹121 service fee (₹0 vet earnings + ₹121)
           years_experience: 0,
           phone: '',
           gender: '',
@@ -483,7 +483,7 @@ ALTER TABLE vet_profiles
           last_name: dbProfile.last_name || '',
           specialization: dbProfile.specialization || '',
           about: dbProfile.about || '',
-          consultation_fee: Number(dbProfile.consultation_fee) || 0,
+          consultation_fee: Number(dbProfile.consultation_fee) || 0, // Keep database value for display (this is total customer pays)
           image_url: dbProfile.image_url || '',
           years_experience: Number(dbProfile.years_experience) || 0,
           phone: dbProfile.phone || '',
@@ -542,7 +542,7 @@ ALTER TABLE vet_profiles
       // Set profile defaults for form
       const formData = {
         ...profile,
-        consultation_fee: profile.consultation_fee || 0,
+        consultation_fee: Math.max(0, (profile.consultation_fee || 0) - 121), // Show only vet earnings for form input (subtract ₹121 service fee)
         years_experience: profile.years_experience || 0,
         offers_telemedicine: true, // Always enforce online consultations
         offers_in_person: profile.offers_in_person || false
@@ -1065,7 +1065,7 @@ ALTER TABLE vet_profiles
         last_name: values.last_name,
         specialization: values.specialization,
         about: values.about,
-        consultation_fee: Number(values.consultation_fee) || 0,
+        consultation_fee: (Number(values.consultation_fee) || 0) + 121, // Add ₹121 service fee
         years_experience: Number(values.years_experience) || 0,
         phone: values.phone,
         gender: values.gender,
@@ -1193,7 +1193,7 @@ ALTER TABLE vet_profiles
     if (profile) {
       const currentFormData = {
         ...profile,
-        consultation_fee: profile.consultation_fee || 0,
+        consultation_fee: Math.max(0, (profile.consultation_fee || 0) - 121), // Show only vet earnings for form input (subtract ₹121 service fee)
         years_experience: profile.years_experience || 0,
         offers_telemedicine: true,
         offers_in_person: profile.offers_in_person || false
@@ -1739,7 +1739,7 @@ ALTER TABLE vet_profiles
                                 name="consultation_fee"
                                 render={({ field }) => (
                                   <FormItem>
-                                    <FormLabel>Consultation Fee (₹)</FormLabel>
+                                    <FormLabel>Your Consultation Earnings (₹)</FormLabel>
                                     <FormControl>
                                       <Input 
                                         type="number" 
@@ -1748,6 +1748,14 @@ ALTER TABLE vet_profiles
                                         value={field.value === 0 ? '' : field.value}
                                       />
                                     </FormControl>
+                                    <FormDescription>
+                                      Amount you'll earn per consultation.
+                                      {field.value && field.value > 0 && (
+                                        <span className="block mt-1 font-medium text-primary">
+                                          Customer consultation fee: ₹{(field.value + 121).toFixed(2)}
+                                        </span>
+                                      )}
+                                    </FormDescription>
                                   </FormItem>
                                 )}
                               />
@@ -1953,9 +1961,9 @@ ALTER TABLE vet_profiles
                                   if (profile) {
                                     const originalFormData = {
                                       ...profile,
-                                      consultation_fee: profile.consultation_fee || 0,
+                                      consultation_fee: Math.max(0, (profile.consultation_fee || 0) - 121), // Show only vet earnings for form input (subtract ₹121 service fee)
                                       years_experience: profile.years_experience || 0,
-                                      offers_telemedicine: true, // Always enforce online consultations
+                                      offers_telemedicine: true,
                                       offers_in_person: profile.offers_in_person || false
                                     };
                                     form.reset(originalFormData);

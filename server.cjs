@@ -206,7 +206,7 @@ app.post('/api/send-welcome-email', async (req, res) => {
 // Helper function to generate welcome email HTML
 function generateWelcomeEmailHTML(fullName, userType) {
   const userTypeDisplay = userType === 'pet_owner' ? 'Pet Owner' : 'Veterinarian';
-  const dashboardUrl = userType === 'vet' ? 'https://furrchum.pittura.tech/vet-dashboard' : 'https://furrchum.pittura.tech/dashboard';
+  const dashboardUrl = userType === 'vet' ? 'https://furrchum.com/vet-dashboard' : 'https://furrchum.com/dashboard';
   
   return `
     <!DOCTYPE html>
@@ -266,10 +266,10 @@ function generateWelcomeEmailHTML(fullName, userType) {
       </div>
       
       <div style="border-top: 1px solid #e5e7eb; padding-top: 20px; text-align: center; color: #6b7280; font-size: 12px;">
-        <p>&copy; ${new Date().getFullYear()} FurrChum Care Connect. All rights reserved.</p>
+        <p>&copy; ${new Date().getFullYear()} Furrchum Technologies Pvt. Ltd. All rights reserved.</p>
         <p>
-          <a href="https://furrchum.pittura.tech/privacy-policy" style="color: #6b7280;">Privacy Policy</a> | 
-          <a href="https://furrchum.pittura.tech/terms-conditions" style="color: #6b7280;">Terms of Service</a>
+          <a href="https://furrchum.com/privacy-policy" style="color: #6b7280;">Privacy Policy</a> | 
+          <a href="https://furrchum.com/terms-conditions" style="color: #6b7280;">Terms of Service</a>
         </p>
       </div>
       
