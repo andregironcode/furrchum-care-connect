@@ -138,7 +138,7 @@ const VetCard = ({
         
         <div className="flex items-center justify-between text-sm">
           <span className="text-accent-400">Consultation Fee</span>
-          <span className="font-semibold text-primary">₹{fee + 121}</span>
+          <span className="font-semibold text-primary">₹{fee}</span>
         </div>
         
         {distance !== undefined && zipCode && (

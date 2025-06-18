@@ -116,7 +116,7 @@ const VetDirectory = (): JSX.Element => {
               specialization: vet.specialization || 'General Practice',
               experience: vet.years_experience || 0,
               rating: vet.rating || 4.5,
-              fee: (vet.consultation_fee || 50) + 121, // Include 121 rupee service fee
+              fee: vet.consultation_fee || 171, // Default includes service fee (50 + 121)
               availability: vet.approval_status === 'approved' ? (vet.availability || 'Available Now') : 'Available Soon',
               languages: vet.languages || ['English'],
               image: vet.image_url || 'https://images.unsplash.com/photo-1612349317150-e413f6a5b16d?w=800&auto=format&fit=crop',

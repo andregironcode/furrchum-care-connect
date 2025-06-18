@@ -1005,7 +1005,7 @@ const BookingPage = () => {
                     <Separator className="my-2" />
                     <div className="flex justify-between font-medium">
                       <span>Consultation Fee:</span>
-                      <span>₹{((vet.consultation_fee || 0) + 121).toFixed(2)}</span>
+                      <span>₹{(vet.consultation_fee || 171).toFixed(2)}</span>
                     </div>
                   </div>
                 </div>
@@ -1028,12 +1028,12 @@ const BookingPage = () => {
                         {consultationType === 'video_call' ? (
                           <>
                             <VideoIcon className="mr-2 h-4 w-4" />
-                            Book Video Call (₹{((vet.consultation_fee || 0) + 121).toFixed(2)})
+                            Book Video Call (₹{(vet.consultation_fee || 171).toFixed(2)})
                           </>
                         ) : (
                           <>
                             <UsersIcon className="mr-2 h-4 w-4" />
-                            Book In-Person (₹{((vet.consultation_fee || 0) + 121).toFixed(2)})
+                            Book In-Person (₹{(vet.consultation_fee || 171).toFixed(2)})
                           </>
                         )}
                       </>
