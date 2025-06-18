@@ -21,9 +21,9 @@ export default async function handler(
       return res.status(400).json({ error: 'Missing booking data' });
     }
 
-    // Calculate the price with a fixed ₹121 service fee
+    // Service fee is already included in bookingData.fee
     const serviceFee = 121;
-    const totalAmount = bookingData.fee + serviceFee;
+    const totalAmount = bookingData.fee; // Fee already includes service fee
     const amount = Math.round(totalAmount * 100); // Convert to paise (smallest unit of INR)
 
     // Create Checkout Session

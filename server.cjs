@@ -322,8 +322,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
     
     // Calculate amounts (in paise for Razorpay)
     const consultationFee = fee;
-    const serviceFee = 121; // Fixed service fee of ₹121
-    const totalAmount = consultationFee + serviceFee;
+    const serviceFee = 121; // Fixed service fee of ₹121 (already included in fee)
+    const totalAmount = consultationFee; // Fee already includes service fee
     const amountInPaise = totalAmount * 100; // Convert to paise
     
     console.log('🐛 DEBUG: Fee calculation:', {
@@ -478,8 +478,8 @@ app.post('/api/verify-payment', async (req, res) => {
         if (!bookingError && bookingData) {
           // Calculate amounts
           const consultationFee = bookingData.vet_profiles?.consultation_fee || bookingData.fee || 500;
-          const serviceFee = 121; // Fixed service fee
-          const totalAmount = consultationFee + serviceFee;
+          const serviceFee = 121; // Fixed service fee (already included in consultation_fee)
+          const totalAmount = consultationFee; // Fee already includes service fee
           
           // Create transaction record
           const { data: transaction, error: transactionError } = await supabase

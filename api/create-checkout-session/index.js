@@ -56,8 +56,8 @@ module.exports = async (req, res) => {
     
     // Calculate amounts (in paise for Razorpay)
     const consultationFee = bookingData.fee || 500;
-    const serviceFee = 121; // Fixed service fee of ₹121
-    const totalAmount = consultationFee + serviceFee;
+    const serviceFee = 121; // Fixed service fee of ₹121 (already included in fee)
+    const totalAmount = consultationFee; // Fee already includes service fee
     const amountInPaise = totalAmount * 100; // Convert to paise
     
     console.log('Fee calculation:', {
