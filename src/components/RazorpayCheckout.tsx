@@ -179,6 +179,13 @@ const RazorpayCheckout: React.FC<RazorpayCheckoutProps> = ({
   const serviceFee = 121; // Fixed service fee of ₹121 (already included in bookingData.fee)
   const totalAmount = bookingData.fee; // Fee already includes service fee
 
+  // Debug logging
+  console.log('🔍 RazorpayCheckout Debug:', {
+    'bookingData.fee': bookingData.fee,
+    'serviceFee (for reference only)': serviceFee,
+    'totalAmount (what user pays)': totalAmount
+  });
+
   return (
     <Card className="w-full max-w-md mx-auto">
       <CardHeader>

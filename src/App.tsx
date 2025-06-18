@@ -44,6 +44,8 @@ import ShippingDeliveryPage from "./pages/ShippingDeliveryPage";
 import DisclaimerPage from "./pages/DisclaimerPage";
 import AdditionalPoliciesPage from "./pages/AdditionalPoliciesPage";
 import ContactPage from "./pages/ContactPage";
+import BlogPage from "./pages/BlogPage";
+import BlogAdminPage from "./pages/BlogAdminPage";
 
 const App = () => {
   // Move queryClient inside the component
@@ -76,6 +78,9 @@ const App = () => {
                 <Route path="/disclaimer" element={<DisclaimerPage />} />
                 <Route path="/additional-policies" element={<AdditionalPoliciesPage />} />
                 <Route path="/contact" element={<ContactPage />} />
+                <Route path="/blog" element={<BlogPage />} />
+                <Route path="/blog/:slug" element={<BlogPage />} />
+                <Route path="/blog/admin" element={<BlogAdminPage />} />
                 <Route path="/test-video-call" element={<TestVideoCallPage />} />
                 <Route path="/test-payment" element={<TestPaymentPage />} />
                 

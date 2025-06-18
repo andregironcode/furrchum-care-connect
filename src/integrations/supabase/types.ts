@@ -9,6 +9,69 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      blog_posts: {
+        Row: {
+          id: string
+          title: string
+          slug: string
+          excerpt: string
+          content: string
+          featured_image: string | null
+          author_name: string
+          author_avatar: string | null
+          tags: string[]
+          category: string
+          reading_time: number
+          published: boolean
+          is_featured: boolean
+          meta_title: string | null
+          meta_description: string | null
+          view_count: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          slug: string
+          excerpt: string
+          content: string
+          featured_image?: string | null
+          author_name?: string
+          author_avatar?: string | null
+          tags?: string[]
+          category?: string
+          reading_time?: number
+          published?: boolean
+          is_featured?: boolean
+          meta_title?: string | null
+          meta_description?: string | null
+          view_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          slug?: string
+          excerpt?: string
+          content?: string
+          featured_image?: string | null
+          author_name?: string
+          author_avatar?: string | null
+          tags?: string[]
+          category?: string
+          reading_time?: number
+          published?: boolean
+          is_featured?: boolean
+          meta_title?: string | null
+          meta_description?: string | null
+          view_count?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       bookings: {
         Row: {
           booking_date: string
@@ -521,7 +584,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_blog_post_views: {
+        Args: {
+          post_slug: string
+        }
+        Returns: undefined
+      }
     }
     Enums: {
       [_ in never]: never

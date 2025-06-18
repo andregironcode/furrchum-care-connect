@@ -1069,7 +1069,14 @@ const BookingPage = () => {
                   consultationType: consultationType,
                   date: date ? format(date, 'PPP') : '',
                   timeSlot: timeSlot,
-                  fee: vet?.consultation_fee || 0,
+                  fee: (() => {
+                    const fee = vet?.consultation_fee || 0;
+                    console.log('🔍 BookingPage Debug:', {
+                      'vet.consultation_fee': vet?.consultation_fee,
+                      'fee being passed to RazorpayCheckout': fee
+                    });
+                    return fee;
+                  })(),
                 }}
                 onSuccess={handlePaymentSuccess}
                 onFailure={handlePaymentFailure}

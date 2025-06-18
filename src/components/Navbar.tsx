@@ -63,6 +63,7 @@ const Navbar = () => {
           
           <div className="hidden md:flex items-center space-x-8">
             <Link to="/vets" className="text-accent-600 hover:text-primary font-medium transition-colors">Find Vets</Link>
+            <Link to="/blog" className="text-accent-600 hover:text-primary font-medium transition-colors">Blog</Link>
             <Link to="/about" className="text-accent-600 hover:text-primary font-medium transition-colors">About Us</Link>
             <Link to="/contact" className="text-accent-600 hover:text-primary font-medium transition-colors">Contact Us</Link>
           </div>
@@ -142,6 +143,13 @@ const Navbar = () => {
                 onClick={() => setIsOpen(false)}
               >
                 Find Vets
+              </Link>
+              <Link 
+                to="/blog" 
+                className="text-accent-600 hover:text-primary py-2 font-medium"
+                onClick={() => setIsOpen(false)}
+              >
+                Blog
               </Link>
               <Link 
                 to="/about" 
