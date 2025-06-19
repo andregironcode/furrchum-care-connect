@@ -169,11 +169,6 @@ export const useTransactions = (options: UseTransactionsOptions) => {
               breed
             )
           ),
-          profiles!transactions_pet_owner_id_fkey (
-            id,
-            full_name,
-            email
-          ),
           vet_profiles!transactions_vet_id_fkey (
             id,
             first_name,
@@ -226,14 +221,33 @@ export const useTransactions = (options: UseTransactionsOptions) => {
         throw new Error(fetchError.message);
       }
 
+      // Get unique pet owner IDs to fetch profile data
+      const ownerIds = [...new Set((data || []).map((t: any) => t.pet_owner_id).filter(Boolean))];
+      
+      // Fetch profile data for pet owners
+      let ownerProfiles: any[] = [];
+      if (ownerIds.length > 0) {
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', ownerIds);
+        ownerProfiles = profileData || [];
+      }
+      
       // Process transactions with joined data
-      const processedTransactions: Transaction[] = (data || []).map((transaction: any) => ({
-        ...transaction,
-        booking: transaction.bookings,
-        pet: transaction.bookings?.pets || null,
-        owner: transaction.profiles,
-        vet: transaction.vet_profiles
-      }));
+      const processedTransactions: Transaction[] = (data || []).map((transaction: any) => {
+        const ownerProfile = ownerProfiles.find(p => p.id === transaction.pet_owner_id);
+        return {
+          ...transaction,
+          booking: transaction.bookings,
+          pet: transaction.bookings?.pets || null,
+          owner: ownerProfile ? { 
+            id: ownerProfile.id, 
+            full_name: ownerProfile.full_name 
+          } : null,
+          vet: transaction.vet_profiles
+        };
+      });
 
       setTransactions(processedTransactions);
 

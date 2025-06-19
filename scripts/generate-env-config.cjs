@@ -31,7 +31,9 @@ try {
   // Replace each placeholder with the actual environment variable
   envVars.forEach(varName => {
     const value = process.env[varName] || process.env[`VITE_${varName}`] || '';
-    template = template.replace(`%${varName}%`, value);
+    // Properly escape the value for JavaScript
+    const escapedValue = JSON.stringify(value);
+    template = template.replace(`"%${varName}%"`, escapedValue);
     
     // Log whether we found the variable (without showing the actual value for security)
     if (value) {
