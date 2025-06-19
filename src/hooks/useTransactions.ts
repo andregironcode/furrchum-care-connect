@@ -161,20 +161,20 @@ export const useTransactions = (options: UseTransactionsOptions) => {
             start_time,
             consultation_type,
             vet_id,
-            pet_id
-          ),
-          pets!left (
-            id,
-            name,
-            type,
-            breed
+            pet_id,
+            pets!inner (
+              id,
+              name,
+              type,
+              breed
+            )
           ),
           profiles!transactions_pet_owner_id_fkey (
             id,
             full_name,
             email
           ),
-          vet_profiles!left (
+          vet_profiles!transactions_vet_id_fkey (
             id,
             first_name,
             last_name,
@@ -230,7 +230,7 @@ export const useTransactions = (options: UseTransactionsOptions) => {
       const processedTransactions: Transaction[] = (data || []).map((transaction: any) => ({
         ...transaction,
         booking: transaction.bookings,
-        pet: transaction.pets,
+        pet: transaction.bookings?.pets || null,
         owner: transaction.profiles,
         vet: transaction.vet_profiles
       }));
