@@ -87,6 +87,50 @@ module.exports = async (req, res) => {
     
     console.log('Razorpay order created successfully:', JSON.stringify(order, null, 2));
     
+    // Create pending transaction in Supabase
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        const transactionData = {
+          booking_id: bookingData.bookingId && !bookingData.bookingId.startsWith('temp_') ? bookingData.bookingId : null,
+          amount: parseFloat(totalAmount.toFixed(2)),
+          currency: 'INR',
+          status: 'pending',
+          payment_method: 'razorpay',
+          pet_owner_id: bookingData.userId,
+          vet_id: bookingData.vetId || null,
+          provider_order_id: order.id,
+          provider_payment_id: null,
+          description: `Payment for consultation with ${bookingData.vetName || 'veterinarian'}`,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        };
+        
+        console.log('Creating pending transaction:', JSON.stringify(transactionData, null, 2));
+        
+        const { data: transactionResult, error: transactionError } = await supabase
+          .from('transactions')
+          .insert([transactionData])
+          .select('*')
+          .single();
+          
+        if (transactionError) {
+          console.error('Error creating pending transaction:', transactionError);
+        } else {
+          console.log('Pending transaction created successfully:', transactionResult);
+        }
+      } else {
+        console.error('Missing Supabase configuration for transaction creation');
+      }
+    } catch (transactionError) {
+      console.error('Exception creating pending transaction:', transactionError);
+    }
+    
     // Return the order details
     const responseData = {
       id: order.id,

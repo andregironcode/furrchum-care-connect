@@ -56,6 +56,60 @@ module.exports = async (req, res) => {
     
     console.log('Payment signature verified successfully');
     
+    // Update transaction status to completed in Supabase
+    let transactionId = null;
+    try {
+      const { createClient } = require('@supabase/supabase-js');
+      const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
+      const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+      
+      if (supabaseUrl && supabaseServiceKey) {
+        const supabase = createClient(supabaseUrl, supabaseServiceKey);
+        
+        console.log('Looking for pending transaction with order ID:', razorpay_order_id);
+        
+        // Find and update the pending transaction with this order ID
+        const { data: existingTransaction, error: findError } = await supabase
+          .from('transactions')
+          .select('*')
+          .eq('provider_order_id', razorpay_order_id)
+          .eq('status', 'pending')
+          .single();
+        
+        if (!findError && existingTransaction) {
+          console.log('Found pending transaction, updating to completed:', existingTransaction.id);
+          
+          const { data: updatedTransaction, error: updateError } = await supabase
+            .from('transactions')
+            .update({
+              status: 'completed',
+              provider_payment_id: razorpay_payment_id,
+              transaction_reference: razorpay_payment_id,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', existingTransaction.id)
+            .select('*')
+            .single();
+          
+          if (updateError) {
+            console.error('Error updating transaction status:', updateError);
+          } else {
+            console.log('Transaction status updated to completed:', updatedTransaction);
+            transactionId = updatedTransaction.id;
+          }
+        } else {
+          console.error('No pending transaction found for order ID:', razorpay_order_id);
+          if (findError) {
+            console.error('Find error:', findError);
+          }
+        }
+      } else {
+        console.error('Missing Supabase configuration for transaction update');
+      }
+    } catch (updateError) {
+      console.error('Exception in transaction update process:', updateError);
+    }
+    
     // Check if booking_id is a temporary ID (starts with "temp_")
     if (booking_id.startsWith('temp_')) {
       console.log('Temporary booking ID detected, payment verified for frontend handling');
@@ -67,6 +121,7 @@ module.exports = async (req, res) => {
         payment_id: razorpay_payment_id,
         order_id: razorpay_order_id,
         booking_id: booking_id,
+        transaction_id: transactionId,
         isTemporaryBooking: true
       });
     }
@@ -81,6 +136,7 @@ module.exports = async (req, res) => {
       payment_id: razorpay_payment_id,
       order_id: razorpay_order_id,
       booking_id: booking_id,
+      transaction_id: transactionId,
       isTemporaryBooking: false
     });
     
