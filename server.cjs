@@ -372,6 +372,7 @@ app.post('/api/create-checkout-session', async (req, res) => {
           status: 'pending',
           payment_method: 'razorpay',
           pet_owner_id: petOwnerId,
+          vet_id: bookingData.vetId || null, // Link to veterinarian
           provider_order_id: order.id,
           provider_payment_id: null, // Will be updated after payment
           description: `Payment for consultation with ${bookingData.vetName || 'veterinarian'}`,
@@ -476,36 +477,73 @@ app.post('/api/verify-payment', async (req, res) => {
           .single();
         
         if (!bookingError && bookingData) {
-          // Calculate amounts
-          const consultationFee = bookingData.vet_profiles?.consultation_fee || bookingData.fee || 500;
-          const serviceFee = 121; // Fixed service fee (already included in consultation_fee)
-          const totalAmount = consultationFee; // Fee already includes service fee
+          // First, try to find and update existing pending transaction
+          console.log('🔄 DEBUG: Looking for pending transaction with order ID:', razorpay_order_id);
           
-          // Create transaction record
-          const { data: transaction, error: transactionError } = await supabase
+          const { data: existingTransaction, error: findError } = await supabase
             .from('transactions')
-            .insert({
-              booking_id: booking_id,
-              amount: totalAmount,
-              currency: 'INR',
-              status: 'completed',
-              payment_method: 'razorpay',
-              transaction_reference: razorpay_payment_id,
-              description: `Consultation payment for booking ${booking_id}`,
-              pet_owner_id: bookingData.pet_owner_id,
-              provider: 'razorpay',
-              provider_payment_id: razorpay_payment_id,
-              provider_order_id: razorpay_order_id,
-              customer_email: bookingData.profiles?.email
-            })
-            .select()
+            .select('*')
+            .eq('provider_order_id', razorpay_order_id)
+            .eq('status', 'pending')
             .single();
           
-          if (transactionError) {
-            console.error('🐛 DEBUG: Error creating transaction record:', transactionError);
+          if (!findError && existingTransaction) {
+            console.log('🔄 DEBUG: Found pending transaction, updating to completed:', existingTransaction.id);
+            
+            const { data: updatedTransaction, error: updateError } = await supabase
+              .from('transactions')
+              .update({
+                booking_id: booking_id, // Link to actual booking now
+                status: 'completed',
+                provider_payment_id: razorpay_payment_id,
+                transaction_reference: razorpay_payment_id,
+                vet_id: bookingData.vet_id || null, // Link to veterinarian
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', existingTransaction.id)
+              .select('*')
+              .single();
+            
+            if (updateError) {
+              console.error('❌ DEBUG: Error updating transaction status:', updateError);
+            } else {
+              console.log('✅ DEBUG: Transaction status updated to completed:', updatedTransaction);
+              transactionId = updatedTransaction.id;
+            }
           } else {
-            console.log('🐛 DEBUG: Transaction record created:', transaction);
-            transactionId = transaction.id;
+            console.log('⚠️ DEBUG: No pending transaction found, creating new completed transaction');
+            
+            // Calculate amounts
+            const consultationFee = bookingData.vet_profiles?.consultation_fee || bookingData.fee || 500;
+            const totalAmount = consultationFee;
+            
+            // Create new transaction record (fallback)
+            const { data: transaction, error: transactionError } = await supabase
+              .from('transactions')
+              .insert({
+                booking_id: booking_id,
+                amount: totalAmount,
+                currency: 'INR',
+                status: 'completed',
+                payment_method: 'razorpay',
+                transaction_reference: razorpay_payment_id,
+                description: `Consultation payment for booking ${booking_id}`,
+                pet_owner_id: bookingData.pet_owner_id,
+                vet_id: bookingData.vet_id || null, // Link to veterinarian
+                provider: 'razorpay',
+                provider_payment_id: razorpay_payment_id,
+                provider_order_id: razorpay_order_id,
+                customer_email: bookingData.profiles?.email
+              })
+              .select()
+              .single();
+            
+            if (transactionError) {
+              console.error('🐛 DEBUG: Error creating transaction record:', transactionError);
+            } else {
+              console.log('🐛 DEBUG: New transaction record created:', transaction);
+              transactionId = transaction.id;
+            }
           }
         } else {
           console.error('🐛 DEBUG: Error fetching booking data:', bookingError);
@@ -675,7 +713,7 @@ app.get('/api/test', (req, res) => {
   });
 });
 
-// Keep the process alive
+// Keep the process alive and handle errors
 process.on('SIGTERM', () => {
   console.log('Received SIGTERM, shutting down gracefully');
   process.exit(0);
@@ -685,3 +723,22 @@ process.on('SIGINT', () => {
   console.log('Received SIGINT, shutting down gracefully');
   process.exit(0);
 });
+
+// Prevent crashes from unhandled errors
+process.on('uncaughtException', (error) => {
+  console.error('🚨 Uncaught Exception:', error);
+  console.error('Stack:', error.stack);
+  // Don't exit - keep server running
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+  console.error('🚨 Unhandled Rejection at:', promise, 'reason:', reason);
+  // Don't exit - keep server running
+});
+
+// Add a heartbeat to keep the process alive
+setInterval(() => {
+  // Silent heartbeat - just to prevent the process from exiting
+}, 30000); // Every 30 seconds
+
+console.log('✅ Process stability handlers installed');
