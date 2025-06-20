@@ -18,6 +18,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { createMeeting, deleteMeeting } from '@/lib/whereby';
 import RazorpayCheckout from '@/components/RazorpayCheckout';
+import { sendBookingNotifications } from '@/integrations/resend/bookingNotifications';
 
 type CreateMeetingResponse = Awaited<ReturnType<typeof createMeeting>>;
 
@@ -621,6 +622,21 @@ const BookingPage = () => {
         } catch (linkError) {
           console.error('Error in transaction linking process:', linkError);
         }
+      }
+
+      // Send booking confirmation email and schedule reminders
+      try {
+        console.log('Sending booking confirmation email...');
+        const notificationResult = await sendBookingNotifications(newBooking.id);
+        if (notificationResult.success) {
+          console.log('Booking confirmation email sent successfully');
+        } else {
+          console.error('Failed to send booking confirmation email:', notificationResult.error);
+          // Don't fail the booking process if email fails
+        }
+      } catch (emailError) {
+        console.error('Error sending booking confirmation email:', emailError);
+        // Don't fail the booking process if email fails
       }
         
         // Show success message

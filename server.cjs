@@ -420,6 +420,8 @@ app.post('/api/create-checkout-session', async (req, res) => {
   }
 });
 
+// Note: verify-payment is now handled by Vercel function /api/verify-payment/index.js
+/*
 app.post('/api/verify-payment', async (req, res) => {
   try {
     console.log('🐛 DEBUG: Payment verification called');
@@ -555,64 +557,11 @@ app.post('/api/verify-payment', async (req, res) => {
       console.error('🐛 DEBUG: Error with Supabase transaction recording:', supabaseError);
     }
     
-    // Check if booking_id is a temporary ID (starts with "temp_")
+    // For temporary booking IDs, just return success
+    // The frontend will handle creating the actual booking and the Vercel function handles transaction updates
     if (booking_id.startsWith('temp_')) {
       console.log('🐛 DEBUG: Temporary booking ID detected, payment verified for frontend handling');
       
-      // Update transaction status to completed if it exists
-      try {
-        const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL;
-        const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-        
-        if (supabaseUrl && supabaseServiceKey) {
-          const supabase = createClient(supabaseUrl, supabaseServiceKey);
-          
-          console.log('🔄 DEBUG: Looking for pending transaction with order ID:', razorpay_order_id);
-          
-          // Find and update the pending transaction with this order ID
-          const { data: existingTransaction, error: findError } = await supabase
-            .from('transactions')
-            .select('*')
-            .eq('provider_order_id', razorpay_order_id)
-            .eq('status', 'pending')
-            .single();
-          
-          if (!findError && existingTransaction) {
-            console.log('🔄 DEBUG: Found pending transaction, updating to completed:', existingTransaction.id);
-            
-            const { data: updatedTransaction, error: updateError } = await supabase
-              .from('transactions')
-              .update({
-                status: 'completed',
-                provider_payment_id: razorpay_payment_id,
-                transaction_reference: razorpay_payment_id,
-                updated_at: new Date().toISOString()
-              })
-              .eq('id', existingTransaction.id)
-              .select('*')
-              .single();
-            
-            if (updateError) {
-              console.error('❌ DEBUG: Error updating transaction status:', updateError);
-            } else {
-              console.log('✅ DEBUG: Transaction status updated to completed:', updatedTransaction);
-              transactionId = updatedTransaction.id;
-            }
-          } else {
-            console.error('❌ DEBUG: No pending transaction found for order ID:', razorpay_order_id);
-            if (findError) {
-              console.error('❌ DEBUG: Find error:', findError);
-            }
-          }
-        } else {
-          console.error('❌ DEBUG: Missing Supabase configuration for transaction update');
-        }
-      } catch (updateError) {
-        console.error('❌ DEBUG: Exception in transaction update process:', updateError);
-      }
-      
-      // For temporary booking IDs, just return success
-      // The frontend will handle creating the actual booking
       return res.status(200).json({
         success: true,
         message: 'Payment verified successfully',
@@ -648,6 +597,7 @@ app.post('/api/verify-payment', async (req, res) => {
     });
   }
 });
+*/
 
 // Health check endpoint
 app.get('/api/health', (req, res) => {
