@@ -618,6 +618,9 @@ const SuperAdminDashboard = () => {
   const [pets, setPets] = useState<any[]>([]);
   const [analytics, setAnalytics] = useState<AnalyticsData | null>(null);
   
+  // Check if we're in SuperAdmin context for independent operation
+  const isSuperAdmin = localStorage.getItem('superAdminAuth') === 'true';
+  
   // Use the new transactions hook for admin (all transactions)
   const { 
     transactions, 
@@ -626,29 +629,37 @@ const SuperAdminDashboard = () => {
     error: transactionsError,
     refetch: refetchTransactions
   } = useTransactions({
-    userRole: 'admin',
+    userRole: isSuperAdmin ? 'admin' : 'admin', // Always use admin role, hook will handle SuperAdmin context
     limit: 1000 // Increase limit for admin to see more transactions
   });
   
-  // Debug transactions
+  // Debug transactions - SuperAdmin independent of Supabase Auth
   useEffect(() => {
     console.log('🔍 SuperAdmin Transactions Debug:', {
       transactions: transactions.length,
       loading: transactionsLoading,
       error: transactionsError,
-      user: user?.email,
-      userRole: user?.user_metadata?.user_type,
+      isSuperAdmin: isSuperAdmin,
+      user: user?.email || 'No Supabase user (SuperAdmin mode)',
+      userRole: user?.user_metadata?.user_type || 'SuperAdmin (localStorage)',
       rawTransactions: transactions.slice(0, 3) // Log first 3 transactions for debugging
     });
     
-    // Force refetch if we have user but no transactions
-    if (user && !transactionsLoading && transactions.length === 0 && !transactionsError) {
-      console.log('🔄 Forcing transaction refetch for admin...');
+    // Force refetch if we're in SuperAdmin mode and no transactions but no loading/error
+    if (isSuperAdmin && !transactionsLoading && transactions.length === 0 && !transactionsError) {
+      console.log('🔄 Forcing transaction refetch for SuperAdmin...');
       setTimeout(() => {
         refetchTransactions();
       }, 1000);
     }
-  }, [transactions, transactionsLoading, transactionsError, user, refetchTransactions]);
+    // Also force refetch for regular admin with Supabase auth
+    else if (!isSuperAdmin && user && !transactionsLoading && transactions.length === 0 && !transactionsError) {
+      console.log('🔄 Forcing transaction refetch for regular admin...');
+      setTimeout(() => {
+        refetchTransactions();
+      }, 1000);
+    }
+  }, [transactions, transactionsLoading, transactionsError, user, refetchTransactions, isSuperAdmin]);
   
   // UI state
   const [searchTerm, setSearchTerm] = useState('');
@@ -972,17 +983,19 @@ const SuperAdminDashboard = () => {
     }
   };
   
-  // Fetch data on component mount
+  // Fetch data on component mount - SuperAdmin independent of Supabase Auth
   useEffect(() => {
     // Always fetch data and rely on SuperAdminGuard for auth protection
     // This ensures data is loaded even if the session state changes
     const superAdminAuth = localStorage.getItem('superAdminAuth');
     if (superAdminAuth === 'true') {
+      console.log('🔐 SuperAdmin authenticated via localStorage, fetching data...');
       fetchData();
     } else {
+      console.log('❌ SuperAdmin not authenticated, redirecting to auth...');
       navigate('/superadmin/auth');
     }
-  }, [navigate]);
+  }, [navigate]); // Removed user dependency - SuperAdmin works without Supabase Auth
   
   // Force refresh data from the database
   const forceRefreshData = async () => {

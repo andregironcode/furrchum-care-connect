@@ -79,19 +79,22 @@ export const useTransactions = (options: UseTransactionsOptions) => {
       setLoading(true);
       setError(null);
 
-      // For admin users, bypass RLS by using service role or special handling
-      if (userRole === 'admin') {
+      // Check if we're in superadmin context FIRST - completely independent of Supabase Auth
+      const isSuperAdmin = localStorage.getItem('superAdminAuth') === 'true';
+      
+      // For admin users OR SuperAdmin, bypass RLS by using service role or special handling
+      if (userRole === 'admin' || isSuperAdmin) {
         console.log('🔧 Admin fetching ALL transactions with special handling...');
-        
-        // Check if we're in superadmin context
-        const isSuperAdmin = localStorage.getItem('superAdminAuth') === 'true';
+        console.log('🔐 SuperAdmin context:', isSuperAdmin);
+        console.log('🔑 Supabase user context:', !!user);
         let adminTransactions: any[] = [];
         
         if (isSuperAdmin) {
           // For superadmin, we need to bypass RLS - use a direct approach
-          console.log('🔐 SuperAdmin context detected, using direct query...');
+          // SuperAdmin works COMPLETELY INDEPENDENT of Supabase Auth
+          console.log('🔐 SuperAdmin context detected, using server-side API...');
           
-          // Last resort - use server-side endpoint first for reliability
+          // Primary method - use server-side endpoint with service role
           try {
             const response = await fetch('/api/admin-transactions', {
               method: 'GET',
@@ -103,31 +106,22 @@ export const useTransactions = (options: UseTransactionsOptions) => {
             
             if (response.ok) {
               const serverData = await response.json();
-              console.log('🎯 Server-side fetch successful:', serverData.length);
+              console.log('✅ SuperAdmin server-side fetch successful:', serverData.length);
               adminTransactions = serverData;
             } else {
-              throw new Error('Server-side fetch failed');
+              const errorText = await response.text();
+              console.error('❌ Server-side fetch failed:', response.status, errorText);
+              throw new Error(`Server-side fetch failed: ${response.status}`);
             }
           } catch (serverError) {
-            console.error('Server-side fetch failed, trying direct query:', serverError);
-            
-            // Fallback to direct query
-            const { data: directData, error: directError } = await supabase
-              .from('transactions')
-              .select('*')
-              .order('created_at', { ascending: false })
-              .limit(limit);
-
-            if (directError) {
-              console.error('Direct query also failed:', directError);
-              throw new Error('All transaction fetch methods failed');
-            } else {
-              console.log('🎯 Direct query successful:', directData?.length || 0);
-              adminTransactions = directData || [];
-            }
+            console.error('❌ Server-side fetch failed completely:', serverError);
+            // For SuperAdmin, we don't fallback to direct query since it will fail due to RLS
+            // Instead, show a clear error message
+            throw new Error('SuperAdmin transaction fetch failed. Please check server-side API.');
           }
-        } else {
-          // Regular admin user (authenticated via Supabase)
+        } else if (userRole === 'admin' && user) {
+          // Regular admin user (authenticated via Supabase) - only if user is authenticated
+          console.log('🔧 Regular admin user with Supabase auth, using direct query...');
           const { data, error: fetchError } = await supabase
             .from('transactions')
             .select('*')
@@ -141,6 +135,10 @@ export const useTransactions = (options: UseTransactionsOptions) => {
 
           console.log('🎯 Regular admin fetched transactions:', data?.length || 0);
           adminTransactions = data || [];
+        } else {
+          // No valid authentication context
+          console.error('❌ No valid admin authentication found');
+          throw new Error('Admin authentication required');
         }
 
         // Transform and set transactions
@@ -350,8 +348,17 @@ export const useTransactions = (options: UseTransactionsOptions) => {
   };
 
   useEffect(() => {
-    if (user && (userRole === 'admin' || userId || user.id)) {
+    // Check if we're in SuperAdmin context first - works without Supabase Auth
+    const isSuperAdmin = localStorage.getItem('superAdminAuth') === 'true';
+    
+    if (isSuperAdmin) {
+      console.log('🔄 SuperAdmin: Fetching transactions without Supabase Auth dependency');
       fetchTransactions();
+    } else if (user && (userRole === 'admin' || userId || user.id)) {
+      console.log('🔄 Regular user: Fetching transactions with Supabase Auth');
+      fetchTransactions();
+    } else {
+      console.log('⏸️ Waiting for authentication...', { userRole, hasUser: !!user });
     }
   }, [userRole, userId, status, user, limit]);
 
