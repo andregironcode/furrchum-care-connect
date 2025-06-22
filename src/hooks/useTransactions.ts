@@ -79,28 +79,73 @@ export const useTransactions = (options: UseTransactionsOptions) => {
       setLoading(true);
       setError(null);
 
-      // For admin users, use a completely unrestricted query
+      // For admin users, bypass RLS by using service role or special handling
       if (userRole === 'admin') {
-        console.log('🔧 Admin fetching ALL transactions with no restrictions...');
+        console.log('🔧 Admin fetching ALL transactions with special handling...');
         
-        // Direct basic query for admin - no RLS restrictions
-        const { data, error: fetchError } = await supabase
-          .from('transactions')
-          .select('*')
-          .order('created_at', { ascending: false })
-          .limit(limit);
+        // Check if we're in superadmin context
+        const isSuperAdmin = localStorage.getItem('superAdminAuth') === 'true';
+        let adminTransactions: any[] = [];
+        
+        if (isSuperAdmin) {
+          // For superadmin, we need to bypass RLS - use a direct approach
+          console.log('🔐 SuperAdmin context detected, using direct query...');
+          
+          // Last resort - use server-side endpoint first for reliability
+          try {
+            const response = await fetch('/api/admin-transactions', {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${localStorage.getItem('superAdminAuth')}`,
+              },
+            });
+            
+            if (response.ok) {
+              const serverData = await response.json();
+              console.log('🎯 Server-side fetch successful:', serverData.length);
+              adminTransactions = serverData;
+            } else {
+              throw new Error('Server-side fetch failed');
+            }
+          } catch (serverError) {
+            console.error('Server-side fetch failed, trying direct query:', serverError);
+            
+            // Fallback to direct query
+            const { data: directData, error: directError } = await supabase
+              .from('transactions')
+              .select('*')
+              .order('created_at', { ascending: false })
+              .limit(limit);
 
-        if (fetchError) {
-          console.error('Admin transaction fetch error:', fetchError);
-          throw new Error(fetchError.message);
+            if (directError) {
+              console.error('Direct query also failed:', directError);
+              throw new Error('All transaction fetch methods failed');
+            } else {
+              console.log('🎯 Direct query successful:', directData?.length || 0);
+              adminTransactions = directData || [];
+            }
+          }
+        } else {
+          // Regular admin user (authenticated via Supabase)
+          const { data, error: fetchError } = await supabase
+            .from('transactions')
+            .select('*')
+            .order('created_at', { ascending: false })
+            .limit(limit);
+
+          if (fetchError) {
+            console.error('Admin transaction fetch error:', fetchError);
+            throw new Error(fetchError.message);
+          }
+
+          console.log('🎯 Regular admin fetched transactions:', data?.length || 0);
+          adminTransactions = data || [];
         }
 
-        console.log('🎯 Admin fetched transactions:', data?.length || 0);
-
-        // Process transactions - simplified for admin
-        const processedTransactions: Transaction[] = (data || []).map((transaction: any) => ({
+        // Transform and set transactions
+        const processedTransactions: Transaction[] = adminTransactions.map((transaction: any) => ({
           ...transaction,
-          // Ensure required fields are present
           created_at: transaction.created_at || new Date().toISOString(),
           updated_at: transaction.updated_at || new Date().toISOString(),
           currency: transaction.currency || 'INR',
@@ -118,7 +163,7 @@ export const useTransactions = (options: UseTransactionsOptions) => {
 
         setTransactions(processedTransactions);
 
-        // Calculate basic stats for admin
+        // Calculate and set stats for admin
         if (processedTransactions.length > 0) {
           const totalAmount = processedTransactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
           const totalTransactions = processedTransactions.length;
@@ -128,8 +173,7 @@ export const useTransactions = (options: UseTransactionsOptions) => {
           const pendingTransactions = processedTransactions.filter(t => t.status === 'pending').length;
           const failedTransactions = processedTransactions.filter(t => t.status === 'failed').length;
 
-          // Calculate platform fees and vet earnings
-          const platformFees = completedTransactions * 121; // Fixed ₹121 per completed transaction
+          const platformFees = completedTransactions * 121;
           const vetEarnings = totalAmount - platformFees;
 
           setStats({
@@ -138,7 +182,7 @@ export const useTransactions = (options: UseTransactionsOptions) => {
             completedTransactions,
             pendingTransactions,
             failedTransactions,
-            thisMonthAmount: 0, // Will calculate if needed
+            thisMonthAmount: 0,
             lastMonthAmount: 0,
             platformFees,
             vetEarnings
@@ -147,7 +191,7 @@ export const useTransactions = (options: UseTransactionsOptions) => {
           setStats(null);
         }
 
-        return; // Exit early for admin
+        return;
       }
 
       // Regular flow for non-admin users

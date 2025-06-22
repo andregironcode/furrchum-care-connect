@@ -1,0 +1,12 @@
+{
+  "name": "admin-transactions-api",
+  "version": "1.0.0",
+  "description": "API endpoint for SuperAdmin to fetch all transactions",
+  "main": "index.js",
+  "dependencies": {
+    "@supabase/supabase-js": "^2.39.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 
