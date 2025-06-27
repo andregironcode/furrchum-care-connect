@@ -36,4 +36,4 @@ Disallow: /vet-profile
 Disallow: /vet-billing
 
 # Sitemap location
-Sitemap: https://furrchum-care-connect.netlify.app/sitemap.xml
+Sitemap: https://furrchum.com/sitemap.xml

@@ -2,7 +2,7 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Home/Main Page -->
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/</loc>
+    <loc>https://furrchum.com/</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
@@ -10,7 +10,7 @@
   
   <!-- Vet Directory (main landing page) -->
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/vets</loc>
+    <loc>https://furrchum.com/vets</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
@@ -18,7 +18,7 @@
   
   <!-- About Page -->
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/about</loc>
+    <loc>https://furrchum.com/about</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -26,7 +26,7 @@
   
   <!-- Contact Page -->
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/contact</loc>
+    <loc>https://furrchum.com/contact</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.8</priority>
@@ -34,7 +34,7 @@
   
   <!-- Blog Page -->
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/blog</loc>
+    <loc>https://furrchum.com/blog</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.7</priority>
@@ -42,7 +42,7 @@
   
   <!-- FAQ Page -->
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/faq</loc>
+    <loc>https://furrchum.com/faq</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -50,7 +50,7 @@
   
   <!-- Authentication Page -->
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/auth</loc>
+    <loc>https://furrchum.com/auth</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
@@ -58,7 +58,7 @@
   
   <!-- Health Records -->
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/records</loc>
+    <loc>https://furrchum.com/records</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
@@ -66,42 +66,42 @@
   
   <!-- Policy Pages -->
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/privacy-policy</loc>
+    <loc>https://furrchum.com/privacy-policy</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/terms-conditions</loc>
+    <loc>https://furrchum.com/terms-conditions</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.4</priority>
   </url>
   
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/refund-policy</loc>
+    <loc>https://furrchum.com/refund-policy</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/shipping-delivery</loc>
+    <loc>https://furrchum.com/shipping-delivery</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/disclaimer</loc>
+    <loc>https://furrchum.com/disclaimer</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
   </url>
   
   <url>
-    <loc>https://furrchum-care-connect.netlify.app/additional-policies</loc>
+    <loc>https://furrchum.com/additional-policies</loc>
     <lastmod>2025-01-25</lastmod>
     <changefreq>yearly</changefreq>
     <priority>0.3</priority>
