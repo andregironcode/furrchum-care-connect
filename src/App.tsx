@@ -2,7 +2,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom";
+import { useEffect } from "react";
+import { initGA, trackPageView } from "@/utils/analytics";
 import VetDirectory from "./pages/VetDirectory";
 import HealthRecords from "./pages/HealthRecords";
 import Auth from "./pages/Auth";
@@ -47,9 +49,26 @@ import ContactPage from "./pages/ContactPage";
 import BlogPage from "./pages/BlogPage";
 import BlogAdminPage from "./pages/BlogAdminPage";
 
+// Component to track page views
+const PageTracker = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    // Track page view whenever location changes
+    trackPageView(location.pathname + location.search);
+  }, [location]);
+
+  return null;
+};
+
 const App = () => {
   // Move queryClient inside the component
   const queryClient = new QueryClient();
+
+  // Initialize Google Analytics
+  useEffect(() => {
+    initGA();
+  }, []);
   
   return (
     <ErrorBoundary>
@@ -59,6 +78,7 @@ const App = () => {
             <Toaster />
             <Sonner />
             <BrowserRouter>
+              <PageTracker />
               <Routes>
                 {/* Redirecting root to vets page */}
                 <Route path="/" element={<Navigate to="/vets" replace />} />

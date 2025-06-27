@@ -13,6 +13,7 @@ import { useAuth } from '@/context/AuthContext';
 import { format } from 'date-fns';
 import Navbar from '@/components/Navbar';
 import { downloadFile, openFile } from '@/utils/supabaseStorage';
+import { trackUserActions } from '@/utils/analytics';
 
 interface VetProfile {
   id: string;
@@ -175,6 +176,9 @@ const VetDetailsPage = () => {
     if (vetId) {
       fetchVetDetails();
       fetchVetAvailability();
+      
+      // Track vet profile view
+      trackUserActions.vetProfileViewed(vetId);
     }
   }, [vetId, fetchVetDetails, fetchVetAvailability]);
 

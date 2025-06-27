@@ -12,3 +12,28 @@ Allow: /
 
 User-agent: *
 Allow: /
+
+# Block admin and test pages from indexing
+Disallow: /superadmin/
+Disallow: /test-*
+Disallow: /test/
+
+# Block user dashboard pages (private content)
+Disallow: /dashboard
+Disallow: /my-pets
+Disallow: /add-pet
+Disallow: /my-vets
+Disallow: /appointments
+Disallow: /prescriptions
+Disallow: /payments
+Disallow: /profile
+Disallow: /booking
+Disallow: /vet-dashboard
+Disallow: /vet-appointments
+Disallow: /vet-patients
+Disallow: /vet-prescriptions
+Disallow: /vet-profile
+Disallow: /vet-billing
+
+# Sitemap location
+Sitemap: https://furrchum-care-connect.netlify.app/sitemap.xml

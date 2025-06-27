@@ -11,6 +11,7 @@ import { MapPin, Search, Loader2, Video, Users, FileText, Images, Download, Eye 
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { openFile, downloadFile } from '@/utils/supabaseStorage';
+import { trackUserActions } from '@/utils/analytics';
 
 interface Coordinate {
   latitude: number;
@@ -65,6 +66,17 @@ const VetDirectory = (): JSX.Element => {
   const [zipSearchError, setZipSearchError] = useState<string | null>(null);
   const { user } = useAuth();
   const navigate = useNavigate();
+
+  // Track search term changes
+  useEffect(() => {
+    if (searchTerm && searchTerm.length > 2) {
+      const timeoutId = setTimeout(() => {
+        trackUserActions.vetSearchPerformed(searchTerm);
+      }, 1000); // Debounce search tracking
+
+      return () => clearTimeout(timeoutId);
+    }
+  }, [searchTerm]);
 
   useEffect(() => {
     const fetchVets = async () => {
@@ -191,6 +203,9 @@ const VetDirectory = (): JSX.Element => {
 
   const handleZipCodeSearch = async () => {
     if (zipCode) {
+      // Track ZIP code search
+      trackUserActions.vetSearchPerformed(`zip:${zipCode}`);
+      
       // Get coordinates from the PIN code
       const coords = await fetchCoordinatesForPinCode(zipCode);
       

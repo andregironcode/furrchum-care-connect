@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useNavigate } from 'react-router-dom';
 import { Shield } from 'lucide-react';
+import { trackUserActions } from '@/utils/analytics';
 
 const SuperAdminAuth = () => {
   const [password, setPassword] = useState('');
@@ -19,6 +20,10 @@ const SuperAdminAuth = () => {
     e.preventDefault();
     if (password === SUPER_ADMIN_PASSWORD) {
       localStorage.setItem('superAdminAuth', 'true');
+      
+      // Track superadmin login
+      trackUserActions.adminLogin();
+      
       navigate('/superadmin/dashboard/');
     } else {
       setError('Incorrect password');

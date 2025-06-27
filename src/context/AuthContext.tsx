@@ -2,6 +2,7 @@ import { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { User, Session } from '@supabase/supabase-js';
 import { toast } from 'sonner';
+import { trackUserActions } from '@/utils/analytics';
 
 interface AuthContextType {
   user: User | null;
@@ -117,6 +118,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       
       console.log('Signup successful:', data.user.id);
       
+      // Track successful signup
+      trackUserActions.userSignUp(userType);
+      
       // Wait a moment for the database trigger to complete
       await new Promise(resolve => setTimeout(resolve, 1000));
       
@@ -186,12 +190,18 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setIsLoading(true);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
       if (error) throw error;
+      
+      // Track successful signin
+      if (data.user) {
+        const userType = data.user.user_metadata?.user_type || 'unknown';
+        trackUserActions.userSignIn(userType);
+      }
     } catch (error: any) {
       toast.error(error.message || 'Error signing in');
       throw error;
@@ -223,6 +233,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       setSession(null);
       setUser(null);
       localStorage.removeItem('userAlreadySignedIn');
+      
+      // Track signout
+      trackUserActions.userSignOut();
       
       // Show success message
       toast.success('Signed out successfully');
