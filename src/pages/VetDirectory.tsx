@@ -429,7 +429,7 @@ const VetDirectory = (): JSX.Element => {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredAndSortedVets.map(vet => (
               <div key={vet.id} className="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition-shadow">
-                <div className="h-64 overflow-hidden">
+                <div className="aspect-square overflow-hidden">
                   <img src={vet.image} alt={vet.name} className="w-full h-full object-cover" />
                 </div>
                 <div className="p-5">
