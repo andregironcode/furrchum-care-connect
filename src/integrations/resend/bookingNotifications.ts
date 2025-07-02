@@ -167,7 +167,7 @@ export async function sendBookingNotifications(bookingId: string): Promise<{ suc
       // Continue even if email fails - don't block the user experience
     }
 
-    // 6. Schedule appointment reminder (30 minutes before)
+    // 6. Schedule appointment reminder (15 minutes before)
     const reminderResult = scheduleAppointmentReminder({
       user: {
         email: petOwner.email,

@@ -84,7 +84,7 @@ export async function sendBookingConfirmationEmail(params: {
 }
 
 /**
- * Send appointment reminder email (30 minutes before)
+ * Send appointment reminder email (15 minutes before)
  */
 export async function sendAppointmentReminderEmail(params: {
   user: User;
@@ -231,7 +231,7 @@ function generateBookingConfirmationEmail(
       <a href="https://furrchum.com/appointments/${booking.id}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Appointment</a>
     </div>
     <p style="margin-bottom: 15px;">
-      You will receive a reminder 30 minutes before your appointment starts.
+      You will receive a reminder 15 minutes before your appointment starts.
     </p>
     <p style="margin-bottom: 15px;">
       Need to reschedule? You can manage your appointments from your dashboard or contact our support team.
@@ -275,7 +275,7 @@ function generateAppointmentReminderEmail(
     <p style="margin-bottom: 15px;">Hi ${fullName},</p>
     <p style="margin-bottom: 20px;">
       This is a reminder that your appointment with ${booking.vetName} for ${booking.petName} 
-      starts in 30 minutes. Here are the details:
+      starts in 15 minutes. Here are the details:
     </p>
     <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
       <div style="margin-bottom: 10px;">

@@ -1,7 +1,7 @@
 import { sendAppointmentReminderEmail } from './emailService';
 
 /**
- * Schedule a reminder email to be sent 30 minutes before an appointment
+ * Schedule a reminder email to be sent 15 minutes before an appointment
  * 
  * @param params Booking details and user information
  */
@@ -31,8 +31,8 @@ export function scheduleAppointmentReminder(params: {
   // Create appointment date (months are 0-indexed in JavaScript)
   const appointmentDate = new Date(year, month - 1, day, hours, minutes);
   
-  // Calculate reminder time (30 minutes before appointment)
-  const reminderTime = new Date(appointmentDate.getTime() - 30 * 60 * 1000);
+  // Calculate reminder time (15 minutes before appointment)
+  const reminderTime = new Date(appointmentDate.getTime() - 15 * 60 * 1000);
   
   // Get current time
   const currentTime = new Date();
@@ -61,10 +61,10 @@ export function scheduleAppointmentReminder(params: {
       message: `Reminder scheduled for ${reminderTime.toLocaleString()}`
     };
   } else {
-    console.log(`Appointment ${booking.id} is in the past or less than 30 minutes away`);
+    console.log(`Appointment ${booking.id} is in the past or less than 15 minutes away`);
     return {
       success: false,
-      message: 'Appointment is in the past or less than 30 minutes away'
+      message: 'Appointment is in the past or less than 15 minutes away'
     };
   }
 }
