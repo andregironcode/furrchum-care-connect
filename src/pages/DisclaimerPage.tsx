@@ -110,8 +110,7 @@ const DisclaimerPage = () => {
             If you have any questions about this Disclaimer, please contact us at:
           </p>
           <p className="mb-8">
-            Email: legal@furrchum.com<br />
-            Address: 1234 Pet Avenue, San Francisco, CA 94107
+            Email: info@furrchum.com
           </p>
         </div>
       </main>

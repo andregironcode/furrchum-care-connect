@@ -188,7 +188,7 @@ Please respond to the customer at: ${sanitizedData.email}
       ]
     });
 
-    console.log('Admin email sent:', adminEmailResult);
+    console.log('Admin email sent:', emailResponse);
 
     // Send auto-reply to the user
     const autoReplyText = `
