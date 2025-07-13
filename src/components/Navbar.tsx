@@ -12,11 +12,6 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
 
 interface UserWithAppMetadata extends User {
   user_metadata: {
@@ -125,47 +120,16 @@ const Navbar = () => {
           </div>
 
           <div className="md:hidden">
-            {!user ? (
-              <Popover open={true}>
-                <PopoverTrigger asChild>
-                  <button 
-                    onClick={() => setIsOpen(!isOpen)} 
-                    className="text-accent-600 hover:text-primary transition-colors"
-                    aria-label="Toggle menu"
-                  >
-                    {isOpen ? 
-                      <X className="w-6 h-6" /> : 
-                      <Menu className="w-6 h-6" />
-                    }
-                  </button>
-                </PopoverTrigger>
-                <PopoverContent side="left" className="bg-primary text-white p-3 max-w-xs border-0 shadow-lg">
-                  <div className="text-center">
-                    <p className="font-medium mb-1">👋 New to Furrchum?</p>
-                    <p className="text-sm mb-2">Sign up here to book vet appointments for your furry friends!</p>
-                    <Button 
-                      size="sm" 
-                      variant="secondary"
-                      onClick={() => navigate('/auth?tab=signup')}
-                      className="w-full"
-                    >
-                      Sign Up Now
-                    </Button>
-                  </div>
-                </PopoverContent>
-              </Popover>
-            ) : (
-              <button 
-                onClick={() => setIsOpen(!isOpen)} 
-                className="text-accent-600 hover:text-primary transition-colors"
-                aria-label="Toggle menu"
-              >
-                {isOpen ? 
-                  <X className="w-6 h-6" /> : 
-                  <Menu className="w-6 h-6" />
-                }
-              </button>
-            )}
+            <button 
+              onClick={() => setIsOpen(!isOpen)} 
+              className="text-accent-600 hover:text-primary transition-colors"
+              aria-label="Toggle menu"
+            >
+              {isOpen ? 
+                <X className="w-6 h-6" /> : 
+                <Menu className="w-6 h-6" />
+              }
+            </button>
           </div>
         </div>
 
