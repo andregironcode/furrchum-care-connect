@@ -1,5 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
-import { sendBookingConfirmationEmail } from './emailService';
+import { sendBookingConfirmationEmail, sendVetBookingConfirmationEmail } from './emailService';
 import { scheduleAppointmentReminder } from './scheduledReminders';
 
 // Define types for database entities
@@ -28,8 +28,8 @@ interface Profile {
 interface Pet {
   id: string;
   name: string;
-  type?: string;
-  breed?: string;
+  type: string;
+  breed: string;
 }
 
 interface VetProfile {
@@ -52,7 +52,7 @@ interface BookingDetails {
 }
 
 /**
- * Send booking confirmation email and schedule a reminder
+ * Send booking confirmation email to both client and vet, and schedule a reminder
  * Call this function after successful payment
  */
 export async function sendBookingNotifications(bookingId: string): Promise<{ success: boolean; error?: any }> {
@@ -128,7 +128,7 @@ export async function sendBookingNotifications(bookingId: string): Promise<{ suc
       return { success: false, error: 'Pet not found' };
     }
 
-    // 4. Fetch vet details
+    // 4. Fetch vet details from vet_profiles table
     const vetResponse = await supabase
       .from('vet_profiles')
       .select('first_name, last_name')
@@ -145,8 +145,21 @@ export async function sendBookingNotifications(bookingId: string): Promise<{ suc
       return { success: false, error: 'Vet not found' };
     }
 
-    // 5. Send booking confirmation email
-    const emailResult = await sendBookingConfirmationEmail({
+    // 5. Fetch vet email from auth.users table using RPC function
+    let vetEmail: string | null = null;
+    try {
+      const { data: emailData, error: emailError } = await (supabase as any)
+        .rpc('get_user_email', { user_id: booking.vet_id });
+      
+      if (!emailError && emailData && emailData !== 'Email not available') {
+        vetEmail = emailData;
+      }
+    } catch (error) {
+      console.warn('Could not fetch vet email via RPC:', error);
+    }
+
+    // 6. Send booking confirmation email to pet owner
+    const clientEmailResult = await sendBookingConfirmationEmail({
       user: {
         email: petOwner.email, // We've already checked that email exists
         fullName: petOwner.full_name || petOwner.first_name || 'Pet Owner', // Provide fallback
@@ -162,12 +175,45 @@ export async function sendBookingNotifications(bookingId: string): Promise<{ suc
       },
     });
 
-    if (!emailResult.success) {
-      console.error('Error sending booking confirmation email:', emailResult.error);
+    if (!clientEmailResult.success) {
+      console.error('Error sending client booking confirmation email:', clientEmailResult.error);
       // Continue even if email fails - don't block the user experience
+    } else {
+      console.log('Client booking confirmation email sent successfully');
     }
 
-    // 6. Schedule appointment reminder (15 minutes before)
+    // 7. Send booking confirmation email to veterinarian (if we have their email)
+    if (vetEmail) {
+      const vetEmailResult = await sendVetBookingConfirmationEmail({
+        vet: {
+          email: vetEmail,
+          fullName: `${vet.first_name} ${vet.last_name}`,
+          firstName: vet.first_name,
+        },
+        booking: {
+          id: booking.id,
+          bookingDate: booking.booking_date,
+          startTime: booking.start_time,
+          endTime: booking.end_time,
+          consultationType: booking.consultation_type,
+          petName: pet.name,
+          ownerName: petOwner.full_name || petOwner.first_name || 'Pet Owner',
+          ownerEmail: petOwner.email,
+          notes: booking.notes,
+        },
+      });
+
+      if (!vetEmailResult.success) {
+        console.error('Error sending vet booking confirmation email:', vetEmailResult.error);
+        // Continue even if email fails - don't block the user experience
+      } else {
+        console.log('Vet booking confirmation email sent successfully');
+      }
+    } else {
+      console.log('Vet email not available, skipping vet confirmation email');
+    }
+
+    // 8. Schedule appointment reminder (30 minutes before)
     const reminderResult = scheduleAppointmentReminder({
       user: {
         email: petOwner.email,
@@ -188,6 +234,8 @@ export async function sendBookingNotifications(bookingId: string): Promise<{ suc
     if (!reminderResult.success) {
       console.log('Appointment reminder not scheduled:', reminderResult.message);
       // Continue even if reminder scheduling fails
+    } else {
+      console.log('Appointment reminder scheduled successfully');
     }
 
     return { success: true };

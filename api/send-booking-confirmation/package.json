@@ -1,0 +1,12 @@
+{
+  "name": "send-booking-confirmation",
+  "version": "1.0.0",
+  "description": "API endpoint for sending booking confirmation emails to both client and veterinarian",
+  "main": "index.js",
+  "dependencies": {
+    "resend": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+} 

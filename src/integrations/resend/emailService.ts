@@ -44,7 +44,7 @@ export async function sendAccountCreationEmail(user: User) {
 }
 
 /**
- * Send booking confirmation email
+ * Send booking confirmation email to pet owner
  */
 export async function sendBookingConfirmationEmail(params: {
   user: User;
@@ -84,7 +84,49 @@ export async function sendBookingConfirmationEmail(params: {
 }
 
 /**
- * Send appointment reminder email (15 minutes before)
+ * Send booking confirmation email to veterinarian
+ */
+export async function sendVetBookingConfirmationEmail(params: {
+  vet: User;
+  booking: {
+    id: string;
+    bookingDate: string;
+    startTime: string;
+    endTime: string;
+    consultationType: string;
+    petName: string;
+    ownerName: string;
+    ownerEmail: string;
+    notes?: string;
+  };
+}) {
+  const { vet, booking } = params;
+  
+  try {
+    const vetName = vet.fullName || vet.firstName || 'Doctor';
+    const htmlContent = generateVetBookingConfirmationEmail(vetName, booking);
+    
+    const { data, error } = await resend.emails.send({
+      from: emailConfig.from,
+      to: vet.email,
+      subject: 'New Appointment Booking - FurrChum',
+      html: htmlContent,
+    });
+
+    if (error) {
+      console.error('Error sending vet booking confirmation email:', error);
+      return { success: false, error };
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('Exception sending vet booking confirmation email:', error);
+    return { success: false, error };
+  }
+}
+
+/**
+ * Send appointment reminder email (30 minutes before)
  */
 export async function sendAppointmentReminderEmail(params: {
   user: User;
@@ -186,7 +228,7 @@ function generateAccountCreationEmail(fullName: string): string {
 }
 
 /**
- * Generate booking confirmation email HTML content
+ * Generate booking confirmation email HTML content for pet owner
  */
 function generateBookingConfirmationEmail(
   fullName: string,
@@ -231,10 +273,75 @@ function generateBookingConfirmationEmail(
       <a href="https://furrchum.com/appointments/${booking.id}" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Appointment</a>
     </div>
     <p style="margin-bottom: 15px;">
-      You will receive a reminder 15 minutes before your appointment starts.
+      You will receive a reminder 30 minutes before your appointment starts.
     </p>
     <p style="margin-bottom: 15px;">
       Need to reschedule? You can manage your appointments from your dashboard or contact our support team.
+    </p>
+    ${generateEmailFooter()}
+  `;
+}
+
+/**
+ * Generate booking confirmation email HTML content for veterinarian
+ */
+function generateVetBookingConfirmationEmail(
+  vetName: string,
+  booking: {
+    id: string;
+    bookingDate: string;
+    startTime: string;
+    endTime: string;
+    consultationType: string;
+    petName: string;
+    ownerName: string;
+    ownerEmail: string;
+    notes?: string;
+  }
+): string {
+  return `
+    ${generateEmailHeader()}
+    <h1 style="font-size: 24px; color: #3b82f6; margin-bottom: 20px;">New Appointment Booking</h1>
+    <p style="margin-bottom: 15px;">Hi Dr. ${vetName},</p>
+    <p style="margin-bottom: 20px;">
+      You have a new appointment booking through FurrChum Care Connect. Here are the details:
+    </p>
+    <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 30px;">
+      <div style="margin-bottom: 10px;">
+        <strong>Date:</strong> ${booking.bookingDate}
+      </div>
+      <div style="margin-bottom: 10px;">
+        <strong>Time:</strong> ${booking.startTime} - ${booking.endTime}
+      </div>
+      <div style="margin-bottom: 10px;">
+        <strong>Type:</strong> ${booking.consultationType}
+      </div>
+      <div style="margin-bottom: 10px;">
+        <strong>Pet:</strong> ${booking.petName}
+      </div>
+      <div style="margin-bottom: 10px;">
+        <strong>Pet Owner:</strong> ${booking.ownerName}
+      </div>
+      <div style="margin-bottom: 10px;">
+        <strong>Owner Email:</strong> ${booking.ownerEmail}
+      </div>
+      <div style="margin-bottom: 10px;">
+        <strong>Booking ID:</strong> ${booking.id}
+      </div>
+      ${booking.notes ? `
+      <div style="margin-bottom: 10px;">
+        <strong>Notes:</strong> ${booking.notes}
+      </div>
+      ` : ''}
+    </div>
+    <div style="text-align: center; margin-bottom: 25px;">
+      <a href="https://furrchum.com/vet-appointments" style="background-color: #3b82f6; color: white; padding: 12px 24px; text-decoration: none; border-radius: 4px; font-weight: bold;">View Appointment</a>
+    </div>
+    <p style="margin-bottom: 15px;">
+      The appointment has been confirmed and payment has been processed. You can view all your appointments in your veterinarian dashboard.
+    </p>
+    <p style="margin-bottom: 15px;">
+      If you need to make any changes or have questions, please contact our support team at info@furrchum.com.
     </p>
     ${generateEmailFooter()}
   `;
@@ -275,7 +382,7 @@ function generateAppointmentReminderEmail(
     <p style="margin-bottom: 15px;">Hi ${fullName},</p>
     <p style="margin-bottom: 20px;">
       This is a reminder that your appointment with ${booking.vetName} for ${booking.petName} 
-      starts in 15 minutes. Here are the details:
+      starts in 30 minutes. Here are the details:
     </p>
     <div style="background-color: #f3f4f6; padding: 20px; border-radius: 8px; margin-bottom: 25px;">
       <div style="margin-bottom: 10px;">
