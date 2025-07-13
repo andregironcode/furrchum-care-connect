@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { toast } from 'sonner';
-import { Clock, CalendarIcon, MapPin, Phone, Star, CheckCircle, Badge as BadgeIcon, Loader2, Video as VideoIcon, Users as UsersIcon } from 'lucide-react';
+import { Clock, CalendarIcon, MapPin, Star, CheckCircle, Badge as BadgeIcon, Loader2, Video as VideoIcon, Users as UsersIcon } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 // Remove duplicate import
@@ -35,7 +35,6 @@ interface VetDetails {
   languages: string[] | null;
   rating: number | null;
   zip_code: string | null;
-  phone: string | null;
   clinic_location: string | null;
   offers_video_calls: boolean | null;
   offers_in_person: boolean | null;
@@ -180,7 +179,6 @@ const BookingPage = () => {
           languages,
           rating,
           zip_code,
-          phone,
           clinic_location,
           offers_video_calls,
           offers_in_person
@@ -787,10 +785,6 @@ const BookingPage = () => {
                 <div>
                   <h3 className="font-medium mb-2">Contact</h3>
                   <div className="space-y-2">
-                    <div className="flex items-center">
-                      <Phone className="h-4 w-4 text-gray-500 mr-2" />
-                      <span>{vet.phone}</span>
-                    </div>
                     <div className="flex items-center">
                       <MapPin className="h-4 w-4 text-gray-500 mr-2" />
                       <span>{vet.clinic_location}</span>

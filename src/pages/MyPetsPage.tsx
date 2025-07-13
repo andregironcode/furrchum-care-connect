@@ -11,6 +11,7 @@ import { Loader2, AlertCircle, Plus, Dog, Cat, Rabbit, Trash2, ExternalLink } fr
 import { SidebarProvider, SidebarTrigger, SidebarInset } from '@/components/ui/sidebar';
 import PetOwnerSidebar from '@/components/PetOwnerSidebar';
 import AddPetForm from '@/components/AddPetForm';
+import EditPetForm from '@/components/EditPetForm';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import {
   Dialog,
@@ -58,6 +59,7 @@ interface Pet {
   training_level: string | null;
   favorite_activity: string | null;
   photo_url: string | null;
+  vaccination_certificate_url?: string | null;
 }
 
 const MyPetsPage = () => {
@@ -70,6 +72,7 @@ const MyPetsPage = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [selectedPet, setSelectedPet] = useState<Pet | null>(null);
   const [showPetDetails, setShowPetDetails] = useState(false);
+  const [showEditForm, setShowEditForm] = useState(false);
 
   // Fetch pets from Supabase
   const fetchPets = async () => {
@@ -166,6 +169,23 @@ const MyPetsPage = () => {
   const handleViewPetDetails = (pet: Pet) => {
     setSelectedPet(pet);
     setShowPetDetails(true);
+  };
+
+  const handleEditPet = (pet: Pet) => {
+    setSelectedPet(pet);
+    setShowPetDetails(false);
+    setShowEditForm(true);
+  };
+
+  const handleEditSuccess = () => {
+    setShowEditForm(false);
+    setSelectedPet(null);
+    fetchPets(); // Refresh the pets list
+  };
+
+  const handleEditCancel = () => {
+    setShowEditForm(false);
+    setSelectedPet(null);
   };
 
   useEffect(() => {
@@ -390,31 +410,7 @@ const MyPetsPage = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 mt-6">
-                <h3 className="text-lg font-bold border-b border-orange-200 pb-2 mb-4">Other Info</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-sm text-gray-500">Diet Type:</p>
-                    <p className="font-medium">{selectedPet.diet_type || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Special Needs:</p>
-                    <p className="font-medium">{selectedPet.special_needs || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Temperament:</p>
-                    <p className="font-medium">{selectedPet.temperament || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Training Level:</p>
-                    <p className="font-medium capitalize">{selectedPet.training_level || 'Not provided'}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-gray-500">Favorite Activity:</p>
-                    <p className="font-medium">{selectedPet.favorite_activity || 'Not provided'}</p>
-                  </div>
-                </div>
-              </div>
+
 
               <div className="flex justify-end mt-6 gap-2">
                 <Button 
@@ -427,11 +423,25 @@ const MyPetsPage = () => {
                 <Button 
                   variant="default" 
                   className="bg-orange-500 hover:bg-orange-600"
+                  onClick={() => handleEditPet(selectedPet)}
                 >
                   Edit Details
                 </Button>
               </div>
             </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Pet Form Dialog */}
+      <Dialog open={showEditForm} onOpenChange={setShowEditForm}>
+        <DialogContent className="sm:max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          {selectedPet && (
+            <EditPetForm
+              pet={selectedPet}
+              onSuccess={handleEditSuccess}
+              onCancel={handleEditCancel}
+            />
           )}
         </DialogContent>
       </Dialog>

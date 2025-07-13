@@ -368,15 +368,7 @@ const AppointmentDetailsModal = ({
               )}
             </div>
 
-            {vet.phone && (
-              <div className="mt-4 flex items-center gap-2">
-                <Phone className="h-4 w-4 text-primary" />
-                <div>
-                  <p className="text-sm text-muted-foreground">Phone</p>
-                  <p className="font-medium">{vet.phone}</p>
-                </div>
-              </div>
-            )}
+
             
             {vet.zip_code && (
               <div className="mt-4 flex items-center gap-2">

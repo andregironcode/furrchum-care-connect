@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Upload, X } from 'lucide-react';
+import { Loader2, Upload, X, FileText } from 'lucide-react';
 import { DialogHeader, DialogTitle, DialogClose } from '@/components/ui/dialog';
 import { toast } from 'sonner';
 import { v4 as uuidv4 } from 'uuid';
@@ -22,6 +22,7 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
+  const [vaccinationCertFile, setVaccinationCertFile] = useState<File | null>(null);
   const [petData, setPetData] = useState({
     name: '',
     type: 'dog',
@@ -59,12 +60,35 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
     }
   };
 
+  const handleVaccinationCertChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      const file = e.target.files[0];
+      // Validate file type
+      const allowedTypes = ['image/jpeg', 'image/png', 'image/jpg', 'application/pdf'];
+      if (!allowedTypes.includes(file.type)) {
+        toast.error('Please upload a valid image (JPEG, PNG) or PDF file');
+        return;
+      }
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('File size must be less than 5MB');
+        return;
+      }
+      setVaccinationCertFile(file);
+      toast.success('Vaccination certificate selected');
+    }
+  };
+
   const clearPhotoPreview = () => {
     setPhotoFile(null);
     if (photoPreview) {
       URL.revokeObjectURL(photoPreview);
       setPhotoPreview(null);
     }
+  };
+
+  const clearVaccinationCert = () => {
+    setVaccinationCertFile(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,6 +101,7 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
     setIsSubmitting(true);
     try {
       let photoUrl: string | null = null;
+      let vaccinationCertUrl: string | null = null;
 
       // Upload photo if exists
       if (photoFile) {
@@ -93,6 +118,23 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
 
         if (uploadError) throw uploadError;
         photoUrl = filePath; // This is now a string, which is valid for our DB schema
+      }
+
+      // Upload vaccination certificate if exists
+      if (vaccinationCertFile) {
+        const fileExt = vaccinationCertFile.name.split('.').pop();
+        const fileName = `vaccination_cert_${uuidv4()}.${fileExt}`;
+        const filePath = `${user.id}/vaccination_certificates/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('pet_photos')
+          .upload(filePath, vaccinationCertFile, {
+            cacheControl: '3600',
+            upsert: false
+          });
+
+        if (uploadError) throw uploadError;
+        vaccinationCertUrl = filePath;
       }
 
       // Insert pet data
@@ -119,6 +161,7 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
             training_level: petData.trainingLevel,
             favorite_activity: petData.favoriteActivity || null,
             photo_url: photoUrl as string | null, // Explicitly cast to match expected DB type
+            vaccination_certificate_url: vaccinationCertUrl,
             status: 'healthy'
           }
         ]);
@@ -337,6 +380,42 @@ const AddPetForm = ({ onSuccess, onCancel }: AddPetFormProps) => {
                   <SelectItem value="unknown">Unknown</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Vaccination Certificate Upload */}
+            <div className="space-y-2 sm:space-y-3">
+              <Label className="text-sm font-medium">Vaccination Certificate</Label>
+              <div className="space-y-2">
+                {vaccinationCertFile && (
+                  <div className="flex items-center space-x-2 p-2 bg-blue-50 border border-blue-200 rounded-md">
+                    <FileText className="h-4 w-4 text-blue-600" />
+                    <span className="text-sm text-blue-700">{vaccinationCertFile.name}</span>
+                    <button
+                      type="button"
+                      onClick={clearVaccinationCert}
+                      className="text-red-500 hover:text-red-700"
+                    >
+                      <X size={16} />
+                    </button>
+                  </div>
+                )}
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="vaccinationCert"
+                    type="file"
+                    accept="image/*,application/pdf"
+                    onChange={handleVaccinationCertChange}
+                    className="hidden"
+                  />
+                  <label
+                    htmlFor="vaccinationCert"
+                    className="bg-blue-500 text-white py-2 px-3 sm:px-4 rounded-md cursor-pointer hover:bg-blue-600 text-sm"
+                  >
+                    {vaccinationCertFile ? 'Change Certificate' : 'Upload Certificate'}
+                  </label>
+                </div>
+                <p className="text-xs text-gray-500">Upload vaccination certificate (Image or PDF, max 5MB)</p>
+              </div>
             </div>
 
             <div className="space-y-2 sm:space-y-3">
