@@ -80,7 +80,7 @@ const BlogAdminPage = () => {
   const categories = ['Pet Care', 'Veterinary Tips', 'Health & Wellness', 'Training', 'Nutrition', 'Emergency Care'];
 
   // Simple password protection (in production, use proper authentication)
-  const ADMIN_PASSWORD = 'furrchum2024';
+  const ADMIN_PASSWORD = 'BLOG2024';
 
   useEffect(() => {
     // Check if already authenticated
